@@ -1,5 +1,11 @@
 {
     "cSpell.words": [
-        "lumgr"
+        "GOOS",
+        "healthz",
+        "hostfs",
+        "ldflags",
+        "lumgr",
+        "lumgrd",
+        "trimpath"
     ]
 }
