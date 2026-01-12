@@ -18,6 +18,5 @@ COPY --from=build /out/lumgrd /usr/local/bin/lumgrd
 
 EXPOSE 14392
 ENV LUMGR_LISTEN=:14392
-ENV LUMGR_HOST_ROOT=/host
 
 ENTRYPOINT ["/usr/local/bin/lumgrd"]

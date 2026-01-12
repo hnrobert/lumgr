@@ -7,7 +7,6 @@ import (
 
 type Config struct {
 	ListenAddr string
-	HostRoot   string
 }
 
 type Server struct {

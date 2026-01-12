@@ -15,19 +15,10 @@ func main() {
 
 	srv := server.New(server.Config{
 		ListenAddr: addr,
-		HostRoot:   getenvDefault("LUMGR_HOST_ROOT", "/host"),
 	})
 
 	log.Printf("lumgr listening on %s", addr)
 	if err := srv.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
-}
-
-func getenvDefault(key, def string) string {
-	v := os.Getenv(key)
-	if v == "" {
-		return def
-	}
-	return v
 }

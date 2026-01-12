@@ -7,7 +7,6 @@ services:
       - "14392:14392"
     environment:
       - LUMGR_LISTEN=:14392
-      - LUMGR_HOST_ROOT=/host
     user: "0:0"
     volumes:
       - /etc/passwd:/host/etc/passwd
