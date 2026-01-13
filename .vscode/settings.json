@@ -1,11 +1,14 @@
 {
     "cSpell.words": [
+        "Gecos",
+        "gname",
         "GOOS",
         "healthz",
         "hostfs",
         "ldflags",
         "lumgr",
         "lumgrd",
-        "trimpath"
+        "trimpath",
+        "usermgr"
     ]
 }
