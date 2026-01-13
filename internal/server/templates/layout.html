@@ -7,6 +7,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{{block "title" .}}lumgr{{end}}</title>
     <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+        }
+
         :root {
             --bg: #0b1020;
             --card: #121a33;
@@ -33,6 +39,12 @@
             max-width: 980px;
             margin: 0 auto;
             padding: 24px;
+        }
+
+        @media (max-width: 520px) {
+            .wrap {
+                padding: 14px;
+            }
         }
 
         .top {
@@ -139,6 +151,12 @@
             flex: 1;
         }
 
+        @media (max-width: 720px) {
+            .row {
+                flex-direction: column;
+            }
+        }
+
         .flash {
             padding: 10px 12px;
             border-radius: 12px;
@@ -176,6 +194,26 @@
             margin-top: 20px;
             color: var(--muted);
             font-size: 12px;
+            text-align: center;
+        }
+
+        /* Requested: show the warning roughly at half-screen height on larger layouts,
+           while keeping mobile UX clean. */
+        @media (min-width: 920px) and (min-height: 700px) {
+            .foot {
+                position: fixed;
+                left: 50%;
+                top: 50vh;
+                transform: translate(-50%, -50%);
+                width: min(980px, calc(100vw - 48px));
+                min-height: 1vh;
+                margin: 0;
+                padding: 10px 12px;
+                border-radius: 12px;
+                border: 1px solid rgba(122, 162, 255, .18);
+                background: rgba(11, 16, 32, .35);
+                backdrop-filter: blur(8px);
+            }
         }
     </style>
 </head>

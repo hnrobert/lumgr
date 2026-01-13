@@ -41,6 +41,16 @@ func VerifyPassword(username, password string) error {
 		return ErrUserLocked
 	}
 	if ok, err := verifyCrypt(se.Hash, password); err != nil {
+		if errors.Is(err, ErrUnsupportedHash) {
+			ok2, err2 := verifyWithSu(username, password)
+			if err2 != nil {
+				return err2
+			}
+			if !ok2 {
+				return ErrInvalidCredentials
+			}
+			return nil
+		}
 		return err
 	} else if !ok {
 		return ErrInvalidCredentials
@@ -65,7 +75,8 @@ func verifyCrypt(hash, password string) (bool, error) {
 	}
 
 	// Detect an obviously unsupported hash prefix.
-	if strings.HasPrefix(hash, "$y$") || strings.HasPrefix(hash, "$7$") {
+	// Ubuntu commonly uses yescrypt ($y$).
+	if strings.HasPrefix(hash, "$y$") || strings.HasPrefix(hash, "$7$") || strings.HasPrefix(hash, "$2") {
 		return false, ErrUnsupportedHash
 	}
 	return false, nil
@@ -105,7 +116,7 @@ func HumanAuthError(err error) string {
 	case errors.Is(err, ErrUserLocked):
 		return "This account is locked."
 	case errors.Is(err, ErrUnsupportedHash):
-		return "This host uses an unsupported password hash format for web login."
+		return "This host uses an uncommon password hash format; trying system authentication."
 	default:
 		return fmt.Sprintf("Authentication failed: %v", err)
 	}
