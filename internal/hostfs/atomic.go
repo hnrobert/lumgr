@@ -1,10 +1,12 @@
 package hostfs
 
 import (
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
 	"sync"
+	"syscall"
 )
 
 var globalMu sync.Mutex
@@ -58,6 +60,23 @@ func WriteFileAtomic(path string, data []byte, perm os.FileMode) error {
 	}
 
 	if err := os.Rename(tmpName, path); err != nil {
+		// If the target path is a bind-mounted file, replacing it via rename
+		// fails with errors like EBUSY/EXDEV. Fall back to an in-place rewrite.
+		if errors.Is(err, syscall.EBUSY) || errors.Is(err, syscall.EXDEV) || errors.Is(err, syscall.EPERM) {
+			f, err2 := os.OpenFile(path, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, perm)
+			if err2 != nil {
+				return err
+			}
+			if _, err2 := f.Write(data); err2 != nil {
+				_ = f.Close()
+				return err2
+			}
+			_ = f.Sync()
+			if err2 := f.Close(); err2 != nil {
+				return err2
+			}
+			return nil
+		}
 		return err
 	}
 	if d, err := os.Open(dir); err == nil {
