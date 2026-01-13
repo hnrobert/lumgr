@@ -1,5 +1,6 @@
 {
     "cSpell.words": [
+        "Buildx",
         "Gecos",
         "gname",
         "GOOS",
@@ -8,6 +9,7 @@
         "ldflags",
         "lumgr",
         "lumgrd",
+        "softprops",
         "trimpath",
         "usermgr"
     ]
