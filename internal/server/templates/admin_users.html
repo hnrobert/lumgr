@@ -55,7 +55,13 @@
                     </div>
                 </div>
             </div>
-            <label><input type="checkbox" name="admin" value="1" /> Add to sudo/wheel</label>
+            <label>Add to sudo/wheel</label>
+            <div class="seg" style="margin-top:6px;">
+                <input id="aus_admin_y" type="radio" name="admin" value="1" />
+                <label for="aus_admin_y">Yes</label>
+                <input id="aus_admin_n" type="radio" name="admin" value="0" checked />
+                <label for="aus_admin_n">No</label>
+            </div>
             <div style="display:flex; justify-content:flex-end; margin-top: 14px;">
                 <button class="btn primary" type="submit">Create</button>
             </div>

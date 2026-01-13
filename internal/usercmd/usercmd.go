@@ -33,6 +33,18 @@ func daysSinceEpochUTC(t time.Time) string {
 	return strconv.FormatInt(t.UTC().Unix()/86400, 10)
 }
 
+func firstFreeUID(pf *usermgr.PasswdFile, min int) int {
+	used := map[int]struct{}{}
+	for _, e := range pf.List() {
+		used[e.UID] = struct{}{}
+	}
+	for uid := min; ; uid++ {
+		if _, ok := used[uid]; !ok {
+			return uid
+		}
+	}
+}
+
 func writePreservePerm(path string, data []byte) error {
 	perm, err := hostfs.CopyFilePerms(path, path)
 	if err != nil {
@@ -123,7 +135,7 @@ func (r *Runner) AddUser(username, home, shell string, createHome bool) error {
 		gid = gr.NextGID(1000)
 		_ = gr.Add(usermgr.GroupEntry{Name: username, Passwd: "x", GID: gid, Members: []string{}})
 	}
-	uid := pf.NextUID(1000)
+	uid := firstFreeUID(pf, 1000)
 
 	if err := pf.Add(usermgr.PasswdEntry{Name: username, Passwd: "x", UID: uid, GID: gid, Gecos: "", Home: home, Shell: shell}); err != nil {
 		return err
