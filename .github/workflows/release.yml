@@ -69,7 +69,7 @@ jobs:
         run: go test -v ./...
 
       - name: Build binary
-        run: go build -v -o bin/lumgr ./cmd/lumgr
+        run: go build -v -o bin/lumgrd ./cmd/lumgrd
 
       - name: Determine tag
         id: tag

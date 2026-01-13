@@ -38,7 +38,7 @@ jobs:
         run: go test -v ./...
 
       - name: Build binary
-        run: go build -v -o bin/lumgr ./cmd/lumgr
+        run: go build -v -o bin/lumgrd ./cmd/lumgrd
 
       - name: Log in to Container Registry
         uses: docker/login-action@v3
