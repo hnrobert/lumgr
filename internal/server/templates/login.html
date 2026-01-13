@@ -8,10 +8,13 @@
         <input name="username" autocomplete="username" required />
         <label>Password</label>
         <input type="password" name="password" autocomplete="current-password" required />
-        <div style="display:flex; justify-content:space-between; gap:10px; margin-top: 14px;">
-            <a class="btn" href="/register">Register</a>
+        <div style="display:flex; justify-content:flex-end; margin-top: 14px;">
             <button class="btn primary" type="submit">Sign in</button>
         </div>
     </form>
+    {{if eq .RegMode "closed"}}{{else}}
+    <div class="muted" style="margin-top: 10px; font-size: 12px; text-align:right;">No account? <a
+            href="/register">Register</a></div>
+    {{end}}
 </div>
 {{end}}

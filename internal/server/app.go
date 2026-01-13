@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hnrobert/lumgr/internal/auth"
+	"github.com/hnrobert/lumgr/internal/config"
 	"github.com/hnrobert/lumgr/internal/invite"
 	"github.com/hnrobert/lumgr/internal/usercmd"
 )
@@ -23,12 +24,15 @@ type App struct {
 	pages      map[string]*template.Template
 	users      *usercmd.Runner
 	invites    *invite.Store
+	cfg        *config.Store
 }
 
 type ViewData struct {
 	Authed    bool
 	Username  string
 	Admin     bool
+	HideNav   bool
+	RegMode   string
 	Flash     string
 	FlashKind string // ok|err|""
 
@@ -104,12 +108,16 @@ func newApp() (*App, error) {
 	invStore := invite.NewStore(invite.DefaultPath())
 	_ = invStore.Ensure()
 
+	cfgStore := config.NewStore(config.DefaultPath())
+	_ = cfgStore.Ensure()
+
 	return &App{
 		secret:     secretRaw,
 		cookieName: auth.DefaultCookieName,
 		pages:      pages,
 		users:      usercmd.New(),
 		invites:    invStore,
+		cfg:        cfgStore,
 	}, nil
 }
 
@@ -130,6 +138,7 @@ func (a *App) routes() http.Handler {
 
 	mux.HandleFunc("/admin/invites", a.requireAdmin(a.handleAdminInvites))
 	mux.HandleFunc("/admin/invites/create", a.requireAdmin(a.handleAdminInvitesCreate))
+	mux.HandleFunc("/admin/settings/registration", a.requireAdmin(a.handleAdminRegistrationMode))
 
 	mux.HandleFunc("/api/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")

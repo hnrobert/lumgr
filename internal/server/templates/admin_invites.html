@@ -5,6 +5,28 @@
         <h2 style="margin:0 0 8px;">Invites</h2>
         <div class="muted" style="margin-bottom: 12px;">Create UUID invite codes for user self-registration.</div>
 
+        <div class="card" style="padding:14px; margin-bottom:14px;">
+            <h3 style="margin:0 0 8px; font-size: 14px;">Registration mode</h3>
+            <form method="post" action="/admin/settings/registration" style="margin:0;">
+                <div class="seg" style="margin-top:6px;">
+                    <input id="rm_open" type="radio" name="mode" value="open" {{if eq .RegMode "open"
+                        }}checked{{end}} />
+                    <label for="rm_open">Open</label>
+                    <input id="rm_inv" type="radio" name="mode" value="invite" {{if eq .RegMode "invite"
+                        }}checked{{end}} />
+                    <label for="rm_inv">Invite</label>
+                    <input id="rm_closed" type="radio" name="mode" value="closed" {{if eq .RegMode "closed"
+                        }}checked{{end}} />
+                    <label for="rm_closed">Closed</label>
+                </div>
+                <div class="muted" style="margin-top: 8px; font-size: 12px;">Open = anyone can register. Invite = invite
+                    code required. Closed = registration disabled.</div>
+                <div style="display:flex; justify-content:flex-end; margin-top: 12px;">
+                    <button class="btn primary" type="submit">Save</button>
+                </div>
+            </form>
+        </div>
+
         <table>
             <thead>
                 <tr>

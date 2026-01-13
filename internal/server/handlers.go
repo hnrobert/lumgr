@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hnrobert/lumgr/internal/auth"
+	"github.com/hnrobert/lumgr/internal/config"
 	"github.com/hnrobert/lumgr/internal/invite"
 	"github.com/hnrobert/lumgr/internal/usermgr"
 )
@@ -22,12 +23,13 @@ func remoteIP(r *http.Request) string {
 }
 
 func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
+	cfg, _ := a.cfg.Get()
 	if r.Method == http.MethodGet || r.Method == http.MethodHead {
 		if usernameFrom(r) != "" {
 			http.Redirect(w, r, "/", http.StatusSeeOther)
 			return
 		}
-		a.renderPage(w, "login", &ViewData{})
+		a.renderPage(w, "login", &ViewData{HideNav: true, RegMode: string(cfg.RegistrationMode)})
 		return
 	}
 	if r.Method != http.MethodPost {
@@ -38,17 +40,17 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 	username := strings.TrimSpace(r.Form.Get("username"))
 	password := r.Form.Get("password")
 	if username == "" || password == "" {
-		a.renderPage(w, "login", &ViewData{Flash: "Username and password are required.", FlashKind: "err"})
+		a.renderPage(w, "login", &ViewData{HideNav: true, RegMode: string(cfg.RegistrationMode), Flash: "Username and password are required.", FlashKind: "err"})
 		return
 	}
 	if err := auth.VerifyPassword(username, password); err != nil {
-		a.renderPage(w, "login", &ViewData{Flash: auth.HumanAuthError(err), FlashKind: "err"})
+		a.renderPage(w, "login", &ViewData{HideNav: true, RegMode: string(cfg.RegistrationMode), Flash: auth.HumanAuthError(err), FlashKind: "err"})
 		return
 	}
 	admin, _ := auth.IsAdmin(username)
 	tok, err := auth.SignHS256(a.secret, username, admin, 24*time.Hour)
 	if err != nil {
-		a.renderPage(w, "login", &ViewData{Flash: "Failed to create session.", FlashKind: "err"})
+		a.renderPage(w, "login", &ViewData{HideNav: true, RegMode: string(cfg.RegistrationMode), Flash: "Failed to create session.", FlashKind: "err"})
 		return
 	}
 	a.issueCookie(w, tok)
@@ -73,14 +75,24 @@ func (a *App) handleRegister(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
+	cfg, _ := a.cfg.Get()
+	mode := cfg.RegistrationMode
+	data := &ViewData{RegMode: string(mode)}
+	if mode == config.RegistrationClosed {
+		data.Flash = "Registration is disabled by the administrator."
+		data.FlashKind = "err"
+		a.renderPage(w, "register", data)
+		return
+	}
 	code := strings.TrimSpace(r.URL.Query().Get("code"))
-	data := &ViewData{}
-	if code != "" {
-		if _, err := a.invites.Validate(code); err != nil {
-			data.Flash = humanInviteError(err)
-			data.FlashKind = "err"
-		} else {
-			data.InviteCode = code
+	if mode == config.RegistrationInvite {
+		if code != "" {
+			if _, err := a.invites.Validate(code); err != nil {
+				data.Flash = humanInviteError(err)
+				data.FlashKind = "err"
+			} else {
+				data.InviteCode = code
+			}
 		}
 	}
 	a.renderPage(w, "register", data)
@@ -101,19 +113,33 @@ func (a *App) handleRegisterComplete(w http.ResponseWriter, r *http.Request) {
 	password := r.Form.Get("password")
 	password2 := r.Form.Get("password2")
 
-	data := &ViewData{InviteCode: code}
-	if code == "" {
-		data.Flash = "Invite code is required."
+	cfg, _ := a.cfg.Get()
+	mode := cfg.RegistrationMode
+	data := &ViewData{InviteCode: code, RegMode: string(mode)}
+	if mode == config.RegistrationClosed {
+		data.Flash = "Registration is disabled by the administrator."
 		data.FlashKind = "err"
 		a.renderPage(w, "register", data)
 		return
 	}
-	inv, err := a.invites.Validate(code)
-	if err != nil {
-		data.Flash = humanInviteError(err)
-		data.FlashKind = "err"
-		a.renderPage(w, "register", data)
-		return
+
+	createHome := true
+	if mode == config.RegistrationInvite {
+		if code == "" {
+			data.Flash = "Invite code is required."
+			data.FlashKind = "err"
+			a.renderPage(w, "register", data)
+			return
+		}
+		inv, err := a.invites.Validate(code)
+		if err != nil {
+			data.Flash = humanInviteError(err)
+			data.FlashKind = "err"
+			a.renderPage(w, "register", data)
+			return
+		}
+		createHome = inv.CreateHome
+		data.InviteCode = code
 	}
 	if username == "" || password == "" {
 		data.Flash = "Username and password are required."
@@ -136,7 +162,7 @@ func (a *App) handleRegisterComplete(w http.ResponseWriter, r *http.Request) {
 
 	home := "/home/" + username
 	shell := "/bin/bash"
-	if err := a.users.AddUser(username, home, shell, inv.CreateHome); err != nil {
+	if err := a.users.AddUser(username, home, shell, createHome); err != nil {
 		data.Flash = err.Error()
 		data.FlashKind = "err"
 		a.renderPage(w, "register", data)
@@ -148,7 +174,9 @@ func (a *App) handleRegisterComplete(w http.ResponseWriter, r *http.Request) {
 		a.renderPage(w, "register", data)
 		return
 	}
-	_, _ = a.invites.Consume(code, username, remoteIP(r))
+	if mode == config.RegistrationInvite {
+		_, _ = a.invites.Consume(code, username, remoteIP(r))
+	}
 
 	http.Redirect(w, r, "/login?ok=1", http.StatusSeeOther)
 }
@@ -179,6 +207,20 @@ func (a *App) handleAdminInvites(w http.ResponseWriter, r *http.Request) {
 		data.FlashKind = "err"
 	}
 	a.renderPage(w, "admin_invites", data)
+}
+
+func (a *App) handleAdminRegistrationMode(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	_ = r.ParseForm()
+	mode := strings.TrimSpace(r.Form.Get("mode"))
+	if err := a.cfg.SetRegistrationMode(config.RegistrationMode(mode)); err != nil {
+		http.Redirect(w, r, "/admin/invites?err=1", http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/admin/invites?ok=1", http.StatusSeeOther)
 }
 
 func (a *App) handleAdminInvitesCreate(w http.ResponseWriter, r *http.Request) {
@@ -363,7 +405,8 @@ func (a *App) handleAdminUsersDelete(w http.ResponseWriter, r *http.Request) {
 func (a *App) baseData(r *http.Request) *ViewData {
 	user := usernameFrom(r)
 	admin := isAdminFrom(r)
-	data := &ViewData{Authed: user != "", Username: user, Admin: admin}
+	cfg, _ := a.cfg.Get()
+	data := &ViewData{Authed: user != "", Username: user, Admin: admin, RegMode: string(cfg.RegistrationMode)}
 	if r.URL.Query().Get("ok") == "1" {
 		data.Flash = "Saved."
 		data.FlashKind = "ok"
