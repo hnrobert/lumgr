@@ -28,6 +28,7 @@
             font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
             background: radial-gradient(1200px 800px at 20% 0%, #18214a 0%, var(--bg) 60%);
             color: var(--text);
+            min-height: 1vh;
         }
 
         a {
@@ -35,35 +36,89 @@
             text-decoration: none;
         }
 
+        .shell {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 240px;
+            border-right: 1px solid rgba(122, 162, 255, .14);
+            background: rgba(11, 16, 32, .22);
+            padding: 16px 12px;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+        }
+
+        .main {
+            flex: 1;
+            min-width: 0;
+        }
+
         .wrap {
-            max-width: 980px;
+            max-width: 1040px;
             margin: 0 auto;
-            padding: 24px;
+            padding: 20px 20px 84px;
         }
 
         @media (max-width: 520px) {
             .wrap {
-                padding: 14px;
+                padding: 14px 14px 84px;
             }
         }
 
-        .top {
+        .topbar {
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            justify-content: flex-end;
             gap: 12px;
+            margin-bottom: 16px;
         }
 
         .brand {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 12px;
+            border: 1px solid rgba(122, 162, 255, .16);
+            background: rgba(18, 26, 51, .32);
             font-weight: 700;
             letter-spacing: .2px;
+            user-select: none;
+        }
+
+        .brand a {
+            color: var(--text);
         }
 
         .nav {
             display: flex;
-            gap: 12px;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .nav a {
+            display: flex;
             align-items: center;
-            flex-wrap: wrap;
+            gap: 10px;
+            padding: 10px 10px;
+            border-radius: 12px;
+            border: 1px solid transparent;
+            color: var(--text);
+        }
+
+        .nav a:hover {
+            border-color: rgba(122, 162, 255, .18);
+            background: rgba(18, 26, 51, .30);
+        }
+
+        .nav .muted {
+            font-size: 12px;
+            margin: 6px 10px 0;
         }
 
         .card {
@@ -116,6 +171,47 @@
 
         .btn.primary {
             background: rgba(122, 162, 255, .18);
+        }
+
+        .btn.ghost {
+            background: transparent;
+        }
+
+        .btn.small {
+            padding: 6px 10px;
+            border-radius: 10px;
+            font-size: 13px;
+        }
+
+        /* Segmented yes/no controls */
+        .seg {
+            display: inline-flex;
+            border: 1px solid rgba(122, 162, 255, .25);
+            border-radius: 12px;
+            overflow: hidden;
+            background: rgba(11, 16, 32, .40);
+        }
+
+        .seg input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+            width: 1px;
+            height: 1px;
+        }
+
+        .seg label {
+            margin: 0;
+            padding: 8px 12px;
+            cursor: pointer;
+            color: var(--muted);
+            font-size: 13px;
+            user-select: none;
+        }
+
+        .seg input:checked+label {
+            background: rgba(122, 162, 255, .18);
+            color: var(--text);
         }
 
         input,
@@ -197,52 +293,142 @@
             text-align: center;
         }
 
-        /* Requested: show the warning roughly at half-screen height on larger layouts,
-           while keeping mobile UX clean. */
-        @media (min-width: 920px) and (min-height: 700px) {
-            .foot {
-                position: fixed;
-                left: 50%;
-                top: 50vh;
-                transform: translate(-50%, -50%);
-                width: min(980px, calc(100vw - 48px));
-                min-height: 1vh;
-                margin: 0;
-                padding: 10px 12px;
-                border-radius: 12px;
-                border: 1px solid rgba(122, 162, 255, .18);
-                background: rgba(11, 16, 32, .35);
-                backdrop-filter: blur(8px);
+        .foot {
+            position: fixed;
+            left: 50%;
+            bottom: 14px;
+            transform: translateX(-50%);
+            width: min(1040px, calc(100vw - 28px));
+            margin: 0;
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(122, 162, 255, .18);
+            background: rgba(11, 16, 32, .35);
+            backdrop-filter: blur(8px);
+            min-height: 1vh;
+        }
+
+        /* Collapsible sidebar */
+        #navToggle {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .brand-full {
+            display: inline;
+        }
+
+        .brand-short {
+            display: none;
+        }
+
+        .nav-text {
+            display: inline;
+        }
+
+        /* Default: desktop expanded; toggle collapses */
+        #navToggle:checked~.shell .sidebar {
+            width: 72px;
+            padding: 16px 10px;
+        }
+
+        #navToggle:checked~.shell .brand-full {
+            display: none;
+        }
+
+        #navToggle:checked~.shell .brand-short {
+            display: inline;
+        }
+
+        #navToggle:checked~.shell .nav-text {
+            display: none;
+        }
+
+        @media (max-width: 820px) {
+            .sidebar {
+                width: 72px;
+                padding: 14px 10px;
+            }
+
+            .brand-full {
+                display: none;
+            }
+
+            .brand-short {
+                display: inline;
+            }
+
+            .nav-text {
+                display: none;
+            }
+
+            /* On small screens, toggle expands */
+            #navToggle:checked~.shell .sidebar {
+                width: 240px;
+                padding: 14px 12px;
+            }
+
+            #navToggle:checked~.shell .brand-full {
+                display: inline;
+            }
+
+            #navToggle:checked~.shell .brand-short {
+                display: none;
+            }
+
+            #navToggle:checked~.shell .nav-text {
+                display: inline;
             }
         }
     </style>
 </head>
 
 <body>
-    <div class="wrap">
-        <div class="top" style="margin-bottom: 16px;">
-            <div class="brand">lumgr</div>
-            {{if .Authed}}
-            <div class="nav">
-                <a href="/">Dashboard</a>
-                <a href="/settings">Settings</a>
-                {{if .Admin}}<a href="/admin/users">Admin</a>{{end}}
-                <form method="post" action="/logout" style="display:inline; margin:0;">
-                    <button class="btn" type="submit">Logout ({{.Username}})</button>
-                </form>
+    <input id="navToggle" type="checkbox" />
+    <div class="shell">
+        <aside class="sidebar">
+            <div class="brand">
+                <a href="/" class="brand-full">Linux User Manager</a>
+                <a href="/" class="brand-short">Lumgr</a>
+                <label for="navToggle" class="btn ghost small" title="Toggle menu" style="margin-left:auto;">☰</label>
             </div>
-            {{else}}
-            <div class="nav"><a href="/login">Login</a></div>
-            {{end}}
-        </div>
 
-        {{if .Flash}}
-        <div class="flash {{.FlashKind}}" style="margin-bottom: 14px;">{{.Flash}}</div>
-        {{end}}
+            <nav class="nav">
+                {{if .Authed}}
+                <a href="/"><span>🏠</span><span class="nav-text">Dashboard</span></a>
+                <a href="/settings"><span>⚙️</span><span class="nav-text">Settings</span></a>
+                {{if .Admin}}
+                <div class="muted nav-text">Admin</div>
+                <a href="/admin/users"><span>👤</span><span class="nav-text">Users</span></a>
+                <a href="/admin/invites"><span>🔗</span><span class="nav-text">Invites</span></a>
+                {{end}}
+                {{else}}
+                <a href="/login"><span>🔐</span><span class="nav-text">Login</span></a>
+                <a href="/register"><span>🧾</span><span class="nav-text">Register</span></a>
+                {{end}}
+            </nav>
+        </aside>
 
-        {{block "content" .}}{{end}}
+        <main class="main">
+            <div class="wrap">
+                <div class="topbar">
+                    {{if .Authed}}
+                    <form method="post" action="/logout" style="display:inline; margin:0;">
+                        <button class="btn" type="submit">Logout ({{.Username}})</button>
+                    </form>
+                    {{end}}
+                </div>
 
-        <div class="foot">Runs on port <code>14392</code>. Be careful: this service can modify host accounts.</div>
+                {{if .Flash}}
+                <div class="flash {{.FlashKind}}" style="margin-bottom: 14px;">{{.Flash}}</div>
+                {{end}}
+
+                {{block "content" .}}{{end}}
+            </div>
+        </main>
+
+        <div class="foot">Be careful: this service can modify host accounts.</div>
     </div>
 </body>
 

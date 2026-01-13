@@ -8,6 +8,7 @@ services:
     environment:
       - LUMGR_LISTEN=:14392
     volumes:
+      - ./lumgr_data:/var/lib/lumgr
       - /etc/passwd:/etc/passwd
       - /etc/shadow:/etc/shadow
       - /etc/group:/etc/group

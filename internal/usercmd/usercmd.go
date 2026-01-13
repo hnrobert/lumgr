@@ -50,8 +50,11 @@ func (r *Runner) runWithStdin(stdin []byte, name string, args ...string) error {
 	return nil
 }
 
-func (r *Runner) AddUser(username, home, shell string) error {
+func (r *Runner) AddUser(username, home, shell string, createHome bool) error {
 	args := []string{"-D"}
+	if !createHome {
+		args = append(args, "-H")
+	}
 	if home != "" {
 		args = append(args, "-h", home)
 	}

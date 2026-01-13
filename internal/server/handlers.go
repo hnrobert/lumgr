@@ -1,13 +1,25 @@
 package server
 
 import (
+	"errors"
+	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/hnrobert/lumgr/internal/auth"
+	"github.com/hnrobert/lumgr/internal/invite"
 	"github.com/hnrobert/lumgr/internal/usermgr"
 )
+
+func remoteIP(r *http.Request) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err == nil && host != "" {
+		return host
+	}
+	return r.RemoteAddr
+}
 
 func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet || r.Method == http.MethodHead {
@@ -50,6 +62,168 @@ func (a *App) handleLogout(w http.ResponseWriter, r *http.Request) {
 	}
 	a.clearCookie(w)
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
+}
+
+func (a *App) handleRegister(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	if usernameFrom(r) != "" {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+	code := strings.TrimSpace(r.URL.Query().Get("code"))
+	data := &ViewData{}
+	if code != "" {
+		if _, err := a.invites.Validate(code); err != nil {
+			data.Flash = humanInviteError(err)
+			data.FlashKind = "err"
+		} else {
+			data.InviteCode = code
+		}
+	}
+	a.renderPage(w, "register", data)
+}
+
+func (a *App) handleRegisterComplete(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	if usernameFrom(r) != "" {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+	_ = r.ParseForm()
+	code := strings.TrimSpace(r.Form.Get("code"))
+	username := strings.TrimSpace(r.Form.Get("username"))
+	password := r.Form.Get("password")
+	password2 := r.Form.Get("password2")
+
+	data := &ViewData{InviteCode: code}
+	if code == "" {
+		data.Flash = "Invite code is required."
+		data.FlashKind = "err"
+		a.renderPage(w, "register", data)
+		return
+	}
+	inv, err := a.invites.Validate(code)
+	if err != nil {
+		data.Flash = humanInviteError(err)
+		data.FlashKind = "err"
+		a.renderPage(w, "register", data)
+		return
+	}
+	if username == "" || password == "" {
+		data.Flash = "Username and password are required."
+		data.FlashKind = "err"
+		a.renderPage(w, "register", data)
+		return
+	}
+	if password != password2 {
+		data.Flash = "Passwords do not match."
+		data.FlashKind = "err"
+		a.renderPage(w, "register", data)
+		return
+	}
+	if !usermgr.ValidUsername(username) {
+		data.Flash = "Invalid username. Use Ubuntu-style names: lowercase letters/digits/underscore/dash, start with a letter or underscore."
+		data.FlashKind = "err"
+		a.renderPage(w, "register", data)
+		return
+	}
+
+	home := "/home/" + username
+	shell := "/bin/bash"
+	if err := a.users.AddUser(username, home, shell, inv.CreateHome); err != nil {
+		data.Flash = err.Error()
+		data.FlashKind = "err"
+		a.renderPage(w, "register", data)
+		return
+	}
+	if err := a.users.SetPassword(username, password); err != nil {
+		data.Flash = err.Error()
+		data.FlashKind = "err"
+		a.renderPage(w, "register", data)
+		return
+	}
+	_, _ = a.invites.Consume(code, username, remoteIP(r))
+
+	http.Redirect(w, r, "/login?ok=1", http.StatusSeeOther)
+}
+
+func (a *App) handleAdminInvites(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	data := a.baseData(r)
+	list, err := a.invites.List()
+	if err != nil {
+		data.Flash = err.Error()
+		data.FlashKind = "err"
+		a.renderPage(w, "admin_invites", data)
+		return
+	}
+	for _, inv := range list {
+		inv.UsedCount = len(inv.Uses)
+		data.Invites = append(data.Invites, InviteRow{ID: inv.ID, UsedCount: inv.UsedCount, MaxUses: inv.MaxUses, ExpiresAt: inv.ExpiresAt, CreateHome: inv.CreateHome})
+	}
+	if r.URL.Query().Get("ok") == "1" {
+		data.Flash = "Saved."
+		data.FlashKind = "ok"
+	}
+	if r.URL.Query().Get("err") == "1" {
+		data.Flash = "Request failed."
+		data.FlashKind = "err"
+	}
+	a.renderPage(w, "admin_invites", data)
+}
+
+func (a *App) handleAdminInvitesCreate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	_ = r.ParseForm()
+	maxUsesText := strings.TrimSpace(r.Form.Get("max_uses"))
+	expiresText := strings.TrimSpace(r.Form.Get("expires_at"))
+	createHome := r.Form.Get("create_home") != "0"
+
+	maxUses := 0
+	if maxUsesText != "" {
+		if v, err := strconv.Atoi(maxUsesText); err == nil {
+			maxUses = v
+		}
+	}
+	var expiresAt time.Time
+	if expiresText != "" {
+		if t, err := time.Parse(time.RFC3339, expiresText); err == nil {
+			expiresAt = t
+		}
+	}
+	if _, err := a.invites.Create(usernameFrom(r), maxUses, expiresAt, createHome); err != nil {
+		http.Redirect(w, r, "/admin/invites?err=1", http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/admin/invites?ok=1", http.StatusSeeOther)
+}
+
+func humanInviteError(err error) string {
+	if err == nil {
+		return ""
+	}
+	if errors.Is(err, invite.ErrNotFound) {
+		return "Invite code not found."
+	}
+	if errors.Is(err, invite.ErrExpired) {
+		return "Invite code has expired."
+	}
+	if errors.Is(err, invite.ErrNoUsesLeft) {
+		return "Invite code has no uses left."
+	}
+	return "Invalid invite code."
 }
 
 func (a *App) handleDashboard(w http.ResponseWriter, r *http.Request) {
@@ -131,22 +305,24 @@ func (a *App) handleAdminUsersCreate(w http.ResponseWriter, r *http.Request) {
 	_ = r.ParseForm()
 	username := strings.TrimSpace(r.Form.Get("username"))
 	password := r.Form.Get("password")
-	home := strings.TrimSpace(r.Form.Get("home"))
 	shell := strings.TrimSpace(r.Form.Get("shell"))
 	wantAdmin := r.Form.Get("admin") == "1"
+	createHome := r.Form.Get("create_home") != "0"
 
 	if username == "" || password == "" {
 		http.Redirect(w, r, "/admin/users?err=1", http.StatusSeeOther)
 		return
 	}
-	if home == "" {
-		home = "/home/" + username
-	}
+	home := "/home/" + username
 	if shell == "" {
 		shell = "/bin/bash"
 	}
+	if !usermgr.ValidUsername(username) {
+		http.Error(w, "invalid username", http.StatusBadRequest)
+		return
+	}
 
-	if err := a.users.AddUser(username, home, shell); err != nil {
+	if err := a.users.AddUser(username, home, shell, createHome); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}

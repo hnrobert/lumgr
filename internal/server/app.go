@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/hnrobert/lumgr/internal/auth"
+	"github.com/hnrobert/lumgr/internal/invite"
 	"github.com/hnrobert/lumgr/internal/usercmd"
 )
 
@@ -21,6 +22,7 @@ type App struct {
 	cookieName string
 	pages      map[string]*template.Template
 	users      *usercmd.Runner
+	invites    *invite.Store
 }
 
 type ViewData struct {
@@ -38,13 +40,25 @@ type ViewData struct {
 	SSHKeys  string
 
 	// admin
-	Users []UserRow
+	Users   []UserRow
+	Invites []InviteRow
+
+	// register
+	InviteCode string
 }
 
 type UserRow struct {
 	Name string
 	UID  int
 	Home string
+}
+
+type InviteRow struct {
+	ID         string
+	UsedCount  int
+	MaxUses    int
+	ExpiresAt  time.Time
+	CreateHome bool
 }
 
 func newApp() (*App, error) {
@@ -74,7 +88,7 @@ func newApp() (*App, error) {
 	})
 
 	pages := map[string]*template.Template{}
-	for _, page := range []string{"login", "dashboard", "settings", "admin_users"} {
+	for _, page := range []string{"login", "register", "dashboard", "settings", "admin_users", "admin_invites"} {
 		t, err := base.Clone()
 		if err != nil {
 			return nil, err
@@ -92,6 +106,7 @@ func newApp() (*App, error) {
 		cookieName: auth.DefaultCookieName,
 		pages:      pages,
 		users:      usercmd.New(),
+		invites:    invite.NewStore(invite.DefaultPath()),
 	}, nil
 }
 
@@ -100,6 +115,8 @@ func (a *App) routes() http.Handler {
 
 	mux.HandleFunc("/login", a.handleLogin)
 	mux.HandleFunc("/logout", a.requireAuth(a.handleLogout))
+	mux.HandleFunc("/register", a.handleRegister)
+	mux.HandleFunc("/register/complete", a.handleRegisterComplete)
 
 	mux.HandleFunc("/", a.requireAuth(a.handleDashboard))
 	mux.HandleFunc("/settings", a.requireAuth(a.handleSettings))
@@ -107,6 +124,9 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("/admin/users", a.requireAdmin(a.handleAdminUsers))
 	mux.HandleFunc("/admin/users/create", a.requireAdmin(a.handleAdminUsersCreate))
 	mux.HandleFunc("/admin/users/delete", a.requireAdmin(a.handleAdminUsersDelete))
+
+	mux.HandleFunc("/admin/invites", a.requireAdmin(a.handleAdminInvites))
+	mux.HandleFunc("/admin/invites/create", a.requireAdmin(a.handleAdminInvitesCreate))
 
 	mux.HandleFunc("/api/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")

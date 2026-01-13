@@ -1,0 +1,54 @@
+{{define "title"}}Admin · Invites · lumgr{{end}}
+{{define "content"}}
+<div class="grid two">
+    <div class="card">
+        <h2 style="margin:0 0 8px;">Invites</h2>
+        <div class="muted" style="margin-bottom: 12px;">Create UUID invite codes for user self-registration.</div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Uses</th>
+                    <th>Expires</th>
+                    <th>Create home</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Invites}}
+                <tr>
+                    <td><code>{{.ID}}</code></td>
+                    <td>{{.UsedCount}}{{if gt .MaxUses 0}} / {{.MaxUses}}{{end}}</td>
+                    <td>{{if .ExpiresAt.IsZero}}<span class="muted">never</span>{{else}}<span
+                            class="muted">{{.ExpiresAt}}</span>{{end}}</td>
+                    <td>{{if .CreateHome}}Yes{{else}}No{{end}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <h3 style="margin:0 0 8px;">Create invite</h3>
+        <form method="post" action="/admin/invites/create">
+            <label>Max uses (0 = unlimited)</label>
+            <input name="max_uses" inputmode="numeric" placeholder="0" />
+
+            <label>Expires at (UTC, optional)</label>
+            <input name="expires_at" placeholder="2026-01-31T12:00:00Z" />
+
+            <label>Create home directory</label>
+            <div class="seg" style="margin-top:6px;">
+                <input id="ch_y" type="radio" name="create_home" value="1" checked />
+                <label for="ch_y">Yes</label>
+                <input id="ch_n" type="radio" name="create_home" value="0" />
+                <label for="ch_n">No</label>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; margin-top: 14px;">
+                <button class="btn primary" type="submit">Generate</button>
+            </div>
+        </form>
+    </div>
+</div>
+{{end}}

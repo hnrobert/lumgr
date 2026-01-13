@@ -46,8 +46,13 @@
                     <input name="shell" placeholder="/bin/bash" />
                 </div>
                 <div>
-                    <label>Home (optional)</label>
-                    <input name="home" placeholder="/home/newuser" />
+                    <label>Create home directory</label>
+                    <div class="seg" style="margin-top:6px;">
+                        <input id="auh_y" type="radio" name="create_home" value="1" checked />
+                        <label for="auh_y">Yes</label>
+                        <input id="auh_n" type="radio" name="create_home" value="0" />
+                        <label for="auh_n">No</label>
+                    </div>
                 </div>
             </div>
             <label><input type="checkbox" name="admin" value="1" /> Add to sudo/wheel</label>
