@@ -13,4 +13,4 @@ services:
       - /etc/shadow:/etc/shadow
       - /etc/group:/etc/group
       - /home:/home
-    restart: unless-stopped
+    restart: always
