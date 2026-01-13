@@ -1,17 +1,8 @@
 name: Test
 
 on:
-  push:
-    branches: ["**"]
-    paths:
-      - ".github/workflows/test.yml"
-      - "Dockerfile"
-      - ".dockerignore"
-      - "**/*.go"
-      - "go.mod"
-      - "go.sum"
   pull_request:
-    branches: ["**"]
+    branches: ["develop", "main"]
     paths:
       - ".github/workflows/test.yml"
       - "Dockerfile"
