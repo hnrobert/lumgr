@@ -1,0 +1,16 @@
+{{define "title"}}Login · lumgr{{end}}
+{{define "content"}}
+<div class="card" style="max-width:520px; margin: 40px auto;">
+    <h2 style="margin:0 0 6px;">Login</h2>
+    <div class="muted" style="margin-bottom: 14px;">Authenticate with your host Linux username and password.</div>
+    <form method="post" action="/login">
+        <label>Username</label>
+        <input name="username" autocomplete="username" required />
+        <label>Password</label>
+        <input type="password" name="password" autocomplete="current-password" required />
+        <div style="display:flex; justify-content:flex-end; margin-top: 14px;">
+            <button class="btn primary" type="submit">Sign in</button>
+        </div>
+    </form>
+</div>
+{{end}}

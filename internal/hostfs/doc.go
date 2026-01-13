@@ -3,10 +3,10 @@ package hostfs
 // Package hostfs provides safe access helpers for files mounted from the host.
 //
 // Fixed contract:
-//   HostRoot = /host
+//   HostRoot = /
 //
 // Expected mounts (examples):
-//   /etc/passwd  -> /host/etc/passwd
-//   /etc/shadow  -> /host/etc/shadow
-//   /etc/group   -> /host/etc/group
-//   /home        -> /host/home
+//   /etc/passwd  -> /etc/passwd
+//   /etc/shadow  -> /etc/shadow
+//   /etc/group   -> /etc/group
+//   /home        -> /home

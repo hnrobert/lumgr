@@ -1,0 +1,46 @@
+{{define "title"}}Settings · lumgr{{end}}
+{{define "content"}}
+<div class="grid two">
+    <div class="card">
+        <h2 style="margin:0 0 8px;">My Settings</h2>
+        <div class="muted">These settings are stored in your home directory.</div>
+        <form method="post" action="/settings">
+            <label>Preferred terminal type (TERM)</label>
+            <input name="term" placeholder="xterm-256color" value="{{.Term}}" />
+
+            <label>Login redirect directory (optional)</label>
+            <input name="redirect" placeholder="/home/{{.Username}}/projects" value="{{.Redirect}}" />
+
+            <div class="row">
+                <div>
+                    <label>Git user.name</label>
+                    <input name="git_name" value="{{.GitName}}" />
+                </div>
+                <div>
+                    <label>Git user.email</label>
+                    <input name="git_email" value="{{.GitEmail}}" />
+                </div>
+            </div>
+
+            <label>SSH authorized_keys</label>
+            <textarea name="ssh_keys" spellcheck="false">{{.SSHKeys}}</textarea>
+
+            <div style="display:flex; justify-content:flex-end; margin-top: 14px;">
+                <button class="btn primary" type="submit">Save</button>
+            </div>
+        </form>
+    </div>
+    <div class="card">
+        <h3 style="margin:0 0 8px;">What this edits</h3>
+        <div class="muted" style="line-height:1.55;">
+            <p style="margin:0 0 10px;">lumgr updates these files in your home directory:</p>
+            <ul style="margin:0; padding-left:18px;">
+                <li><code>~/.ssh/authorized_keys</code></li>
+                <li><code>~/.gitconfig</code> (user.name / user.email)</li>
+                <li><code>~/.profile</code> (TERM + optional redirect)</li>
+            </ul>
+            <p style="margin:10px 0 0;">If you already manage these yourself, you can keep doing so.</p>
+        </div>
+    </div>
+</div>
+{{end}}

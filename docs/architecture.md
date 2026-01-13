@@ -18,16 +18,15 @@ sshd / sudo / login
 
 ## Host filesystem contract
 
-Inside the container, the host filesystem is exposed at a fixed path:
-
-- Host root (fixed): `/host`
+Inside the container, host account files are bind-mounted directly to their
+standard locations.
 
 Expected bind mounts:
 
-- `/etc/passwd` -> `/host/etc/passwd`
-- `/etc/shadow` -> `/host/etc/shadow`
-- `/etc/group` -> `/host/etc/group`
-- `/home` -> `/host/home`
+- `/etc/passwd` -> `/etc/passwd`
+- `/etc/shadow` -> `/etc/shadow`
+- `/etc/group` -> `/etc/group`
+- `/home` -> `/home`
 
 If/when sudo management is implemented, it will typically also require mounting:
 

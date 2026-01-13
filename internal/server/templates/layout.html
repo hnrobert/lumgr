@@ -1,0 +1,212 @@
+{{define "layout"}}
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{block "title" .}}lumgr{{end}}</title>
+    <style>
+        :root {
+            --bg: #0b1020;
+            --card: #121a33;
+            --text: #e7ecff;
+            --muted: #9aa7d3;
+            --accent: #7aa2ff;
+            --danger: #ff6b6b;
+            --ok: #3ddc97;
+        }
+
+        body {
+            margin: 0;
+            font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+            background: radial-gradient(1200px 800px at 20% 0%, #18214a 0%, var(--bg) 60%);
+            color: var(--text);
+        }
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .wrap {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .brand {
+            font-weight: 700;
+            letter-spacing: .2px;
+        }
+
+        .nav {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .card {
+            background: rgba(18, 26, 51, .92);
+            border: 1px solid rgba(122, 162, 255, .18);
+            border-radius: 14px;
+            padding: 18px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, .28);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+
+        @media (min-width: 920px) {
+            .grid.two {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .muted {
+            color: var(--muted);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(122, 162, 255, .28);
+            background: rgba(18, 26, 51, .9);
+            color: var(--text);
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            border-color: rgba(122, 162, 255, .55);
+        }
+
+        .btn.danger {
+            border-color: rgba(255, 107, 107, .45);
+        }
+
+        .btn.danger:hover {
+            border-color: rgba(255, 107, 107, .75);
+        }
+
+        .btn.primary {
+            background: rgba(122, 162, 255, .18);
+        }
+
+        input,
+        textarea,
+        select {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(122, 162, 255, .25);
+            background: rgba(11, 16, 32, .55);
+            color: var(--text);
+            outline: none;
+        }
+
+        textarea {
+            min-height: 160px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        }
+
+        label {
+            display: block;
+            margin: 10px 0 6px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .row {
+            display: flex;
+            gap: 12px;
+        }
+
+        .row>* {
+            flex: 1;
+        }
+
+        .flash {
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(122, 162, 255, .22);
+            background: rgba(122, 162, 255, .10);
+        }
+
+        .flash.err {
+            border-color: rgba(255, 107, 107, .35);
+            background: rgba(255, 107, 107, .10);
+        }
+
+        .flash.ok {
+            border-color: rgba(61, 220, 151, .30);
+            background: rgba(61, 220, 151, .10);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 1px solid rgba(122, 162, 255, .16);
+        }
+
+        code {
+            color: #cfe0ff;
+        }
+
+        .foot {
+            margin-top: 20px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="wrap">
+        <div class="top" style="margin-bottom: 16px;">
+            <div class="brand">lumgr</div>
+            {{if .Authed}}
+            <div class="nav">
+                <a href="/">Dashboard</a>
+                <a href="/settings">Settings</a>
+                {{if .Admin}}<a href="/admin/users">Admin</a>{{end}}
+                <form method="post" action="/logout" style="display:inline; margin:0;">
+                    <button class="btn" type="submit">Logout ({{.Username}})</button>
+                </form>
+            </div>
+            {{else}}
+            <div class="nav"><a href="/login">Login</a></div>
+            {{end}}
+        </div>
+
+        {{if .Flash}}
+        <div class="flash {{.FlashKind}}" style="margin-bottom: 14px;">{{.Flash}}</div>
+        {{end}}
+
+        {{block "content" .}}{{end}}
+
+        <div class="foot">Runs on port <code>14392</code>. Be careful: this service can modify host accounts.</div>
+    </div>
+</body>
+
+</html>
+{{end}}

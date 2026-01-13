@@ -1,7 +1,13 @@
 {
     "cSpell.words": [
+        "addgroup",
+        "adduser",
         "Buildx",
+        "Crypter",
+        "crypters",
+        "deluser",
         "Gecos",
+        "Gehirn",
         "gname",
         "GOOS",
         "healthz",
@@ -11,6 +17,8 @@
         "lumgrd",
         "softprops",
         "trimpath",
-        "usermgr"
+        "usercmd",
+        "usermgr",
+        "yescrypt"
     ]
 }

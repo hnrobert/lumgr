@@ -9,8 +9,8 @@ services:
       - LUMGR_LISTEN=:14392
     user: "0:0"
     volumes:
-      - /etc/passwd:/host/etc/passwd
-      - /etc/shadow:/host/etc/shadow
-      - /etc/group:/host/etc/group
-      - /home:/host/home
+      - /etc/passwd:/etc/passwd
+      - /etc/shadow:/etc/shadow
+      - /etc/group:/etc/group
+      - /home:/home
     restart: unless-stopped

@@ -1,0 +1,60 @@
+{{define "title"}}Admin · Users · lumgr{{end}}
+{{define "content"}}
+<div class="grid two">
+    <div class="card">
+        <h2 style="margin:0 0 8px;">Users</h2>
+        <div class="muted" style="margin-bottom: 12px;">Create and delete host users using Alpine tools.</div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>UID</th>
+                    <th>Home</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Users}}
+                <tr>
+                    <td><code>{{.Name}}</code></td>
+                    <td>{{.UID}}</td>
+                    <td><span class="muted">{{.Home}}</span></td>
+                    <td style="text-align:right;">
+                        <form method="post" action="/admin/users/delete" style="margin:0; display:inline;">
+                            <input type="hidden" name="username" value="{{.Name}}" />
+                            <button class="btn danger" type="submit" {{if eq $.Username
+                                .Name}}disabled{{end}}>Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <h3 style="margin:0 0 8px;">Create user</h3>
+        <form method="post" action="/admin/users/create">
+            <label>Username</label>
+            <input name="username" required />
+            <label>Temporary password</label>
+            <input type="password" name="password" required />
+            <div class="row">
+                <div>
+                    <label>Shell</label>
+                    <input name="shell" placeholder="/bin/bash" />
+                </div>
+                <div>
+                    <label>Home (optional)</label>
+                    <input name="home" placeholder="/home/newuser" />
+                </div>
+            </div>
+            <label><input type="checkbox" name="admin" value="1" /> Add to sudo/wheel</label>
+            <div style="display:flex; justify-content:flex-end; margin-top: 14px;">
+                <button class="btn primary" type="submit">Create</button>
+            </div>
+        </form>
+    </div>
+</div>
+{{end}}

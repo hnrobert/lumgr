@@ -12,7 +12,7 @@ COPY . ./
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/lumgrd ./cmd/lumgrd
 
 FROM alpine:3.20
-RUN apk add --no-cache ca-certificates
+RUN apk add --no-cache ca-certificates shadow
 
 COPY --from=build /out/lumgrd /usr/local/bin/lumgrd
 
