@@ -1,13 +1,11 @@
 package usermgr
 
-// Package usermgr will implement user/group management by operating on host files.
+// Package usermgr implements user/group management by operating on mounted host files.
 //
-// Target operations (planned):
-// - list/create/delete users
-// - list/create/delete groups
-// - set default login directory (home)
-// - manage sudo capability by editing host sudoers fragments (optional)
+// Files are expected to be bind-mounted under /host:
+//   /host/etc/passwd
+//   /host/etc/shadow
+//   /host/etc/group
+//   /host/home/...
 //
-// Security model (planned):
-// - Only allow mutations if authenticated host user has required privilege.
-// - Never elevate beyond what host permits.
+// This package focuses on safe parsing and safe, atomic updates.
