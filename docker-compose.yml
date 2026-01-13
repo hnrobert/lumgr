@@ -7,7 +7,7 @@ services:
       - "14392:14392"
     environment:
       - LUMGR_LISTEN=:14392
-      # Optional: make bind-mounted ./lumgr_data writable for the host user
+      # Optional: make bind-mounted ./lumgr_data writeable for the host user
       # who started the container.
       - LUMGR_DATA_UID=$(id -u)
     volumes:
