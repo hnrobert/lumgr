@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -46,6 +48,25 @@ func NewStore(path string) *Store {
 
 func DefaultPath() string {
 	return filepath.Join("/var/lib/lumgr", "invites.json")
+}
+
+// Ensure creates the backing directory (and an empty file if missing).
+// It also tries to chown the directory/file to LUMGR_DATA_UID/LUMGR_DATA_GID
+// so the host user who started the container can read/write the bind-mounted files.
+// This is best-effort; it won't return an error if ownership cannot be applied.
+func (s *Store) Ensure() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	_ = s.ensureDirLocked()
+	if _, err := os.Stat(s.path); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			_ = s.saveLocked(state{})
+		}
+	}
+	_ = s.applyOwnershipLocked(filepath.Dir(s.path))
+	_ = s.applyOwnershipLocked(s.path)
+	return nil
 }
 
 func (s *Store) List() ([]Invite, error) {
@@ -163,9 +184,10 @@ func (s *Store) loadLocked() (state, error) {
 }
 
 func (s *Store) saveLocked(st state) error {
-	if err := os.MkdirAll(filepath.Dir(s.path), 0700); err != nil {
+	if err := s.ensureDirLocked(); err != nil {
 		return err
 	}
+	_ = s.applyOwnershipLocked(filepath.Dir(s.path))
 	b, err := json.MarshalIndent(st, "", "  ")
 	if err != nil {
 		return err
@@ -175,7 +197,85 @@ func (s *Store) saveLocked(st state) error {
 	if err := os.WriteFile(tmp, b, 0600); err != nil {
 		return err
 	}
-	return os.Rename(tmp, s.path)
+	_ = s.applyOwnershipLocked(tmp)
+	if err := os.Rename(tmp, s.path); err != nil {
+		return err
+	}
+	_ = s.applyOwnershipLocked(s.path)
+	return nil
+}
+
+func (s *Store) ensureDirLocked() error {
+	return os.MkdirAll(filepath.Dir(s.path), 0700)
+}
+
+func (s *Store) applyOwnershipLocked(path string) error {
+	uid, gid, ok := dataOwnerFromEnv()
+	if !ok {
+		return nil
+	}
+	// Best-effort: if this fails (e.g. unsupported FS), keep going.
+	_ = os.Chown(path, uid, gid)
+	return nil
+}
+
+func dataOwnerFromEnv() (int, int, bool) {
+	uidText := os.Getenv("LUMGR_DATA_UID")
+	gidText := os.Getenv("LUMGR_DATA_GID")
+	if uidText == "" {
+		return 0, 0, false
+	}
+	uid, err := strconv.Atoi(uidText)
+	if err != nil {
+		return 0, 0, false
+	}
+	if uid < 0 {
+		return 0, 0, false
+	}
+	if gidText != "" {
+		gid, err := strconv.Atoi(gidText)
+		if err != nil || gid < 0 {
+			return 0, 0, false
+		}
+		return uid, gid, true
+	}
+	// If only UID is provided, infer GID from /etc/passwd (host file is mounted into the container).
+	gid, ok := inferGIDFromPasswd(uid)
+	if !ok {
+		return 0, 0, false
+	}
+	return uid, gid, true
+}
+
+func inferGIDFromPasswd(uid int) (int, bool) {
+	b, err := os.ReadFile("/etc/passwd")
+	if err != nil || len(b) == 0 {
+		return 0, false
+	}
+	// /etc/passwd format: name:pass:uid:gid:gecos:home:shell
+	lines := strings.Split(string(b), "\n")
+	for _, line := range lines {
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		parts := strings.Split(line, ":")
+		if len(parts) < 4 {
+			continue
+		}
+		u, err := strconv.Atoi(parts[2])
+		if err != nil {
+			continue
+		}
+		if u != uid {
+			continue
+		}
+		g, err := strconv.Atoi(parts[3])
+		if err != nil || g < 0 {
+			return 0, false
+		}
+		return g, true
+	}
+	return 0, false
 }
 
 func validateInvite(inv Invite) error {

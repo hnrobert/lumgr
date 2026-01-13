@@ -101,12 +101,15 @@ func newApp() (*App, error) {
 		pages[page] = t
 	}
 
+	invStore := invite.NewStore(invite.DefaultPath())
+	_ = invStore.Ensure()
+
 	return &App{
 		secret:     secretRaw,
 		cookieName: auth.DefaultCookieName,
 		pages:      pages,
 		users:      usercmd.New(),
-		invites:    invite.NewStore(invite.DefaultPath()),
+		invites:    invStore,
 	}, nil
 }
 
