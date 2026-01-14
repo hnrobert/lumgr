@@ -58,7 +58,9 @@
             gap: 12px;
             padding: 12px 14px;
             border-bottom: 1px solid rgba(122, 162, 255, .14);
-            background: rgba(11, 16, 32, .22);
+            background: rgba(11, 16, 32, .35);
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
             position: sticky;
             top: 0;
             z-index: 50;
@@ -436,7 +438,7 @@
                 {{block "content" .}}{{end}}
             </div>
         </main>
-        <div class="foot">Be careful: this service can modify host accounts.</div>
+        <div class="foot">Be careful: this service can modify your accounts directly. © 2026 Robert He.</div>
     </div>
     {{else}}
     <input id="menuOpen" type="checkbox" />
@@ -446,7 +448,7 @@
             <label for="menuOpen" class="menuBtn" aria-label="Menu" title="Menu">
                 <span></span><span></span><span></span>
             </label>
-            <div class="mobileBrand"><a href="/">Lumgr</a></div>
+            <div class="mobileBrand"><a href="/">lumgr</a></div>
         </div>
         <div>
             {{if .Authed}}
@@ -521,7 +523,7 @@
         </div>
     </div>
 
-    <div class="foot">Be careful: this service can modify host accounts.</div>
+    <div class="foot">Be careful: this service can modify your accounts directly. © 2026 Robert He.</div>
     {{end}}
 </body>
 
