@@ -31,6 +31,10 @@
             min-height: 1vh;
         }
 
+        html {
+            background-color: var(--bg);
+        }
+
         a {
             color: var(--accent);
             text-decoration: none;
@@ -263,8 +267,13 @@
             border-right: 1px solid rgba(122, 162, 255, .22);
         }
 
+        .seg label:first-of-type {
+            border-radius: 11px 0 0 11px;
+        }
+
         .seg label:last-of-type {
             border-right: 0;
+            border-radius: 0 11px 11px 0;
         }
 
         .seg input:checked+label {
@@ -472,6 +481,7 @@
                 {{if .Admin}}
                 <div class="muted">Admin</div>
                 <a href="/admin/users">Users</a>
+                <a href="/admin/groups">Groups</a>
                 <a href="/admin/invites">Invites</a>
                 {{end}}
                 {{else}}
@@ -513,6 +523,7 @@
                 {{if .Admin}}
                 <div class="muted">Admin</div>
                 <a href="/admin/users">Users</a>
+                <a href="/admin/groups">Groups</a>
                 <a href="/admin/invites">Invites</a>
                 {{end}}
                 {{else}}

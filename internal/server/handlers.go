@@ -4,6 +4,8 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -178,7 +180,14 @@ func (a *App) handleRegisterComplete(w http.ResponseWriter, r *http.Request) {
 		_, _ = a.invites.Consume(code, username, remoteIP(r))
 	}
 
-	http.Redirect(w, r, "/login?ok=1", http.StatusSeeOther)
+	// Auto-login after registration
+	admin, _ := auth.IsAdmin(username)
+	tok, err := auth.SignHS256(a.secret, username, admin, 24*time.Hour)
+	if err == nil {
+		a.issueCookie(w, tok)
+	}
+
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 func (a *App) handleAdminInvites(w http.ResponseWriter, r *http.Request) {
@@ -325,9 +334,49 @@ func (a *App) handleAdminUsers(w http.ResponseWriter, r *http.Request) {
 		a.renderPage(w, "admin_users", data)
 		return
 	}
-	for _, u := range pw.List() {
-		data.Users = append(data.Users, UserRow{Name: u.Name, UID: u.UID, Home: u.Home})
+	allGroups, _ := a.users.ListGroups()
+	gp, _ := usermgr.LoadGroup("/etc/group")
+
+	var users, sysUsers []UserRow
+	userList := pw.List()
+
+	// Sort by UID first
+	// (Assumes usermgr.List() returns unordered or file-ordered. Let's do a bubble sort or slices.Sort?
+	//  Actually, usermgr.List() returns sorted by name or format. Let's sort simply here.)
+	//  However, to perform sort we need imports "sort". I will add it to imports later if missing.
+	//  Wait, handlers.go already imports sort? Not sure. Let's check context.
+	//  If not, I might need to manage imports.
+
+	for _, u := range userList {
+		userGroups := []string{}
+		if gp != nil {
+			for _, g := range allGroups {
+				ent := gp.Find(g)
+				if ent != nil {
+					for _, member := range ent.Members {
+						if member == u.Name {
+							userGroups = append(userGroups, g)
+							break
+						}
+					}
+				}
+			}
+		}
+
+		row := UserRow{Name: u.Name, UID: u.UID, Home: u.Home, Groups: userGroups}
+		if u.UID >= 1000 && u.UID <= 65533 {
+			users = append(users, row)
+		} else {
+			sysUsers = append(sysUsers, row)
+		}
 	}
+
+	// Sort both lists by UID
+	sort.Slice(users, func(i, j int) bool { return users[i].UID < users[j].UID })
+	sort.Slice(sysUsers, func(i, j int) bool { return sysUsers[i].UID < sysUsers[j].UID })
+
+	data.Users = users
+	data.SystemUsers = sysUsers
 	if r.URL.Query().Get("ok") == "1" {
 		data.Flash = "Saved."
 		data.FlashKind = "ok"
@@ -400,6 +449,227 @@ func (a *App) handleAdminUsersDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/admin/users?ok=1", http.StatusSeeOther)
+}
+
+func (a *App) handleAdminUserEdit(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	username := r.URL.Query().Get("user")
+	if username == "" {
+		http.Redirect(w, r, "/admin/users", http.StatusSeeOther)
+		return
+	}
+
+	data := a.baseData(r)
+
+	// Check if user exists
+	pw, err := usermgr.LoadPasswd("/etc/passwd")
+	if err != nil {
+		data.Flash = "Failed to load users: " + err.Error()
+		data.FlashKind = "err"
+		a.renderPage(w, "admin_users", data)
+		return
+	}
+	u := pw.Find(username)
+	if u == nil {
+		data.Flash = "User not found."
+		data.FlashKind = "err"
+		http.Redirect(w, r, "/admin/users?err=1", http.StatusSeeOther)
+		return
+	}
+
+	groups, err := a.users.GetUserGroups(username)
+	if err != nil {
+		groups = []string{}
+	}
+
+	allGroups, err := a.users.ListGroups()
+	if err != nil {
+		data.Flash = "Failed to load groups: " + err.Error()
+		data.FlashKind = "err"
+	}
+	gp, _ := usermgr.LoadGroup("/etc/group")
+
+	data.EditUser = UserRow{Name: u.Name, UID: u.UID, Home: u.Home, Groups: groups}
+
+	// Split groups
+	var feat, other []string
+	for _, g := range allGroups {
+		gid := 0
+		if gr := gp.Find(g); gr != nil {
+			gid = gr.GID
+		}
+
+		isFeat := (gid >= 1000 && gid <= 65533) || g == "sudo" || g == "docker"
+		if isFeat {
+			feat = append(feat, g)
+		} else {
+			other = append(other, g)
+		}
+	}
+	sort.Strings(feat)
+	sort.Strings(other)
+	data.FeaturedGroups = feat
+	data.OtherGroups = other
+
+	a.renderPage(w, "admin_user_edit", data)
+}
+
+func (a *App) handleAdminUserChmod(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	_ = r.ParseForm()
+	username := r.Form.Get("username")
+
+	ur := r.Form.Get("ur") == "1"
+	uw := r.Form.Get("uw") == "1"
+	ux := r.Form.Get("ux") == "1"
+
+	gr := r.Form.Get("gr") == "1"
+	gw := r.Form.Get("gw") == "1"
+	gx := r.Form.Get("gx") == "1"
+
+	or := r.Form.Get("or") == "1"
+	ow := r.Form.Get("ow") == "1"
+	ox := r.Form.Get("ox") == "1"
+
+	setgid := r.Form.Get("setgid") == "1"
+
+	var m os.FileMode
+	if ur {
+		m |= 0400
+	}
+	if uw {
+		m |= 0200
+	}
+	if ux {
+		m |= 0100
+	}
+	if gr {
+		m |= 0040
+	}
+	if gw {
+		m |= 0020
+	}
+	if gx {
+		m |= 0010
+	}
+	if or {
+		m |= 0004
+	}
+	if ow {
+		m |= 0002
+	}
+	if ox {
+		m |= 0001
+	}
+
+	if err := a.users.RecursiveChmodHome(username, m, setgid); err != nil {
+		http.Redirect(w, r, "/admin/users/edit?user="+username+"&err=1", http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/admin/users/edit?user="+username+"&ok=1", http.StatusSeeOther)
+}
+
+func (a *App) handleAdminUserUpdateGroups(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Redirect(w, r, "/admin/users?err=1", http.StatusSeeOther)
+		return
+	}
+
+	username := r.Form.Get("username")
+	groups := r.Form["groups"] // get all checked values
+
+	if username == "" {
+		http.Redirect(w, r, "/admin/users?err=1", http.StatusSeeOther)
+		return
+	}
+
+	if err := a.users.UpdateUserGroups(username, groups); err != nil {
+		// In a real app, redirect back to edit with error
+		http.Redirect(w, r, "/admin/users/edit?user="+username+"&err=1", http.StatusSeeOther)
+		return
+	}
+
+	http.Redirect(w, r, "/admin/users?ok=1", http.StatusSeeOther)
+}
+
+func (a *App) handleAdminGroups(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	data := a.baseData(r)
+	gp, err := usermgr.LoadGroup("/etc/group")
+	if err != nil {
+		data.Flash = err.Error()
+		data.FlashKind = "err"
+		a.renderPage(w, "admin_groups", data)
+		return
+	}
+
+	var rows []GroupRow
+	list := gp.List()
+	// Sort by GID? User didn't specify, but alphabetical usually better or ID. Let's do GID.
+	// usermgr.List() sorts by GID.
+
+	for _, g := range list {
+		m := strings.Join(g.Members, ", ")
+		rows = append(rows, GroupRow{Name: g.Name, GID: g.GID, Members: m})
+	}
+	data.Groups = rows
+
+	if r.URL.Query().Get("ok") == "1" {
+		data.Flash = "Saved."
+		data.FlashKind = "ok"
+	}
+	if r.URL.Query().Get("err") == "1" {
+		data.Flash = "Request failed."
+		data.FlashKind = "err"
+	}
+	a.renderPage(w, "admin_groups", data)
+}
+
+func (a *App) handleAdminGroupsCreate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	_ = r.ParseForm()
+	name := strings.TrimSpace(r.Form.Get("group"))
+	gid := 0
+	if v, err := strconv.Atoi(r.Form.Get("gid")); err == nil {
+		gid = v
+	}
+
+	if err := a.users.AddGroup(name, gid); err != nil {
+		http.Redirect(w, r, "/admin/groups?err=1", http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/admin/groups?ok=1", http.StatusSeeOther)
+}
+
+func (a *App) handleAdminGroupsDelete(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	_ = r.ParseForm()
+	name := strings.TrimSpace(r.Form.Get("group"))
+
+	if err := a.users.DelGroup(name); err != nil {
+		http.Redirect(w, r, "/admin/groups?err=1", http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/admin/groups?ok=1", http.StatusSeeOther)
 }
 
 func (a *App) baseData(r *http.Request) *ViewData {

@@ -136,6 +136,37 @@ func (f *GroupFile) AddMember(group, user string) error {
 	return nil
 }
 
+func (f *GroupFile) SetUserMemberships(user string, targetGroups []string) {
+	desired := make(map[string]bool)
+	for _, g := range targetGroups {
+		desired[g] = true
+	}
+
+	for _, g := range f.pf.entries() {
+		shouldBeMember := desired[g.Name]
+		isMember := false
+		for _, m := range g.Members {
+			if m == user {
+				isMember = true
+				break
+			}
+		}
+
+		if shouldBeMember && !isMember {
+			g.Members = append(g.Members, user)
+			sort.Strings(g.Members)
+		} else if !shouldBeMember && isMember {
+			var newMembers []string
+			for _, m := range g.Members {
+				if m != user {
+					newMembers = append(newMembers, m)
+				}
+			}
+			g.Members = newMembers
+		}
+	}
+}
+
 func (f *GroupFile) RemoveMemberEverywhere(user string) {
 	for _, g := range f.pf.entries() {
 		var out []string

@@ -1,12 +1,9 @@
 package usercmd
 
 import (
-	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -52,39 +49,6 @@ func writePreservePerm(path string, data []byte) error {
 		perm = 0600
 	}
 	return hostfs.WriteFileAtomic(path, data, perm)
-}
-
-func (r *Runner) run(name string, args ...string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), r.Timeout)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, name, args...)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		s := strings.TrimSpace(stderr.String())
-		if s == "" {
-			return err
-		}
-		return fmt.Errorf("%s %v: %s", name, args, s)
-	}
-	return nil
-}
-
-func (r *Runner) runWithStdin(stdin []byte, name string, args ...string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), r.Timeout)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, name, args...)
-	cmd.Stdin = bytes.NewReader(stdin)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		s := strings.TrimSpace(stderr.String())
-		if s == "" {
-			return err
-		}
-		return fmt.Errorf("%s %v: %s", name, args, s)
-	}
-	return nil
 }
 
 func (r *Runner) AddUser(username, home, shell string, createHome bool) error {
@@ -279,4 +243,131 @@ func (r *Runner) AddUserToGroup(username, group string) error {
 		return err
 	}
 	return writePreservePerm(gp, gr.Bytes())
+}
+
+func (r *Runner) UpdateUserGroups(username string, groups []string) error {
+	if username == "" {
+		return errors.New("username is required")
+	}
+	gp, err := groupPath()
+	if err != nil {
+		return err
+	}
+	gr, err := usermgr.LoadGroup(gp)
+	if err != nil {
+		return err
+	}
+	gr.SetUserMemberships(username, groups)
+	return writePreservePerm(gp, gr.Bytes())
+}
+
+func (r *Runner) GetUserGroups(username string) ([]string, error) {
+	gp, err := groupPath()
+	if err != nil {
+		return nil, err
+	}
+	gr, err := usermgr.LoadGroup(gp)
+	if err != nil {
+		return nil, err
+	}
+	var out []string
+	for _, g := range gr.List() {
+		for _, m := range g.Members {
+			if m == username {
+				out = append(out, g.Name)
+				break
+			}
+		}
+	}
+	return out, nil
+}
+
+func (r *Runner) ListGroups() ([]string, error) {
+	gp, err := groupPath()
+	if err != nil {
+		return nil, err
+	}
+	gr, err := usermgr.LoadGroup(gp)
+	if err != nil {
+		return nil, err
+	}
+	var out []string
+	for _, g := range gr.List() {
+		out = append(out, g.Name)
+	}
+	return out, nil
+}
+
+func (r *Runner) AddGroup(name string, gid int) error {
+	if name == "" {
+		return errors.New("group name is required")
+	}
+	gp, err := groupPath()
+	if err != nil {
+		return err
+	}
+	gr, err := usermgr.LoadGroup(gp)
+	if err != nil {
+		return err
+	}
+	if gid == 0 {
+		gid = gr.NextGID(1000)
+	}
+	if err := gr.Add(usermgr.GroupEntry{Name: name, Passwd: "x", GID: gid, Members: []string{}}); err != nil {
+		return err
+	}
+	return writePreservePerm(gp, gr.Bytes())
+}
+
+func (r *Runner) DelGroup(name string) error {
+	if name == "" {
+		return errors.New("group name is required")
+	}
+	gp, err := groupPath()
+	if err != nil {
+		return err
+	}
+	gr, err := usermgr.LoadGroup(gp)
+	if err != nil {
+		return err
+	}
+	if !gr.Delete(name) {
+		return errors.New("group not found")
+	}
+	return writePreservePerm(gp, gr.Bytes())
+}
+
+func (r *Runner) RecursiveChmodHome(user string, mode os.FileMode, setgid bool) error {
+	pp, err := passwdPath()
+	if err != nil {
+		return err
+	}
+	pf, err := usermgr.LoadPasswd(pp)
+	if err != nil {
+		return err
+	}
+	pe := pf.Find(user)
+	if pe == nil {
+		return fmt.Errorf("user not found: %s", user)
+	}
+	home := pe.Home
+	if home == "" || home == "/" || home == "/root" {
+		return errors.New("refusing to chmod root or empty home")
+	}
+
+	return filepath.Walk(home, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() && info.Name() == ".ssh" {
+			return filepath.SkipDir
+		}
+		m := mode
+		if info.IsDir() {
+			if setgid {
+				m |= os.ModeSetgid
+			}
+		}
+		return os.Chmod(path, m)
+	})
 }

@@ -44,17 +44,40 @@ type ViewData struct {
 	SSHKeys  string
 
 	// admin
-	Users   []UserRow
-	Invites []InviteRow
+	Users       []UserRow
+	SystemUsers []UserRow
+	Invites     []InviteRow
+	EditUser    UserRow
+	Groups      []GroupRow
+	AllGroups   []string
+
+	// user edit
+	FeaturedGroups []string
+	OtherGroups    []string
+	HomePerms      HomePerms
 
 	// register
 	InviteCode string
 }
 
+type GroupRow struct {
+	Name    string
+	GID     int
+	Members string
+}
+
 type UserRow struct {
-	Name string
-	UID  int
-	Home string
+	Name   string
+	UID    int
+	Home   string
+	Groups []string
+}
+
+type HomePerms struct {
+	UserR, UserW, UserX    bool
+	GroupR, GroupW, GroupX bool
+	OtherR, OtherW, OtherX bool
+	SetGID                 bool
 }
 
 type InviteRow struct {
@@ -89,10 +112,18 @@ func newApp() (*App, error) {
 
 	base := template.New("layout.html").Funcs(template.FuncMap{
 		"eq": func(a, b string) bool { return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1 },
+		"contains": func(list []string, s string) bool {
+			for _, v := range list {
+				if v == s {
+					return true
+				}
+			}
+			return false
+		},
 	})
 
 	pages := map[string]*template.Template{}
-	for _, page := range []string{"login", "register", "dashboard", "settings", "admin_users", "admin_invites"} {
+	for _, page := range []string{"login", "register", "dashboard", "settings", "admin_users", "admin_groups", "admin_invites", "admin_user_edit"} {
 		t, err := base.Clone()
 		if err != nil {
 			return nil, err
@@ -135,6 +166,13 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("/admin/users", a.requireAdmin(a.handleAdminUsers))
 	mux.HandleFunc("/admin/users/create", a.requireAdmin(a.handleAdminUsersCreate))
 	mux.HandleFunc("/admin/users/delete", a.requireAdmin(a.handleAdminUsersDelete))
+	mux.HandleFunc("/admin/users/edit", a.requireAdmin(a.handleAdminUserEdit))
+	mux.HandleFunc("/admin/users/update_groups", a.requireAdmin(a.handleAdminUserUpdateGroups))
+	mux.HandleFunc("/admin/users/chmod", a.requireAdmin(a.handleAdminUserChmod))
+
+	mux.HandleFunc("/admin/groups", a.requireAdmin(a.handleAdminGroups))
+	mux.HandleFunc("/admin/groups/create", a.requireAdmin(a.handleAdminGroupsCreate))
+	mux.HandleFunc("/admin/groups/delete", a.requireAdmin(a.handleAdminGroupsDelete))
 
 	mux.HandleFunc("/admin/invites", a.requireAdmin(a.handleAdminInvites))
 	mux.HandleFunc("/admin/invites/create", a.requireAdmin(a.handleAdminInvitesCreate))

@@ -3,8 +3,7 @@ WORKDIR /src
 
 COPY go.mod ./
 
-# If you add external deps later, uncomment:
-# RUN go mod download
+RUN go mod download
 
 COPY . ./
 RUN --mount=type=cache,target=/go/pkg/mod \
