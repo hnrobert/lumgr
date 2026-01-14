@@ -42,15 +42,15 @@ func (s *Store) Ensure() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	_ = os.MkdirAll(filepath.Dir(s.path), 0700)
-	_ = applyOwnership(filepath.Dir(s.path))
+	_ = os.MkdirAll(filepath.Dir(s.path), 0777)
+	_ = applyOwnership(filepath.Dir(s.path), true)
 
 	if _, err := os.Stat(s.path); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			_ = s.saveLocked(Config{UpdatedAt: time.Now().UTC(), RegistrationMode: defaultRegistration})
 		}
 	}
-	_ = applyOwnership(s.path)
+	_ = applyOwnership(s.path, false)
 	return nil
 }
 
@@ -113,10 +113,10 @@ func (s *Store) getLocked() (Config, error) {
 }
 
 func (s *Store) saveLocked(cfg Config) error {
-	if err := os.MkdirAll(filepath.Dir(s.path), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(s.path), 0777); err != nil {
 		return err
 	}
-	_ = applyOwnership(filepath.Dir(s.path))
+	_ = applyOwnership(filepath.Dir(s.path), true)
 
 	b, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
@@ -125,17 +125,21 @@ func (s *Store) saveLocked(cfg Config) error {
 	b = append(b, '\n')
 	p := s.path
 	tmp := p + ".tmp"
-	if err := os.WriteFile(tmp, b, 0600); err != nil {
+	if err := os.WriteFile(tmp, b, 0666); err != nil {
 		return err
 	}
-	_ = applyOwnership(tmp)
+	_ = applyOwnership(tmp, false)
 	if err := os.Rename(tmp, p); err != nil {
 		return err
 	}
-	_ = applyOwnership(p)
+	_ = applyOwnership(p, false)
 	return nil
 }
 
-func applyOwnership(path string) error {
-	return os.Chmod(path, 0666)
+func applyOwnership(path string, isDir bool) error {
+	mode := os.FileMode(0666)
+	if isDir {
+		mode = 0777
+	}
+	return os.Chmod(path, mode)
 }

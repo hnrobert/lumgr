@@ -25,14 +25,20 @@ func Init(logDir string) error {
 	if logDir == "" {
 		return nil
 	}
-	if err := os.MkdirAll(logDir, 0755); err != nil {
+	if err := os.MkdirAll(logDir, 0777); err != nil {
 		return err
 	}
+	// Enforce world permissions
+	_ = os.Chmod(logDir, 0777)
+
 	path := filepath.Join(logDir, "lumgr.log")
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		return err
 	}
+	// Enforce file permissions
+	_ = os.Chmod(path, 0666)
+
 	out = io.MultiWriter(os.Stdout, f)
 	logFile = f
 	return nil

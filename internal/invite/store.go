@@ -61,8 +61,8 @@ func (s *Store) Ensure() error {
 			_ = s.saveLocked(state{})
 		}
 	}
-	_ = s.applyOwnershipLocked(filepath.Dir(s.path))
-	_ = s.applyOwnershipLocked(s.path)
+	_ = s.applyOwnershipLocked(filepath.Dir(s.path), true)
+	_ = s.applyOwnershipLocked(s.path, false)
 	return nil
 }
 
@@ -185,31 +185,39 @@ func (s *Store) saveLocked(st state) error {
 	if err := s.ensureDirLocked(); err != nil {
 		return err
 	}
-	_ = s.applyOwnershipLocked(filepath.Dir(s.path))
+	_ = s.applyOwnershipLocked(filepath.Dir(s.path), true)
 	b, err := json.MarshalIndent(st, "", "  ")
 	if err != nil {
 		return err
 	}
 	b = append(b, '\n')
 	tmp := s.path + ".tmp"
-	if err := os.WriteFile(tmp, b, 0600); err != nil {
+	if err := os.WriteFile(tmp, b, 0666); err != nil {
 		return err
 	}
-	_ = s.applyOwnershipLocked(tmp)
+	_ = s.applyOwnershipLocked(tmp, false)
 	if err := os.Rename(tmp, s.path); err != nil {
 		return err
 	}
-	_ = s.applyOwnershipLocked(s.path)
+	_ = s.applyOwnershipLocked(s.path, false)
 	return nil
 }
 
 func (s *Store) ensureDirLocked() error {
-	return os.MkdirAll(filepath.Dir(s.path), 0700)
+	if err := os.MkdirAll(filepath.Dir(s.path), 0777); err != nil {
+		return err
+	}
+	_ = s.applyOwnershipLocked(filepath.Dir(s.path), true)
+	return nil
 }
 
-func (s *Store) applyOwnershipLocked(path string) error {
+func (s *Store) applyOwnershipLocked(path string, isDir bool) error {
 	// Ensure file is world-readable/writable so host user can manage it
-	return os.Chmod(path, 0666)
+	mode := os.FileMode(0666)
+	if isDir {
+		mode = 0777
+	}
+	return os.Chmod(path, mode)
 }
 
 func validateInvite(inv Invite) error {
