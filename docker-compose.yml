@@ -7,13 +7,12 @@ services:
       - "14392:14392"
     environment:
       - LUMGR_LISTEN=:14392
-      # Optional: make bind-mounted ./lumgr_data writeable for the host user
-      # who started the container.
-      - LUMGR_DATA_UID=$(id -u)
     volumes:
-      - ./lumgr_data:/var/lib/lumgr
+      - ./lumgr_data:/lumgr_data
       - /etc/passwd:/etc/passwd
       - /etc/shadow:/etc/shadow
       - /etc/group:/etc/group
       - /home:/home
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
     restart: always

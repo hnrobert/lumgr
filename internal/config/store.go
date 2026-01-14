@@ -5,8 +5,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 )
@@ -129,59 +127,5 @@ func (s *Store) saveLocked(cfg Config) error {
 }
 
 func applyOwnership(path string) error {
-	uidText := os.Getenv("LUMGR_DATA_UID")
-	if uidText == "" {
-		return nil
-	}
-	uid, err := strconv.Atoi(uidText)
-	if err != nil || uid < 0 {
-		return nil
-	}
-
-	gidText := os.Getenv("LUMGR_DATA_GID")
-	gid := -1
-	if gidText != "" {
-		g, err := strconv.Atoi(gidText)
-		if err == nil && g >= 0 {
-			gid = g
-		}
-	}
-	if gid < 0 {
-		g, ok := inferGIDFromPasswd(uid)
-		if ok {
-			gid = g
-		}
-	}
-	if gid < 0 {
-		return nil
-	}
-	_ = os.Chown(path, uid, gid)
-	return nil
-}
-
-func inferGIDFromPasswd(uid int) (int, bool) {
-	b, err := os.ReadFile("/etc/passwd")
-	if err != nil || len(b) == 0 {
-		return 0, false
-	}
-	lines := strings.Split(string(b), "\n")
-	for _, line := range lines {
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		parts := strings.Split(line, ":")
-		if len(parts) < 4 {
-			continue
-		}
-		u, err := strconv.Atoi(parts[2])
-		if err != nil || u != uid {
-			continue
-		}
-		g, err := strconv.Atoi(parts[3])
-		if err != nil || g < 0 {
-			return 0, false
-		}
-		return g, true
-	}
-	return 0, false
+	return os.Chmod(path, 0666)
 }

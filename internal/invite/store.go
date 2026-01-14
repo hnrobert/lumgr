@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 )
@@ -51,9 +49,7 @@ func DefaultPath() string {
 }
 
 // Ensure creates the backing directory (and an empty file if missing).
-// It also tries to chown the directory/file to LUMGR_DATA_UID/LUMGR_DATA_GID
-// so the host user who started the container can read/write the bind-mounted files.
-// This is best-effort; it won't return an error if ownership cannot be applied.
+// It also sets permissions to 0666/0777 so the host user can read/write the bind-mounted files.
 func (s *Store) Ensure() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -210,72 +206,8 @@ func (s *Store) ensureDirLocked() error {
 }
 
 func (s *Store) applyOwnershipLocked(path string) error {
-	uid, gid, ok := dataOwnerFromEnv()
-	if !ok {
-		return nil
-	}
-	// Best-effort: if this fails (e.g. unsupported FS), keep going.
-	_ = os.Chown(path, uid, gid)
-	return nil
-}
-
-func dataOwnerFromEnv() (int, int, bool) {
-	uidText := os.Getenv("LUMGR_DATA_UID")
-	gidText := os.Getenv("LUMGR_DATA_GID")
-	if uidText == "" {
-		return 0, 0, false
-	}
-	uid, err := strconv.Atoi(uidText)
-	if err != nil {
-		return 0, 0, false
-	}
-	if uid < 0 {
-		return 0, 0, false
-	}
-	if gidText != "" {
-		gid, err := strconv.Atoi(gidText)
-		if err != nil || gid < 0 {
-			return 0, 0, false
-		}
-		return uid, gid, true
-	}
-	// If only UID is provided, infer GID from /etc/passwd (host file is mounted into the container).
-	gid, ok := inferGIDFromPasswd(uid)
-	if !ok {
-		return 0, 0, false
-	}
-	return uid, gid, true
-}
-
-func inferGIDFromPasswd(uid int) (int, bool) {
-	b, err := os.ReadFile("/etc/passwd")
-	if err != nil || len(b) == 0 {
-		return 0, false
-	}
-	// /etc/passwd format: name:pass:uid:gid:gecos:home:shell
-	lines := strings.Split(string(b), "\n")
-	for _, line := range lines {
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		parts := strings.Split(line, ":")
-		if len(parts) < 4 {
-			continue
-		}
-		u, err := strconv.Atoi(parts[2])
-		if err != nil {
-			continue
-		}
-		if u != uid {
-			continue
-		}
-		g, err := strconv.Atoi(parts[3])
-		if err != nil || g < 0 {
-			return 0, false
-		}
-		return g, true
-	}
-	return 0, false
+	// Ensure file is world-readable/writable so host user can manage it
+	return os.Chmod(path, 0666)
 }
 
 func validateInvite(inv Invite) error {

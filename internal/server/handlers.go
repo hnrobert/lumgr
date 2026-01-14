@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"sort"
 	"strconv"
@@ -13,6 +14,7 @@ import (
 	"github.com/hnrobert/lumgr/internal/auth"
 	"github.com/hnrobert/lumgr/internal/config"
 	"github.com/hnrobert/lumgr/internal/invite"
+	"github.com/hnrobert/lumgr/internal/logger"
 	"github.com/hnrobert/lumgr/internal/usermgr"
 )
 
@@ -569,7 +571,9 @@ func (a *App) handleAdminUserChmod(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := a.users.RecursiveChmodHome(username, m, setgid); err != nil {
-		http.Redirect(w, r, "/admin/users/edit?user="+username+"&err=1", http.StatusSeeOther)
+		logger.Error("RecursiveChmodHome failed for %s: %v", username, err)
+		msg := url.QueryEscape(err.Error())
+		http.Redirect(w, r, "/admin/users/edit?user="+username+"&flash="+msg, http.StatusSeeOther)
 		return
 	}
 	http.Redirect(w, r, "/admin/users/edit?user="+username+"&ok=1", http.StatusSeeOther)
@@ -683,6 +687,10 @@ func (a *App) baseData(r *http.Request) *ViewData {
 	}
 	if r.URL.Query().Get("err") == "1" {
 		data.Flash = "Request failed."
+		data.FlashKind = "err"
+	}
+	if f := r.URL.Query().Get("flash"); f != "" {
+		data.Flash = f
 		data.FlashKind = "err"
 	}
 	return data
