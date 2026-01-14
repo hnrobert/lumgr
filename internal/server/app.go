@@ -58,6 +58,9 @@ type ViewData struct {
 
 	// register
 	InviteCode string
+
+	// registration settings
+	DefaultGroups []string
 }
 
 type GroupRow struct {
@@ -86,6 +89,7 @@ type InviteRow struct {
 	MaxUses    int
 	ExpiresAt  time.Time
 	CreateHome bool
+	Groups     []string
 }
 
 func newApp() (*App, error) {

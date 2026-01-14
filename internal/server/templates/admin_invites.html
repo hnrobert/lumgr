@@ -27,16 +27,46 @@
             </form>
         </div>
 
+        {{if eq .RegMode "open"}}
+        <div class="card" style="padding:14px; margin-bottom:14px; margin-top: 14px;">
+            <h3 style="margin:0 0 8px; font-size: 14px;">Default Groups (Open Registration)</h3>
+            <form method="post" action="/admin/settings/registration" style="margin:0;">
+                <input type="hidden" name="mode" value="{{.RegMode}}">
+                <input type="hidden" name="default_groups_submit" value="1">
+                <div
+                    style="max-height: 150px; overflow-y: auto; border: 1px solid var(--border); padding: 8px; border-radius: 4px;">
+                    {{range .AllGroups}}
+                    <div style="margin-bottom: 4px;">
+                        <input type="checkbox" id="dg_{{.}}" name="groups" value="{{.}}" {{if $.DefaultGroups}}{{range
+                            $.DefaultGroups}}{{if eq . .}}checked{{end}}{{end}}{{end}}>
+                        <label for="dg_{{.}}" style="margin:0; cursor: pointer; flex: 1; display: block;">{{.}}</label>
+                    </div>
+                    {{end}}
+                </div>
+                <div style="display:flex; justify-content:flex-end; margin-top: 12px;">
+                    <button class="btn" type="submit">Update Defaults</button>
+                </div>
+            </form>
+        </div>
+        {{end}}
+
         <table>
             <thead>
                 <tr>
                     <th>Code</th>
                     <th>Uses</th>
                     <th>Expires</th>
-                    <th>Create home</th>
+                    <th>Home</th>
+                    <th>Groups</th>
                 </tr>
             </thead>
             <tbody>
+                {{if not .Invites}}
+                <tr>
+                    <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 24px;">No invite codes
+                        created.</td>
+                </tr>
+                {{else}}
                 {{range .Invites}}
                 <tr>
                     <td><code>{{.ID}}</code></td>
@@ -44,7 +74,9 @@
                     <td>{{if .ExpiresAt.IsZero}}<span class="muted">never</span>{{else}}<span
                             class="muted">{{.ExpiresAt}}</span>{{end}}</td>
                     <td>{{if .CreateHome}}Yes{{else}}No{{end}}</td>
+                    <td><small>{{if .Groups}}{{range .Groups}}{{.}} {{end}}{{else}}-{{end}}</small></td>
                 </tr>
+                {{end}}
                 {{end}}
             </tbody>
         </table>
@@ -56,8 +88,9 @@
             <label>Max uses (0 = unlimited)</label>
             <input name="max_uses" inputmode="numeric" placeholder="0" />
 
-            <label>Expires at (UTC, optional)</label>
-            <input name="expires_at" placeholder="2026-01-31T12:00:00Z" />
+            <label>Expires at (optional)</label>
+            <input name="expires_at" type="datetime-local" placeholder="YYYY-MM-DDTHH:MM" />
+            <small class="muted" style="display:block; margin-top:4px;">Server time.</small>
 
             <label>Create home directory</label>
             <div class="seg" style="margin-top:6px;">
@@ -65,6 +98,18 @@
                 <label for="ch_y">Yes</label>
                 <input id="ch_n" type="radio" name="create_home" value="0" />
                 <label for="ch_n">No</label>
+            </div>
+
+            <label style="margin-top: 12px;">Assign Groups</label>
+            <div
+                style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border); padding: 8px; border-radius: 4px;">
+                {{range .AllGroups}}
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" id="g_{{.}}" name="groups" value="{{.}}"
+                        style="width: 16px; height: 16px; flex: 0 0 16px; margin: 0;">
+                    <label for="g_{{.}}" style="display:inline;">{{.}}</label>
+                </div>
+                {{end}}
             </div>
 
             <div style="display:flex; justify-content:flex-end; margin-top: 14px;">

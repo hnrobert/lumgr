@@ -79,13 +79,19 @@
                 <input id="auh_n" type="radio" name="create_home" value="0" />
                 <label for="auh_n">No</label>
             </div>
-            <label>Add to sudo/wheel</label>
-            <div class="seg">
-                <input id="aus_admin_y" type="radio" name="admin" value="1" />
-                <label for="aus_admin_y">Yes</label>
-                <input id="aus_admin_n" type="radio" name="admin" value="0" checked />
-                <label for="aus_admin_n">No</label>
+
+            <label style="margin-top: 12px;">Assign Groups</label>
+            <div
+                style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border); padding: 8px; border-radius: 4px;">
+                {{range .AllGroups}}
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" id="g_{{.}}" name="groups" value="{{.}}"
+                    style="width: 16px; height: 16px; flex: 0 0 16px; margin: 0;">
+                    <label for="g_{{.}}" style="display:inline;">{{.}}</label>
+                </div>
+                {{end}}
             </div>
+
             <div style="display:flex; justify-content:flex-end; margin-top: 14px;">
                 <button class="btn primary" type="submit">Create</button>
             </div>

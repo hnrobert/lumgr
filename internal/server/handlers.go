@@ -128,7 +128,10 @@ func (a *App) handleRegisterComplete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	createHome := true
-	if mode == config.RegistrationInvite {
+	var groups []string
+
+	switch mode {
+	case config.RegistrationInvite:
 		if code == "" {
 			data.Flash = "Invite code is required."
 			data.FlashKind = "err"
@@ -143,7 +146,10 @@ func (a *App) handleRegisterComplete(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		createHome = inv.CreateHome
+		groups = inv.Groups
 		data.InviteCode = code
+	case config.RegistrationOpen:
+		groups = cfg.DefaultGroups
 	}
 	if username == "" || password == "" {
 		data.Flash = "Username and password are required."
@@ -178,6 +184,13 @@ func (a *App) handleRegisterComplete(w http.ResponseWriter, r *http.Request) {
 		a.renderPage(w, "register", data)
 		return
 	}
+
+	for _, g := range groups {
+		if g != "" {
+			_ = a.users.AddUserToGroup(username, g)
+		}
+	}
+
 	if mode == config.RegistrationInvite {
 		_, _ = a.invites.Consume(code, username, remoteIP(r))
 	}
@@ -207,8 +220,15 @@ func (a *App) handleAdminInvites(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, inv := range list {
 		inv.UsedCount = len(inv.Uses)
-		data.Invites = append(data.Invites, InviteRow{ID: inv.ID, UsedCount: inv.UsedCount, MaxUses: inv.MaxUses, ExpiresAt: inv.ExpiresAt, CreateHome: inv.CreateHome})
+		data.Invites = append(data.Invites, InviteRow{ID: inv.ID, UsedCount: inv.UsedCount, MaxUses: inv.MaxUses, ExpiresAt: inv.ExpiresAt, CreateHome: inv.CreateHome, Groups: inv.Groups})
 	}
+
+	cfg, _ := a.cfg.Get()
+	data.DefaultGroups = cfg.DefaultGroups
+	data.AllGroups, _ = a.users.ListGroups()
+	// Sort groups alphabetically
+	sort.Strings(data.AllGroups)
+
 	if r.URL.Query().Get("ok") == "1" {
 		data.Flash = "Saved."
 		data.FlashKind = "ok"
@@ -226,11 +246,24 @@ func (a *App) handleAdminRegistrationMode(w http.ResponseWriter, r *http.Request
 		return
 	}
 	_ = r.ParseForm()
-	mode := strings.TrimSpace(r.Form.Get("mode"))
-	if err := a.cfg.SetRegistrationMode(config.RegistrationMode(mode)); err != nil {
-		http.Redirect(w, r, "/admin/invites?err=1", http.StatusSeeOther)
-		return
+
+	// Update mode
+	if mode := strings.TrimSpace(r.Form.Get("mode")); mode != "" {
+		if err := a.cfg.SetRegistrationMode(config.RegistrationMode(mode)); err != nil {
+			http.Redirect(w, r, "/admin/invites?err=1", http.StatusSeeOther)
+			return
+		}
 	}
+
+	// Update default groups
+	if r.Form.Has("default_groups_submit") {
+		groups := r.Form["groups"] // from multi-select
+		if err := a.cfg.SetDefaultGroups(groups); err != nil {
+			http.Redirect(w, r, "/admin/invites?err=1", http.StatusSeeOther)
+			return
+		}
+	}
+
 	http.Redirect(w, r, "/admin/invites?ok=1", http.StatusSeeOther)
 }
 
@@ -243,6 +276,7 @@ func (a *App) handleAdminInvitesCreate(w http.ResponseWriter, r *http.Request) {
 	maxUsesText := strings.TrimSpace(r.Form.Get("max_uses"))
 	expiresText := strings.TrimSpace(r.Form.Get("expires_at"))
 	createHome := r.Form.Get("create_home") != "0"
+	groups := r.Form["groups"]
 
 	maxUses := 0
 	if maxUsesText != "" {
@@ -256,7 +290,7 @@ func (a *App) handleAdminInvitesCreate(w http.ResponseWriter, r *http.Request) {
 			expiresAt = t
 		}
 	}
-	if _, err := a.invites.Create(usernameFrom(r), maxUses, expiresAt, createHome); err != nil {
+	if _, err := a.invites.Create(usernameFrom(r), maxUses, expiresAt, createHome, groups); err != nil {
 		http.Redirect(w, r, "/admin/invites?err=1", http.StatusSeeOther)
 		return
 	}
@@ -379,6 +413,10 @@ func (a *App) handleAdminUsers(w http.ResponseWriter, r *http.Request) {
 
 	data.Users = users
 	data.SystemUsers = sysUsers
+
+	data.AllGroups, _ = a.users.ListGroups()
+	sort.Strings(data.AllGroups)
+
 	if r.URL.Query().Get("ok") == "1" {
 		data.Flash = "Saved."
 		data.FlashKind = "ok"
@@ -399,8 +437,8 @@ func (a *App) handleAdminUsersCreate(w http.ResponseWriter, r *http.Request) {
 	username := strings.TrimSpace(r.Form.Get("username"))
 	password := r.Form.Get("password")
 	shell := strings.TrimSpace(r.Form.Get("shell"))
-	wantAdmin := r.Form.Get("admin") == "1"
 	createHome := r.Form.Get("create_home") != "0"
+	groups := r.Form["groups"]
 
 	if username == "" || password == "" {
 		http.Redirect(w, r, "/admin/users?err=1", http.StatusSeeOther)
@@ -423,9 +461,9 @@ func (a *App) handleAdminUsersCreate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if wantAdmin {
-		if err := a.users.AddUserToGroup(username, "sudo"); err != nil {
-			_ = a.users.AddUserToGroup(username, "wheel")
+	for _, g := range groups {
+		if g != "" {
+			_ = a.users.AddUserToGroup(username, g)
 		}
 	}
 	http.Redirect(w, r, "/admin/users?ok=1", http.StatusSeeOther)

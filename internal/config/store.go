@@ -22,6 +22,7 @@ const (
 type Config struct {
 	UpdatedAt        time.Time        `json:"updated_at"`
 	RegistrationMode RegistrationMode `json:"registration_mode"`
+	DefaultGroups    []string         `json:"default_groups"`
 }
 
 type Store struct {
@@ -78,6 +79,15 @@ func (s *Store) SetRegistrationMode(mode RegistrationMode) error {
 	cfg, _ := s.getLocked()
 	cfg.UpdatedAt = time.Now().UTC()
 	cfg.RegistrationMode = mode
+	return s.saveLocked(cfg)
+}
+
+func (s *Store) SetDefaultGroups(groups []string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	cfg, _ := s.getLocked()
+	cfg.DefaultGroups = groups
+	cfg.UpdatedAt = time.Now().UTC()
 	return s.saveLocked(cfg)
 }
 

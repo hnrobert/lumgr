@@ -25,6 +25,7 @@ type Invite struct {
 	MaxUses    int       `json:"max_uses"`   // 0 means unlimited
 	UsedCount  int       `json:"used_count"` // derived from Uses
 	CreateHome bool      `json:"create_home"`
+	Groups     []string  `json:"groups"`
 
 	Uses []Use `json:"uses,omitempty"`
 }
@@ -76,7 +77,7 @@ func (s *Store) List() ([]Invite, error) {
 	return st.Invites, nil
 }
 
-func (s *Store) Create(createdBy string, maxUses int, expiresAt time.Time, createHome bool) (Invite, error) {
+func (s *Store) Create(createdBy string, maxUses int, expiresAt time.Time, createHome bool, groups []string) (Invite, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -94,6 +95,7 @@ func (s *Store) Create(createdBy string, maxUses int, expiresAt time.Time, creat
 		ExpiresAt:  expiresAt.UTC(),
 		MaxUses:    maxUses,
 		CreateHome: createHome,
+		Groups:     groups,
 	}
 	if expiresAt.IsZero() {
 		inv.ExpiresAt = time.Time{}
