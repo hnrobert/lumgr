@@ -12,7 +12,7 @@ import (
 func main() {
 	dataDir := "lumgr_data"
 	// Ensure data directory exists
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
+	if err := os.MkdirAll(dataDir, 2776); err != nil {
 		log.Printf("Failed to create data dir: %v", err)
 	}
 
@@ -24,7 +24,7 @@ func main() {
 
 	// 3. Permission Fix (World Writable)
 	// Make dataDir and all contents writable by all users so host user can access/edit.
-	if err := os.Chmod(dataDir, 2777); err != nil {
+	if err := os.Chmod(dataDir, 2776); err != nil {
 		logger.Error("Failed to chmod data dir: %v", err)
 	}
 
@@ -33,10 +33,10 @@ func main() {
 			return err
 		}
 		// If we create new files, they might have restrictive umask.
-		// Force 0777 or 0666.
-		m := os.FileMode(0666)
+		// Force 2777 or 2666.
+		m := os.FileMode(2666)
 		if info.IsDir() {
-			m = 0777
+			m = 2777
 		}
 		return os.Chmod(path, m)
 	})

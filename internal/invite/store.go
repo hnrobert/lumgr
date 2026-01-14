@@ -45,7 +45,7 @@ func NewStore(path string) *Store {
 }
 
 func DefaultPath() string {
-	return filepath.Join("/var/lib/lumgr", "invites.json")
+	return filepath.Join("/lumgr_data", "invites.json")
 }
 
 // Ensure creates the backing directory (and an empty file if missing).

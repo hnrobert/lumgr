@@ -369,6 +369,9 @@ func (r *Runner) RecursiveChmodHome(user string, mode os.FileMode, setgid bool) 
 			}
 		}
 		if err := os.Chmod(path, m); err != nil {
+			if os.IsNotExist(err) {
+				return nil
+			}
 			return fmt.Errorf("chmod %s: %w", path, err)
 		}
 		return nil

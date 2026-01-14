@@ -34,7 +34,7 @@ func NewStore(path string) *Store {
 }
 
 func DefaultPath() string {
-	return filepath.Join("/var/lib/lumgr", "config.json")
+	return filepath.Join("/lumgr_data", "config.json")
 }
 
 func (s *Store) Ensure() error {
