@@ -297,6 +297,24 @@ func (a *App) handleAdminInvitesCreate(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin/invites?ok=1", http.StatusSeeOther)
 }
 
+func (a *App) handleAdminInvitesDelete(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	_ = r.ParseForm()
+	inviteID := strings.TrimSpace(r.Form.Get("invite_id"))
+	if inviteID == "" {
+		http.Redirect(w, r, "/admin/invites?err=1", http.StatusSeeOther)
+		return
+	}
+	if err := a.invites.Delete(inviteID); err != nil {
+		http.Redirect(w, r, "/admin/invites?err=1", http.StatusSeeOther)
+		return
+	}
+	http.Redirect(w, r, "/admin/invites?ok=1", http.StatusSeeOther)
+}
+
 func humanInviteError(err error) string {
 	if err == nil {
 		return ""

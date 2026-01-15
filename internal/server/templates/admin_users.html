@@ -25,7 +25,8 @@
                     <td style="text-align:right; white-space: nowrap;">
                         <a href="/admin/users/edit?user={{.Name}}" class="btn small ghost"
                             style="text-decoration: none; margin-right: 4px;">Edit</a>
-                        <form method="post" action="/admin/users/delete" style="margin:0; display:inline;">
+                        <form method="post" action="/admin/users/delete" style="margin:0; display:inline;"
+                            onsubmit="return confirm('Delete user {{.Name}}? This action cannot be undone!');">
                             <input type="hidden" name="username" value="{{.Name}}" />
                             <button class="btn small danger" type="submit" {{if eq $.Username
                                 .Name}}disabled{{end}}>Del</button>
@@ -86,7 +87,7 @@
                 {{range .AllGroups}}
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <input type="checkbox" id="g_{{.}}" name="groups" value="{{.}}"
-                    style="width: 16px; height: 16px; flex: 0 0 16px; margin: 0;">
+                        style="width: 16px; height: 16px; flex: 0 0 16px; margin: 0;">
                     <label for="g_{{.}}" style="display:inline;">{{.}}</label>
                 </div>
                 {{end}}

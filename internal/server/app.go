@@ -180,6 +180,7 @@ func (a *App) routes() http.Handler {
 
 	mux.HandleFunc("/admin/invites", a.requireAdmin(a.handleAdminInvites))
 	mux.HandleFunc("/admin/invites/create", a.requireAdmin(a.handleAdminInvitesCreate))
+	mux.HandleFunc("/admin/invites/delete", a.requireAdmin(a.handleAdminInvitesDelete))
 	mux.HandleFunc("/admin/settings/registration", a.requireAdmin(a.handleAdminRegistrationMode))
 
 	mux.HandleFunc("/api/healthz", func(w http.ResponseWriter, r *http.Request) {

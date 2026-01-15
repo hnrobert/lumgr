@@ -21,7 +21,8 @@
                     <td>{{.GID}}</td>
                     <td><span class="muted" style="font-size:12px;">{{.Members}}</span></td>
                     <td style="text-align:right;">
-                        <form method="post" action="/admin/groups/delete" style="margin:0; display:inline;">
+                        <form method="post" action="/admin/groups/delete" style="margin:0; display:inline;"
+                            onsubmit="return confirm('Delete group {{.Name}}? This action cannot be undone!');">
                             <input type="hidden" name="group" value="{{.Name}}" />
                             <button class="btn danger small" type="submit">Del</button>
                         </form>

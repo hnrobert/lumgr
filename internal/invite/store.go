@@ -242,3 +242,24 @@ func indexOf(invites []Invite, id string) int {
 	}
 	return -1
 }
+
+// Delete removes an invite by ID.
+func (s *Store) Delete(id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	st, err := s.loadLocked()
+	if err != nil {
+		return err
+	}
+
+	idx := indexOf(st.Invites, id)
+	if idx == -1 {
+		return ErrNotFound
+	}
+
+	// Remove the invite
+	st.Invites = append(st.Invites[:idx], st.Invites[idx+1:]...)
+
+	return s.saveLocked(st)
+}

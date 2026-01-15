@@ -58,12 +58,13 @@
                     <th>Expires</th>
                     <th>Home</th>
                     <th>Groups</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
                 {{if not .Invites}}
                 <tr>
-                    <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 24px;">No invite codes
+                    <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">No invite codes
                         created.</td>
                 </tr>
                 {{else}}
@@ -75,6 +76,13 @@
                             class="muted">{{.ExpiresAt}}</span>{{end}}</td>
                     <td>{{if .CreateHome}}Yes{{else}}No{{end}}</td>
                     <td><small>{{if .Groups}}{{range .Groups}}{{.}} {{end}}{{else}}-{{end}}</small></td>
+                    <td style="text-align:right;">
+                        <form method="post" action="/admin/invites/delete" style="margin:0; display:inline;"
+                            onsubmit="return confirm('Delete invite code {{.ID}}? This action cannot be undone!');">
+                            <input type="hidden" name="invite_id" value="{{.ID}}" />
+                            <button class="btn danger small" type="submit">Del</button>
+                        </form>
+                    </td>
                 </tr>
                 {{end}}
                 {{end}}
