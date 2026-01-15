@@ -1,0 +1,84 @@
+{{define "title"}}Admin · Groups · lumgr{{end}}
+{{define "content"}}
+<div class="grid two">
+    <div class="card">
+        <h2 style="margin:0 0 8px;">Groups</h2>
+        <div class="muted" style="margin-bottom: 12px;">Manage system groups.</div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Group</th>
+                    <th>GID</th>
+                    <th>Members</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Groups}}
+                <tr>
+                    <td><code>{{.Name}}</code></td>
+                    <td>{{.GID}}</td>
+                    <td><span class="muted" style="font-size:12px;">{{.Members}}</span></td>
+                    <td style="text-align:right;">
+                        <form method="post" action="/admin/groups/delete" style="margin:0; display:inline;"
+                            onsubmit="return confirm('Delete group {{.Name}}? This action cannot be undone!');">
+                            <input type="hidden" name="group" value="{{.Name}}" />
+                            <button class="btn danger small" type="submit">Del</button>
+                        </form>
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+
+        {{if .SystemGroups}}
+        <details style="margin-top: 16px;">
+            <summary style="cursor: pointer; color: var(--muted); font-size: 14px;">Show System Groups ({{len
+                .SystemGroups}})</summary>
+            <table style="margin-top: 8px;">
+                <thead>
+                    <tr>
+                        <th>Group</th>
+                        <th>GID</th>
+                        <th>Members</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .SystemGroups}}
+                    <tr>
+                        <td><code>{{.Name}}</code></td>
+                        <td>{{.GID}}</td>
+                        <td><span class="muted" style="font-size:12px;">{{.Members}}</span></td>
+                        <td style="text-align:right;">
+                            <form method="post" action="/admin/groups/delete" style="margin:0; display:inline;"
+                                onsubmit="return confirm('Delete group {{.Name}}? This action cannot be undone!');">
+                                <input type="hidden" name="group" value="{{.Name}}" />
+                                <button class="btn danger small" type="submit">Del</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </details>
+        {{end}}
+    </div>
+
+    <div class="card">
+        <h3 style="margin:0 0 8px;">Create group</h3>
+        <form method="post" action="/admin/groups/create">
+            <label>Group Name</label>
+            <input name="group" required />
+
+            <label>Preferred GID (optional)</label>
+            <input name="gid" type="number" placeholder="Auto" />
+
+            <div style="display:flex; justify-content:flex-end; margin-top: 14px;">
+                <button class="btn primary" type="submit">Create</button>
+            </div>
+        </form>
+    </div>
+</div>
+{{end}}

@@ -1,0 +1,98 @@
+{{define "title"}}Register · lumgr{{end}}
+{{define "content"}}
+<div class="card" style="max-width:560px; margin: 24px auto;">
+    <h2 style="margin:0 0 6px;">Register</h2>
+    {{if eq .RegMode "closed"}}
+    <div class="muted" style="margin-bottom: 14px;">Registration is currently disabled.</div>
+    <div style="display:flex; justify-content:flex-end; margin-top: 14px;">
+        <a class="btn" href="/login">Back to login</a>
+    </div>
+
+    {{else if eq .RegMode "open"}}
+    <div class="muted" style="margin-bottom: 14px;">Create your account.</div>
+    <form method="post" action="/register/complete">
+        <label>Username</label>
+        <input name="username" autocomplete="username" required placeholder="e.g. alice" />
+        <div class="muted" style="margin-top: 6px; font-size: 12px;">Allowed: lowercase letters, digits, underscore,
+            dash. Must start with a letter or underscore.</div>
+
+        <label>Password</label>
+        <input type="password" name="password" autocomplete="new-password" required />
+
+        <label>Confirm password</label>
+        <input type="password" name="password2" autocomplete="new-password" required />
+
+        <label>Shell</label>
+        <select name="shell">
+            {{range .AvailableShells}}
+            <option value="{{.}}" {{if eq . "/bin/bash" }}selected{{end}}>{{.}}</option>
+            {{end}}
+        </select>
+
+        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top: 14px;">
+            <a class="btn" style="font-size: 11px;" href="/login">Back to login</a>
+            <button class="btn primary" type="submit">Create account</button>
+        </div>
+    </form>
+
+    {{else}}
+    <div class="muted" style="margin-bottom: 14px;">Enter an invite code from an admin to create your account.</div>
+    {{if .InviteCode}}
+    <div class="flash ok" style="margin-bottom: 14px;">Invite code accepted.</div>
+
+    <form method="post" action="/register/complete">
+        <input type="hidden" name="code" value="{{.InviteCode}}" />
+        <label>Username</label>
+        <input name="username" autocomplete="username" required placeholder="e.g. alice" />
+        <div class="muted" style="margin-top: 6px; font-size: 12px;">Allowed: lowercase letters, digits, underscore,
+            dash. Must start with a letter or underscore.</div>
+
+        <label>Password</label>
+        <input type="password" name="password" autocomplete="new-password" required />
+
+        <label>Confirm password</label>
+        <input type="password" name="password2" autocomplete="new-password" required />
+
+        <label>Shell</label>
+        <select name="shell">
+            {{range .AvailableShells}}
+            <option value="{{.}}" {{if eq . "/bin/bash" }}selected{{end}}>{{.}}</option>
+            {{end}}
+        </select>
+
+        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top: 14px;">
+            <a class="btn" style="font-size: 11px;" href="/login">Back to login</a>
+            <button class="btn primary" type="submit">Create account</button>
+        </div>
+    </form>
+    {{else}}
+    <form method="get" action="/register">
+        <label>Invite code</label>
+        <div class="row" style="align-items:flex-end;">
+            <div style="flex: 1;">
+                <input id="inviteCode" name="code" required placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+            </div>
+            <div style="flex: 0 0 auto;">
+                <button class="btn" type="button" onclick="pasteInvite()">Paste</button>
+            </div>
+        </div>
+        <div style="display:flex; justify-content:flex-end; margin-top: 14px;">
+            <button class="btn primary" type="submit">Continue</button>
+        </div>
+    </form>
+
+    <script>
+        async function pasteInvite() {
+            try {
+                const text = await navigator.clipboard.readText();
+                const el = document.getElementById('inviteCode');
+                if (el && text) el.value = text.trim();
+            } catch (e) {
+                alert('Paste failed. Please paste manually.');
+            }
+        }
+    </script>
+    {{end}}
+    {{end}}
+</div>
+{{end}}

@@ -1,0 +1,560 @@
+{{define "layout"}}
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{block "title" .}}lumgr{{end}}</title>
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #0b1020;
+            --card: #121a33;
+            --text: #e7ecff;
+            --muted: #9aa7d3;
+            --placeholder: #707a9a;
+            --accent: #7aa2ff;
+            --danger: #ff6b6b;
+            --ok: #3ddc97;
+        }
+
+        body {
+            margin: 0;
+            font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+            background: radial-gradient(1200px 800px at 20% 0%, #18214a 0%, var(--bg) 60%);
+            color: var(--text);
+            min-height: 1vh;
+        }
+
+        html {
+            background-color: var(--bg);
+        }
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        ::placeholder {
+            color: var(--placeholder);
+        }
+
+        .shell {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 240px;
+            border-right: 1px solid rgba(122, 162, 255, .14);
+            background: rgba(11, 16, 32, .22);
+            padding: 16px 12px;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+        }
+
+        .mobileTop {
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px 14px;
+            border-bottom: 1px solid rgba(122, 162, 255, .14);
+            background: rgba(11, 16, 32, .35);
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .mobileLeft {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .menuBtn {
+            width: 40px;
+            height: 40px;
+            display: inline-flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 4px;
+            border-radius: 10px;
+            border: 1px solid rgba(122, 162, 255, .28);
+            background: rgba(18, 26, 51, .8);
+            cursor: pointer;
+        }
+
+        .menuBtn span {
+            display: block;
+            width: 16px;
+            height: 2px;
+            background: var(--text);
+            border-radius: 2px;
+            opacity: .9;
+        }
+
+        .mobileBrand {
+            font-weight: 700;
+            letter-spacing: .2px;
+        }
+
+        .mobileBrand a {
+            color: var(--text);
+        }
+
+        .main {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .wrap {
+            max-width: 1040px;
+            margin: 0 auto;
+            padding: 20px 20px 84px;
+        }
+
+        @media (max-width: 520px) {
+            .wrap {
+                padding: 14px 14px 84px;
+            }
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 12px;
+            border: 1px solid rgba(122, 162, 255, .16);
+            background: rgba(18, 26, 51, .32);
+            font-weight: 700;
+            letter-spacing: .2px;
+            user-select: none;
+        }
+
+        .brand a {
+            color: var(--text);
+        }
+
+        .nav {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 10px;
+        }
+
+        .nav a {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 10px;
+            border-radius: 12px;
+            border: 1px solid transparent;
+            color: var(--text);
+        }
+
+        .nav a:hover {
+            border-color: rgba(122, 162, 255, .18);
+            background: rgba(18, 26, 51, .30);
+        }
+
+        .nav .muted {
+            font-size: 12px;
+            margin: 6px 10px 0;
+        }
+
+        .card {
+            background: rgba(18, 26, 51, .92);
+            border: 1px solid rgba(122, 162, 255, .18);
+            border-radius: 14px;
+            padding: 18px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, .28);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+
+        @media (min-width: 920px) {
+            .grid.two {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .muted {
+            color: var(--muted);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(122, 162, 255, .28);
+            background: rgba(18, 26, 51, .9);
+            color: var(--text);
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            border-color: rgba(122, 162, 255, .55);
+        }
+
+        .btn.danger {
+            border-color: rgba(255, 107, 107, .45);
+        }
+
+        .btn.danger:hover {
+            border-color: rgba(255, 107, 107, .75);
+        }
+
+        .btn.primary {
+            background: rgba(122, 162, 255, .18);
+        }
+
+        .btn.ghost {
+            background: transparent;
+        }
+
+        .btn.small {
+            padding: 6px 10px;
+            border-radius: 10px;
+            font-size: 13px;
+        }
+
+        /* Segmented yes/no controls */
+        .seg {
+            display: inline-flex;
+            border: 1px solid rgba(122, 162, 255, .25);
+            border-radius: 12px;
+            overflow: hidden;
+            background: rgba(11, 16, 32, .40);
+        }
+
+        .seg input {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+            width: 1px;
+            height: 1px;
+        }
+
+        .seg label {
+            margin: 0;
+            padding: 8px 12px;
+            cursor: pointer;
+            color: var(--muted);
+            font-size: 13px;
+            user-select: none;
+            border-right: 1px solid rgba(122, 162, 255, .22);
+        }
+
+        .seg label:first-of-type {
+            border-radius: 11px 0 0 11px;
+        }
+
+        .seg label:last-of-type {
+            border-right: 0;
+            border-radius: 0 11px 11px 0;
+        }
+
+        .seg input:checked+label {
+            background: rgba(122, 162, 255, .18);
+            color: var(--text);
+            box-shadow: inset 0 0 0 1px rgba(122, 162, 255, .35);
+        }
+
+        input,
+        textarea,
+        select {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(122, 162, 255, .25);
+            background: rgba(11, 16, 32, .55);
+            color: var(--text);
+            outline: none;
+        }
+
+        select {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            min-height: 35px;
+            padding-right: 32px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239aa7d3' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 12px;
+        }
+
+        textarea {
+            min-height: 160px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        }
+
+        label {
+            display: block;
+            margin: 15px 0 6px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .row {
+            display: flex;
+            gap: 12px;
+        }
+
+        .row>* {
+            flex: 1;
+        }
+
+        @media (max-width: 720px) {
+            .row {
+                flex-direction: column;
+            }
+        }
+
+        .flash {
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(122, 162, 255, .22);
+            background: rgba(122, 162, 255, .10);
+        }
+
+        .flash.err {
+            border-color: rgba(255, 107, 107, .35);
+            background: rgba(255, 107, 107, .10);
+        }
+
+        .flash.ok {
+            border-color: rgba(61, 220, 151, .30);
+            background: rgba(61, 220, 151, .10);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 1px solid rgba(122, 162, 255, .16);
+        }
+
+        code {
+            color: #cfe0ff;
+        }
+
+        .foot {
+            margin-top: 20px;
+            color: var(--muted);
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .foot {
+            position: fixed;
+            left: 50%;
+            bottom: 14px;
+            transform: translateX(-50%);
+            width: min(1040px, calc(100vw - 28px));
+            margin: 0;
+            padding: 10px 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(122, 162, 255, .18);
+            background: rgba(11, 16, 32, .35);
+            backdrop-filter: blur(8px);
+            min-height: 1vh;
+        }
+
+        /* Mobile: hide sidebar, show a top bar + full-screen overlay menu */
+        #menuOpen {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .menuOverlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            background: rgba(11, 16, 32, .92);
+            backdrop-filter: blur(10px);
+            padding: 18px;
+        }
+
+        .menuPanel {
+            max-width: 520px;
+            margin: 0 auto;
+        }
+
+        .menuHeader {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .menuTitle {
+            font-weight: 700;
+            letter-spacing: .2px;
+        }
+
+        #menuOpen:checked~.menuOverlay {
+            display: block;
+        }
+
+        @media (max-width: 820px) {
+            .shell {
+                display: block;
+                min-height: 100vh;
+            }
+
+            .sidebar {
+                display: none;
+            }
+
+            .mobileTop {
+                display: flex;
+            }
+
+            .topbar {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    {{if .HideNav}}
+    <div class="shell">
+        <main class="main">
+            <div class="wrap">
+                {{if .Flash}}
+                <div class="flash {{.FlashKind}}" style="margin-bottom: 14px;">{{.Flash}}</div>
+                {{end}}
+                {{block "content" .}}{{end}}
+            </div>
+        </main>
+        <div class="foot">Be careful: this service can modify your accounts directly. © 2026 Robert He.</div>
+    </div>
+    {{else}}
+    <input id="menuOpen" type="checkbox" />
+
+    <header class="mobileTop">
+        <div class="mobileLeft">
+            <label for="menuOpen" class="menuBtn" style="margin-top: 0; margin-bottom: 0;" aria-label="Menu"
+                title="Menu">
+                <span></span><span></span><span></span>
+            </label>
+            <div class="mobileBrand"><a href="/">lumgr</a></div>
+        </div>
+        <div>
+            {{if .Authed}}
+            <form method="post" action="/logout" style="display:inline; margin:0;">
+                <button class="btn small" type="submit">Logout</button>
+            </form>
+            {{end}}
+        </div>
+    </header>
+
+    <div class="shell">
+        <aside class="sidebar">
+            <div class="brand">
+                <a href="/">Linux User Manager</a>
+            </div>
+
+            <nav class="nav">
+                {{if .Authed}}
+                <!-- <a href="/">Dashboard</a> -->
+                <a href="/settings">Personal settings</a>
+                {{if .Admin}}
+                <div class="muted">Admin</div>
+                <a href="/admin/users">Users</a>
+                <a href="/admin/groups">Groups</a>
+                <a href="/admin/invites">Invites</a>
+                {{end}}
+                {{else}}
+                <a href="/login">Login</a>
+                {{if eq .RegMode "closed"}}{{else}}<a href="/register">Register</a>{{end}}
+                {{end}}
+            </nav>
+        </aside>
+
+        <main class="main">
+            <div class="wrap">
+                <div class="topbar">
+                    {{if .Authed}}
+                    <form method="post" action="/logout" style="display:inline; margin:0;">
+                        <button class="btn" type="submit">Logout ({{.Username}})</button>
+                    </form>
+                    {{end}}
+                </div>
+
+                {{if .Flash}}
+                <div class="flash {{.FlashKind}}" style="margin-bottom: 14px;">{{.Flash}}</div>
+                {{end}}
+
+                {{block "content" .}}{{end}}
+            </div>
+        </main>
+    </div>
+
+    <div class="menuOverlay">
+        <div class="menuPanel card">
+            <div class="menuHeader">
+                <div class="menuTitle">Menu</div>
+                <label for="menuOpen" class="btn small">Close</label>
+            </div>
+            <nav class="nav" style="margin-top:0;">
+                {{if .Authed}}
+                <a href="/">Dashboard</a>
+                <a href="/settings">Personal settings</a>
+                {{if .Admin}}
+                <div class="muted">Admin</div>
+                <a href="/admin/users">Users</a>
+                <a href="/admin/groups">Groups</a>
+                <a href="/admin/invites">Invites</a>
+                {{end}}
+                {{else}}
+                <a href="/login">Login</a>
+                {{if eq .RegMode "closed"}}{{else}}<a href="/register">Register</a>{{end}}
+                {{end}}
+            </nav>
+        </div>
+    </div>
+
+    <div class="foot">Be careful: this service can modify your accounts directly. © 2026 Robert He.</div>
+    {{end}}
+</body>
+
+</html>
+{{end}}

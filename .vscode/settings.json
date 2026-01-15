@@ -1,11 +1,27 @@
 {
     "cSpell.words": [
+        "addgroup",
+        "adduser",
+        "Buildx",
+        "creack",
+        "Crypter",
+        "crypters",
+        "deluser",
+        "Gecos",
+        "Gehirn",
+        "gname",
         "GOOS",
         "healthz",
         "hostfs",
         "ldflags",
         "lumgr",
         "lumgrd",
-        "trimpath"
+        "rerr",
+        "softprops",
+        "topbar",
+        "trimpath",
+        "usercmd",
+        "usermgr",
+        "yescrypt"
     ]
 }
