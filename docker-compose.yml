@@ -7,15 +7,14 @@ services:
       - "14392:14392"
     environment:
       - LUMGR_LISTEN=:14392
+      - LUMGR_JWT_SECRET=your-secret-key-here # Optional: Set custom JWT secret
     volumes:
-      - ./lumgr_data:/lumgr_data
-      - /etc/passwd:/etc/passwd
-      - /etc/shadow:/etc/shadow
-      - /etc/group:/etc/group
-      - /home:/home
-      - /etc/shells:/etc/shells:ro
-      - /etc/os-release:/etc/os-release:ro
-      - /etc/hostname:/etc/hostname:ro
-      - /etc/localtime:/etc/localtime:ro
-      - /etc/timezone:/etc/timezone:ro
+      - ./lumgr_data:/lumgr_data # Config & invite storage
+      - /etc/passwd:/etc/passwd # User database
+      - /etc/shadow:/etc/shadow # Password hashes
+      - /etc/group:/etc/group # Group database
+      - /home:/home # User home directories
+      - /etc/shells:/etc/shells:ro # Available shells
+      - /etc/os-release:/etc/os-release:ro # OS info
+      - /etc/hostname:/etc/hostname:ro # Hostname
     restart: always
