@@ -198,6 +198,9 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("/admin/invites/delete", a.requireAdmin(a.handleAdminInvitesDelete))
 	mux.HandleFunc("/admin/settings/registration", a.requireAdmin(a.handleAdminRegistrationMode))
 
+	// Static assets
+	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("/usr/local/share/lumgrd/assets/"))))
+
 	mux.HandleFunc("/api/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(http.StatusOK)
