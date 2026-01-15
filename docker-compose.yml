@@ -1,7 +1,7 @@
 services:
   lumgr:
-    build: .
-    # image: ghcr.io/hnrobert/lumgr:latest
+    # build: .
+    image: ghcr.io/hnrobert/lumgr:latest
     container_name: lumgr
     ports:
       - "14392:14392"
