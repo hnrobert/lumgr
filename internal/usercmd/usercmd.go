@@ -337,7 +337,7 @@ func (r *Runner) DelGroup(name string) error {
 	return writePreservePerm(gp, gr.Bytes())
 }
 
-func (r *Runner) RecursiveChmodHome(user string, mode os.FileMode, setgid bool) error {
+func (r *Runner) RecursiveChmodHome(user string, mode os.FileMode, setuid, setgid, sticky bool) error {
 	pp, err := passwdPath()
 	if err != nil {
 		return err
@@ -367,6 +367,12 @@ func (r *Runner) RecursiveChmodHome(user string, mode os.FileMode, setgid bool) 
 			if setgid {
 				m |= os.ModeSetgid
 			}
+			if sticky {
+				m |= os.ModeSticky
+			}
+		}
+		if setuid {
+			m |= os.ModeSetuid
 		}
 		if err := os.Chmod(path, m); err != nil {
 			if os.IsNotExist(err) {

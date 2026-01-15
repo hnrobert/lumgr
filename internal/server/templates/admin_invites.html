@@ -105,7 +105,7 @@
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <input type="checkbox" id="inv_{{.}}" name="groups" value="{{.}}"
                         style="width: 16px; height: 16px; flex: 0 0 16px; margin: 0;">
-                    <label for="inv_{{.}}" style="display:inline;">{{.}}</label>
+                    <label for="inv_{{.}}" style="display:inline; margin-top: 6px;">{{.}}</label>
                 </div>
                 {{end}}
                 {{if .OtherGroups}}
@@ -117,7 +117,7 @@
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <input type="checkbox" id="inv_{{.}}" name="groups" value="{{.}}"
                                 style="width: 16px; height: 16px; flex: 0 0 16px; margin: 0;">
-                            <label for="inv_{{.}}" style="display:inline;">{{.}}</label>
+                            <label for="inv_{{.}}" style="display:inline; margin-top: 6px;">{{.}}</label>
                         </div>
                         {{end}}
                     </div>
@@ -150,7 +150,7 @@
                     <input type="checkbox" id="open_{{.}}" name="groups" value="{{.}}" {{if $.DefaultGroups}}{{range
                         $.DefaultGroups}}{{if eq . .}}checked{{end}}{{end}}{{end}}
                         style="width: 16px; height: 16px; flex: 0 0 16px; margin: 0;">
-                    <label for="open_{{.}}" style="display:inline;">{{.}}</label>
+                    <label for="open_{{.}}" style="display:inline; margin-top: 6px;">{{.}}</label>
                 </div>
                 {{end}}
                 {{if .OtherGroups}}
@@ -163,7 +163,7 @@
                             <input type="checkbox" id="open_{{.}}" name="groups" value="{{.}}" {{if
                                 $.DefaultGroups}}{{range $.DefaultGroups}}{{if eq . .}}checked{{end}}{{end}}{{end}}
                                 style="width: 16px; height: 16px; flex: 0 0 16px; margin: 0;">
-                            <label for="open_{{.}}" style="display:inline;">{{.}}</label>
+                            <label for="open_{{.}}" style="display:inline; margin-top: 6px;">{{.}}</label>
                         </div>
                         {{end}}
                     </div>

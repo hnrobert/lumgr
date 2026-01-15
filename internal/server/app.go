@@ -92,7 +92,10 @@ type HomePerms struct {
 	UserR, UserW, UserX    bool
 	GroupR, GroupW, GroupX bool
 	OtherR, OtherW, OtherX bool
+	SetUID                 bool
 	SetGID                 bool
+	Sticky                 bool
+	Octal                  string // e.g., "0755" or "2775"
 }
 
 type InviteRow struct {

@@ -707,6 +707,58 @@ func (a *App) handleAdminUsersDelete(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin/users?ok=1", http.StatusSeeOther)
 }
 
+// getHomeDirPerms reads the permissions of home directory
+func getHomeDirPerms(homeDir string) HomePerms {
+	var perms HomePerms
+
+	info, err := os.Stat(homeDir)
+	if err != nil {
+		// If home doesn't exist, return empty/default permissions
+		return perms
+	}
+
+	mode := info.Mode()
+	perm := mode.Perm()
+
+	// User permissions
+	perms.UserR = perm&0400 != 0
+	perms.UserW = perm&0200 != 0
+	perms.UserX = perm&0100 != 0
+
+	// Group permissions
+	perms.GroupR = perm&0040 != 0
+	perms.GroupW = perm&0020 != 0
+	perms.GroupX = perm&0010 != 0
+
+	// Other permissions
+	perms.OtherR = perm&0004 != 0
+	perms.OtherW = perm&0002 != 0
+	perms.OtherX = perm&0001 != 0
+
+	// Special bits
+	perms.SetUID = mode&os.ModeSetuid != 0
+	perms.SetGID = mode&os.ModeSetgid != 0
+	perms.Sticky = mode&os.ModeSticky != 0
+
+	// Calculate octal representation - use only the basic rwx bits (0777)
+	var octalValue uint32
+	if perms.SetUID {
+		octalValue += 04000
+	}
+	if perms.SetGID {
+		octalValue += 02000
+	}
+	if perms.Sticky {
+		octalValue += 01000
+	}
+	// Extract only the permission bits, not the special bits
+	basicPerms := uint32(perm) & 0777
+	octalValue += basicPerms
+	perms.Octal = fmt.Sprintf("%04o", octalValue)
+
+	return perms
+}
+
 func (a *App) handleAdminUserEdit(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -770,6 +822,9 @@ func (a *App) handleAdminUserEdit(w http.ResponseWriter, r *http.Request) {
 	data.FeaturedGroups = feat
 	data.OtherGroups = other
 
+	// Get current permissions from .lumgrc file
+	data.HomePerms = getHomeDirPerms(u.Home)
+
 	a.renderPage(w, "admin_user_edit", data)
 }
 
@@ -793,7 +848,9 @@ func (a *App) handleAdminUserChmod(w http.ResponseWriter, r *http.Request) {
 	ow := r.Form.Get("ow") == "1"
 	ox := r.Form.Get("ox") == "1"
 
+	setuid := r.Form.Get("setuid") == "1"
 	setgid := r.Form.Get("setgid") == "1"
+	sticky := r.Form.Get("sticky") == "1"
 
 	var m os.FileMode
 	if ur {
@@ -824,14 +881,28 @@ func (a *App) handleAdminUserChmod(w http.ResponseWriter, r *http.Request) {
 		m |= 0001
 	}
 
-	if err := a.users.RecursiveChmodHome(username, m, setgid); err != nil {
+	if err := a.users.RecursiveChmodHome(username, m, setuid, setgid, sticky); err != nil {
 		logger.Error("RecursiveChmodHome failed for %s: %v", username, err)
 		msg := url.QueryEscape(err.Error())
 		http.Redirect(w, r, "/admin/users/edit?user="+username+"&flash="+msg, http.StatusSeeOther)
 		return
 	}
 	adminUser := usernameFrom(r)
-	logger.Info("Admin %s updated permissions for user %s from %s (mode: %04o, setgid: %v)", adminUser, username, remoteIP(r), m, setgid)
+
+	// Calculate octal for logging
+	var octalValue int
+	if setuid {
+		octalValue += 4000
+	}
+	if setgid {
+		octalValue += 2000
+	}
+	if sticky {
+		octalValue += 1000
+	}
+	octalValue += int(m & 0777)
+
+	logger.Info("Admin %s updated permissions for user %s from %s (mode: %04o)", adminUser, username, remoteIP(r), octalValue)
 	http.Redirect(w, r, "/admin/users/edit?user="+username+"&ok=1", http.StatusSeeOther)
 }
 
