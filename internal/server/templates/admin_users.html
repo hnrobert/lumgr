@@ -84,12 +84,27 @@
             <label style="margin-top: 12px;">Assign Groups</label>
             <div
                 style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border); padding: 8px; border-radius: 4px;">
-                {{range .AllGroups}}
+                {{range .FeaturedGroups}}
                 <div style="display: flex; align-items: center; gap: 10px;">
-                    <input type="checkbox" id="g_{{.}}" name="groups" value="{{.}}"
+                    <input type="checkbox" id="cu_{{.}}" name="groups" value="{{.}}"
                         style="width: 16px; height: 16px; flex: 0 0 16px; margin: 0;">
-                    <label for="g_{{.}}" style="display:inline;">{{.}}</label>
+                    <label for="cu_{{.}}" style="display:inline;">{{.}}</label>
                 </div>
+                {{end}}
+                {{if .OtherGroups}}
+                <details style="margin-top: 5px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 5px;">
+                    <summary style="cursor: pointer; font-size: 13px; color: var(--muted); padding: 5px 0;">Show
+                        system groups ({{len .OtherGroups}})</summary>
+                    <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 5px;">
+                        {{range .OtherGroups}}
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" id="cu_{{.}}" name="groups" value="{{.}}"
+                                style="width: 16px; height: 16px; flex: 0 0 16px; margin: 0;">
+                            <label for="cu_{{.}}" style="display:inline;">{{.}}</label>
+                        </div>
+                        {{end}}
+                    </div>
+                </details>
                 {{end}}
             </div>
 

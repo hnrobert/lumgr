@@ -31,6 +31,39 @@
                 {{end}}
             </tbody>
         </table>
+
+        {{if .SystemGroups}}
+        <details style="margin-top: 16px;">
+            <summary style="cursor: pointer; color: var(--muted); font-size: 14px;">Show System Groups ({{len
+                .SystemGroups}})</summary>
+            <table style="margin-top: 8px;">
+                <thead>
+                    <tr>
+                        <th>Group</th>
+                        <th>GID</th>
+                        <th>Members</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .SystemGroups}}
+                    <tr>
+                        <td><code>{{.Name}}</code></td>
+                        <td>{{.GID}}</td>
+                        <td><span class="muted" style="font-size:12px;">{{.Members}}</span></td>
+                        <td style="text-align:right;">
+                            <form method="post" action="/admin/groups/delete" style="margin:0; display:inline;"
+                                onsubmit="return confirm('Delete group {{.Name}}? This action cannot be undone!');">
+                                <input type="hidden" name="group" value="{{.Name}}" />
+                                <button class="btn danger small" type="submit">Del</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </details>
+        {{end}}
     </div>
 
     <div class="card">

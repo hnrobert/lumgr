@@ -44,12 +44,13 @@ type ViewData struct {
 	SSHKeys  string
 
 	// admin
-	Users       []UserRow
-	SystemUsers []UserRow
-	Invites     []InviteRow
-	EditUser    UserRow
-	Groups      []GroupRow
-	AllGroups   []string
+	Users        []UserRow
+	SystemUsers  []UserRow
+	Invites      []InviteRow
+	EditUser     UserRow
+	Groups       []GroupRow
+	SystemGroups []GroupRow
+	AllGroups    []string
 
 	// user edit
 	FeaturedGroups []string

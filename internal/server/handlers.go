@@ -225,7 +225,29 @@ func (a *App) handleAdminInvites(w http.ResponseWriter, r *http.Request) {
 
 	cfg, _ := a.cfg.Get()
 	data.DefaultGroups = cfg.DefaultGroups
-	data.AllGroups, _ = a.users.ListGroups()
+	allGroups, _ := a.users.ListGroups()
+	gp, _ := usermgr.LoadGroup("/etc/group")
+
+	// Split groups into featured and system
+	var feat, other []string
+	for _, g := range allGroups {
+		gid := 0
+		if gr := gp.Find(g); gr != nil {
+			gid = gr.GID
+		}
+		isFeat := (gid >= 1000 && gid <= 65533) || g == "sudo" || g == "docker"
+		if isFeat {
+			feat = append(feat, g)
+		} else {
+			other = append(other, g)
+		}
+	}
+
+	sort.Strings(feat)
+	sort.Strings(other)
+	data.FeaturedGroups = feat
+	data.OtherGroups = other
+	data.AllGroups = allGroups
 	// Sort groups alphabetically
 	sort.Strings(data.AllGroups)
 
@@ -432,7 +454,26 @@ func (a *App) handleAdminUsers(w http.ResponseWriter, r *http.Request) {
 	data.Users = users
 	data.SystemUsers = sysUsers
 
-	data.AllGroups, _ = a.users.ListGroups()
+	allGroups2, _ := a.users.ListGroups()
+	// Split groups into featured and system
+	var feat, other []string
+	for _, g := range allGroups2 {
+		gid := 0
+		if gr := gp.Find(g); gr != nil {
+			gid = gr.GID
+		}
+		isFeat := (gid >= 1000 && gid <= 65533) || g == "sudo" || g == "docker"
+		if isFeat {
+			feat = append(feat, g)
+		} else {
+			other = append(other, g)
+		}
+	}
+	sort.Strings(feat)
+	sort.Strings(other)
+	data.FeaturedGroups = feat
+	data.OtherGroups = other
+	data.AllGroups = allGroups2
 	sort.Strings(data.AllGroups)
 
 	if r.URL.Query().Get("ok") == "1" {
@@ -676,16 +717,25 @@ func (a *App) handleAdminGroups(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var rows []GroupRow
+	var featuredRows []GroupRow
+	var systemRows []GroupRow
 	list := gp.List()
 	// Sort by GID? User didn't specify, but alphabetical usually better or ID. Let's do GID.
 	// usermgr.List() sorts by GID.
 
 	for _, g := range list {
 		m := strings.Join(g.Members, ", ")
-		rows = append(rows, GroupRow{Name: g.Name, GID: g.GID, Members: m})
+		row := GroupRow{Name: g.Name, GID: g.GID, Members: m}
+
+		// Featured: sudo, docker, or GID 1000-65533
+		if g.Name == "sudo" || g.Name == "docker" || (g.GID >= 1000 && g.GID <= 65533) {
+			featuredRows = append(featuredRows, row)
+		} else {
+			systemRows = append(systemRows, row)
+		}
 	}
-	data.Groups = rows
+	data.Groups = featuredRows
+	data.SystemGroups = systemRows
 
 	if r.URL.Query().Get("ok") == "1" {
 		data.Flash = "Saved."
