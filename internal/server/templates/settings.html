@@ -21,16 +21,18 @@
             <div class="row">
                 <div>
                     <label>Git user.name</label>
-                    <input name="git_name" value="{{.GitName}}" />
+                    <input name="git_name" placeholder="Your Git Name" value="{{.GitName}}" />
                 </div>
                 <div>
                     <label>Git user.email</label>
-                    <input name="git_email" value="{{.GitEmail}}" />
+                    <input name="git_email" placeholder="name@example.com" value="{{.GitEmail}}" />
                 </div>
             </div>
 
             <label>SSH authorized_keys</label>
-            <textarea name="ssh_keys" spellcheck="false">{{.SSHKeys}}</textarea>
+            <textarea name="ssh_keys" placeholder="ssh-rsa AAAAB3QB3U7EAr1v... user@example.com
+ssh-ed25519 AAAAC3NzAIC3... user2@example.com" spellcheck="false">{{.SSHKeys}}</textarea>
+
 
             <div style="display:flex; justify-content:flex-end; margin-top: 14px;">
                 <button class="btn primary" type="submit">Save</button>
