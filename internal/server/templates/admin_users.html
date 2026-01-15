@@ -71,7 +71,12 @@
             <input type="password" name="password" required />
 
             <label>Shell</label>
-            <input name="shell" placeholder="/bin/bash" />
+            <select name="shell"
+                style="width: 100%; padding: 8px; background: var(--bg-darker); color: var(--text); border: 1px solid var(--border); border-radius: 4px; font-family: inherit;">
+                {{range .AvailableShells}}
+                <option value="{{.}}">{{.}}</option>
+                {{end}}
+            </select>
 
             <label>Create home directory</label>
             <div class="seg">

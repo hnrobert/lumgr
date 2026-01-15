@@ -4,9 +4,30 @@
     <div class="card">
         <h2 style="margin:0 0 8px;">Dashboard</h2>
         <div class="muted">Signed in as <code>{{.Username}}</code>{{if .Admin}} (admin){{end}}.</div>
+
+        {{if .HomeSize}}
+        <div style="margin-top: 14px; padding: 12px; background: var(--bg-darker); border-radius: 6px;">
+            <div class="muted" style="font-size: 13px; margin-bottom: 4px;">Home directory usage</div>
+            <div style="font-size: 20px; font-weight: 500;">{{.HomeSize}}</div>
+        </div>
+        {{end}}
+
+        {{if .Admin}}
+        <div style="margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div style="padding: 12px; background: var(--bg-darker); border-radius: 6px;">
+                <div class="muted" style="font-size: 13px; margin-bottom: 4px;">Total users</div>
+                <div style="font-size: 20px; font-weight: 500;">{{.TotalUsers}}</div>
+            </div>
+            <div style="padding: 12px; background: var(--bg-darker); border-radius: 6px;">
+                <div class="muted" style="font-size: 13px; margin-bottom: 4px;">Administrators</div>
+                <div style="font-size: 20px; font-weight: 500;">{{.AdminUsers}}</div>
+            </div>
+        </div>
+        {{end}}
+
         <div style="margin-top: 14px;">
             <a class="btn" href="/settings">Manage my settings</a>
-            {{if .Admin}}<a class="btn" href="/admin/users">Manage users</a>{{end}}
+            {{if .Admin}}<a class="btn" style="margin-left: 15px;" href="/admin/users">Manage users</a>{{end}}
         </div>
     </div>
     <div class="card">

@@ -14,6 +14,7 @@ import (
 type UserSettings struct {
 	Term     string
 	Redirect string
+	Shell    string
 	GitName  string
 	GitEmail string
 	SSHKeys  string
@@ -37,6 +38,7 @@ func LoadUserSettings(username string) (UserSettings, error) {
 		return UserSettings{}, err
 	}
 	st := UserSettings{}
+	st.Shell = e.Shell
 
 	akPath := filepath.Join(e.Home, ".ssh", "authorized_keys")
 	if b, err := os.ReadFile(akPath); err == nil {
@@ -50,9 +52,9 @@ func LoadUserSettings(username string) (UserSettings, error) {
 		st.GitEmail = email
 	}
 
-	profPath := filepath.Join(e.Home, ".profile")
-	if b, err := os.ReadFile(profPath); err == nil {
-		term, redirect := parseProfileBlock(b)
+	lumgrcPath := filepath.Join(e.Home, ".lumgrc")
+	if b, err := os.ReadFile(lumgrcPath); err == nil {
+		term, redirect := parseLumgrc(b)
 		st.Term = term
 		st.Redirect = redirect
 	}
@@ -64,6 +66,18 @@ func SaveUserSettings(username string, st UserSettings) error {
 	e, err := lookupUser(username)
 	if err != nil {
 		return err
+	}
+
+	// Update shell in /etc/passwd if changed
+	if st.Shell != "" && st.Shell != e.Shell {
+		pw, err := usermgr.LoadPasswd("/etc/passwd")
+		if err == nil {
+			user := pw.Find(username)
+			if user != nil {
+				user.Shell = st.Shell
+				_ = os.WriteFile("/etc/passwd", pw.Bytes(), 0644)
+			}
+		}
 	}
 
 	sshDir := filepath.Join(e.Home, ".ssh")
@@ -89,12 +103,21 @@ func SaveUserSettings(username string, st UserSettings) error {
 	}
 	_ = os.Chown(gcPath, e.UID, e.GID)
 
-	profPath := filepath.Join(e.Home, ".profile")
-	profNew := updateProfileBlock(readFileOrEmpty(profPath), st.Term, st.Redirect)
-	if err := os.WriteFile(profPath, profNew, 0644); err != nil {
+	// Write ~/.lumgrc
+	lumgrcPath := filepath.Join(e.Home, ".lumgrc")
+	lumgrcNew := updateLumgrc(readFileOrEmpty(lumgrcPath), st.Term, st.Redirect)
+	if err := os.WriteFile(lumgrcPath, lumgrcNew, 0644); err != nil {
 		return err
 	}
-	_ = os.Chown(profPath, e.UID, e.GID)
+	_ = os.Chown(lumgrcPath, e.UID, e.GID)
+
+	// Ensure shell rc sources ~/.lumgrc
+	if st.Shell != "" {
+		rcPath := getShellRcPath(e.Home, st.Shell)
+		if rcPath != "" {
+			ensureSourceLumgrc(rcPath, e.UID, e.GID)
+		}
+	}
 
 	return nil
 }
@@ -205,20 +228,20 @@ func updateGitUser(orig []byte, name, email string) []byte {
 }
 
 const (
-	profileBegin = "# lumgr begin"
-	profileEnd   = "# lumgr end"
+	lumgrcBegin = "# lumgr begin"
+	lumgrcEnd   = "# lumgr end"
 )
 
-func parseProfileBlock(b []byte) (term, redirect string) {
+func parseLumgrc(b []byte) (term, redirect string) {
 	lines := strings.Split(string(b), "\n")
 	in := false
 	for _, line := range lines {
 		trim := strings.TrimSpace(line)
-		if trim == profileBegin {
+		if trim == lumgrcBegin {
 			in = true
 			continue
 		}
-		if trim == profileEnd {
+		if trim == lumgrcEnd {
 			break
 		}
 		if !in {
@@ -234,17 +257,17 @@ func parseProfileBlock(b []byte) (term, redirect string) {
 	return term, redirect
 }
 
-func updateProfileBlock(orig []byte, term, redirect string) []byte {
+func updateLumgrc(orig []byte, term, redirect string) []byte {
 	lines := strings.Split(string(orig), "\n")
 	var out []string
 	in := false
 	for _, line := range lines {
 		trim := strings.TrimSpace(line)
-		if trim == profileBegin {
+		if trim == lumgrcBegin {
 			in = true
 			continue
 		}
-		if trim == profileEnd {
+		if trim == lumgrcEnd {
 			in = false
 			continue
 		}
@@ -254,14 +277,14 @@ func updateProfileBlock(orig []byte, term, redirect string) []byte {
 		out = append(out, line)
 	}
 
-	block := []string{profileBegin}
+	block := []string{lumgrcBegin}
 	if strings.TrimSpace(term) != "" {
 		block = append(block, "export TERM="+strings.TrimSpace(term))
 	}
 	if strings.TrimSpace(redirect) != "" {
 		block = append(block, "cd "+strings.TrimSpace(redirect))
 	}
-	block = append(block, profileEnd)
+	block = append(block, lumgrcEnd)
 
 	if len(block) > 2 {
 		out = append(out, "")
@@ -273,4 +296,58 @@ func updateProfileBlock(orig []byte, term, redirect string) []byte {
 		res += "\n"
 	}
 	return []byte(res)
+}
+
+func getShellRcPath(home, shell string) string {
+	shellName := filepath.Base(shell)
+	switch shellName {
+	case "bash":
+		return filepath.Join(home, ".bashrc")
+	case "zsh":
+		return filepath.Join(home, ".zshrc")
+	case "fish":
+		return filepath.Join(home, ".config", "fish", "config.fish")
+	default:
+		return ""
+	}
+}
+
+func ensureSourceLumgrc(rcPath string, uid, gid int) {
+	sourceLine := "[ -f ~/.lumgrc ] && source ~/.lumgrc"
+	b := readFileOrEmpty(rcPath)
+	if strings.Contains(string(b), "source ~/.lumgrc") || strings.Contains(string(b), ". ~/.lumgrc") {
+		return // Already sourced
+	}
+
+	// Create parent dir if needed
+	dir := filepath.Dir(rcPath)
+	if dir != "." {
+		_ = os.MkdirAll(dir, 0755)
+		_ = os.Chown(dir, uid, gid)
+	}
+
+	content := string(b)
+	if !strings.HasSuffix(content, "\n") && len(content) > 0 {
+		content += "\n"
+	}
+	content += "\n" + sourceLine + "\n"
+	_ = os.WriteFile(rcPath, []byte(content), 0644)
+	_ = os.Chown(rcPath, uid, gid)
+}
+
+func LoadAvailableShells() []string {
+	b, err := os.ReadFile("/etc/shells")
+	if err != nil {
+		return []string{"/bin/bash", "/bin/sh"}
+	}
+	var shells []string
+	scanner := bufio.NewScanner(bytes.NewReader(b))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		shells = append(shells, line)
+	}
+	return shells
 }

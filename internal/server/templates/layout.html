@@ -18,6 +18,7 @@
             --card: #121a33;
             --text: #e7ecff;
             --muted: #9aa7d3;
+            --placeholder: #707a9a;
             --accent: #7aa2ff;
             --danger: #ff6b6b;
             --ok: #3ddc97;
@@ -38,6 +39,10 @@
         a {
             color: var(--accent);
             text-decoration: none;
+        }
+
+        ::placeholder {
+            color: var(--placeholder);
         }
 
         .shell {
@@ -301,7 +306,7 @@
 
         label {
             display: block;
-            margin: 10px 0 6px;
+            margin: 15px 0 6px;
             color: var(--muted);
             font-size: 13px;
         }

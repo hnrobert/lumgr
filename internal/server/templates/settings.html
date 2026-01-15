@@ -5,11 +5,19 @@
         <h2 style="margin:0 0 8px;">Personal settings</h2>
         <div class="muted">These settings are stored in your home directory.</div>
         <form method="post" action="/settings">
+            <label>Default Shell</label>
+            <select name="shell"
+                style="width: 100%; padding: 8px; background: var(--bg-darker); color: var(--text); border: 1px solid var(--border); border-radius: 4px; font-family: inherit;">
+                {{range .AvailableShells}}
+                <option value="{{.}}" {{if eq . $.Shell}}selected{{end}}>{{.}}</option>
+                {{end}}
+            </select>
+
             <label>Preferred terminal type (TERM)</label>
             <input name="term" placeholder="xterm-256color" value="{{.Term}}" />
 
             <label>Login redirect directory (optional)</label>
-            <input name="redirect" placeholder="/home/{{.Username}}/projects" value="{{.Redirect}}" />
+            <input name="redirect" placeholder="/home/{{.Username}}/example-directory" value="{{.Redirect}}" />
 
             <div class="row">
                 <div>
@@ -37,7 +45,9 @@
             <ul style="margin:0; padding-left:18px;">
                 <li><code>~/.ssh/authorized_keys</code></li>
                 <li><code>~/.gitconfig</code> (user.name / user.email)</li>
-                <li><code>~/.profile</code> (TERM + optional redirect)</li>
+                <li><code>~/.lumgrc</code> (TERM + optional redirect)</li>
+                <li><code>~/.bashrc</code> / <code>~/.zshrc</code> (sources ~/.lumgrc)</li>
+                <li><code>/etc/passwd</code> (default shell)</li>
             </ul>
             <p style="margin:10px 0 0;">If you already manage these yourself, you can keep doing so.</p>
         </div>

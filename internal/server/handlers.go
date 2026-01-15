@@ -2,10 +2,12 @@ package server
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -82,6 +84,7 @@ func (a *App) handleRegister(w http.ResponseWriter, r *http.Request) {
 	cfg, _ := a.cfg.Get()
 	mode := cfg.RegistrationMode
 	data := &ViewData{RegMode: string(mode)}
+	data.AvailableShells = LoadAvailableShells()
 	if mode == config.RegistrationClosed {
 		data.Flash = "Registration is disabled by the administrator."
 		data.FlashKind = "err"
@@ -171,7 +174,10 @@ func (a *App) handleRegisterComplete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	home := "/home/" + username
-	shell := "/bin/bash"
+	shell := strings.TrimSpace(r.Form.Get("shell"))
+	if shell == "" {
+		shell = "/bin/bash"
+	}
 	if err := a.users.AddUser(username, home, shell, createHome); err != nil {
 		data.Flash = err.Error()
 		data.FlashKind = "err"
@@ -354,7 +360,31 @@ func humanInviteError(err error) string {
 }
 
 func (a *App) handleDashboard(w http.ResponseWriter, r *http.Request) {
-	a.renderPage(w, "dashboard", a.baseData(r))
+	data := a.baseData(r)
+	username := usernameFrom(r)
+
+	// Get home directory size for current user
+	if e, err := lookupUser(username); err == nil {
+		data.HomeSize = getDirectorySize(e.Home)
+	}
+
+	// Admin stats
+	if data.Admin {
+		pw, _ := usermgr.LoadPasswd("/etc/passwd")
+		if pw != nil {
+			userList := pw.List()
+			for _, u := range userList {
+				if u.UID >= 1000 && u.UID <= 65533 {
+					data.TotalUsers++
+					if isUserAdmin(u.Name) {
+						data.AdminUsers++
+					}
+				}
+			}
+		}
+	}
+
+	a.renderPage(w, "dashboard", data)
 }
 
 func (a *App) handleSettings(w http.ResponseWriter, r *http.Request) {
@@ -364,9 +394,11 @@ func (a *App) handleSettings(w http.ResponseWriter, r *http.Request) {
 		st, _ := LoadUserSettings(user)
 		data.Term = st.Term
 		data.Redirect = st.Redirect
+		data.Shell = st.Shell
 		data.GitName = st.GitName
 		data.GitEmail = st.GitEmail
 		data.SSHKeys = st.SSHKeys
+		data.AvailableShells = LoadAvailableShells()
 		a.renderPage(w, "settings", data)
 		return
 	}
@@ -378,6 +410,7 @@ func (a *App) handleSettings(w http.ResponseWriter, r *http.Request) {
 	st := UserSettings{
 		Term:     strings.TrimSpace(r.Form.Get("term")),
 		Redirect: strings.TrimSpace(r.Form.Get("redirect")),
+		Shell:    strings.TrimSpace(r.Form.Get("shell")),
 		GitName:  strings.TrimSpace(r.Form.Get("git_name")),
 		GitEmail: strings.TrimSpace(r.Form.Get("git_email")),
 		SSHKeys:  r.Form.Get("ssh_keys"),
@@ -388,9 +421,11 @@ func (a *App) handleSettings(w http.ResponseWriter, r *http.Request) {
 		data.FlashKind = "err"
 		data.Term = st.Term
 		data.Redirect = st.Redirect
+		data.Shell = st.Shell
 		data.GitName = st.GitName
 		data.GitEmail = st.GitEmail
 		data.SSHKeys = st.SSHKeys
+		data.AvailableShells = LoadAvailableShells()
 		a.renderPage(w, "settings", data)
 		return
 	}
@@ -475,6 +510,7 @@ func (a *App) handleAdminUsers(w http.ResponseWriter, r *http.Request) {
 	data.OtherGroups = other
 	data.AllGroups = allGroups2
 	sort.Strings(data.AllGroups)
+	data.AvailableShells = LoadAvailableShells()
 
 	if r.URL.Query().Get("ok") == "1" {
 		data.Flash = "Saved."
@@ -780,6 +816,60 @@ func (a *App) handleAdminGroupsDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/admin/groups?ok=1", http.StatusSeeOther)
+}
+
+func getDirectorySize(path string) string {
+	var size int64
+	_ = filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if !info.IsDir() {
+			size += info.Size()
+		}
+		return nil
+	})
+
+	const (
+		KB = 1024
+		MB = KB * 1024
+		GB = MB * 1024
+	)
+
+	switch {
+	case size < KB:
+		return fmt.Sprintf("%d B", size)
+	case size < MB:
+		return fmt.Sprintf("%.2f KB", float64(size)/KB)
+	case size < GB:
+		return fmt.Sprintf("%.2f MB", float64(size)/MB)
+	default:
+		return fmt.Sprintf("%.2f GB", float64(size)/GB)
+	}
+}
+
+func isUserAdmin(username string) bool {
+	gp, err := usermgr.LoadGroup("/etc/group")
+	if err != nil {
+		return false
+	}
+	sudo := gp.Find("sudo")
+	if sudo != nil {
+		for _, m := range sudo.Members {
+			if m == username {
+				return true
+			}
+		}
+	}
+	wheel := gp.Find("wheel")
+	if wheel != nil {
+		for _, m := range wheel.Members {
+			if m == username {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (a *App) baseData(r *http.Request) *ViewData {

@@ -13,6 +13,7 @@ services:
       - /etc/shadow:/etc/shadow
       - /etc/group:/etc/group
       - /home:/home
+      - /etc/shells:/etc/shells:ro
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
     restart: always

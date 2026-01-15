@@ -37,17 +37,24 @@ type ViewData struct {
 	FlashKind string // ok|err|""
 
 	// settings
-	Term     string
-	Redirect string
-	GitName  string
-	GitEmail string
-	SSHKeys  string
+	Term            string
+	Redirect        string
+	Shell           string
+	GitName         string
+	GitEmail        string
+	SSHKeys         string
+	AvailableShells []string
 
 	// admin
-	Users        []UserRow
-	SystemUsers  []UserRow
-	Invites      []InviteRow
-	EditUser     UserRow
+	Users       []UserRow
+	SystemUsers []UserRow
+	Invites     []InviteRow
+	EditUser    UserRow
+
+	// dashboard stats
+	TotalUsers   int
+	AdminUsers   int
+	HomeSize     string
 	Groups       []GroupRow
 	SystemGroups []GroupRow
 	AllGroups    []string
