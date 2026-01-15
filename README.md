@@ -5,6 +5,12 @@ A modern, containerized web-based user management interface for Linux systems. M
 ![License](https://img.shields.io/github/license/hnrobert/lumgr)
 ![Go Version](https://img.shields.io/github/go-mod/go-version/hnrobert/lumgr)
 
+![lumgr social preview image](assets/images/lumgr-social-preview.png)
+
+## Demo
+
+![demo gif animation](assets/images/demo.gif)
+
 ## Features
 
 ### User Management
