@@ -23,10 +23,9 @@
         <input type="password" name="password2" autocomplete="new-password" required />
 
         <label>Shell</label>
-        <select name="shell"
-            style="width: 100%; padding: 8px; background: var(--bg-darker); color: var(--text); border: 1px solid var(--border); border-radius: 4px; font-family: inherit;">
+        <select name="shell">
             {{range .AvailableShells}}
-            <option value="{{.}}">{{.}}</option>
+            <option value="{{.}}" {{if eq . "/bin/bash" }}selected{{end}}>{{.}}</option>
             {{end}}
         </select>
 
@@ -55,10 +54,9 @@
         <input type="password" name="password2" autocomplete="new-password" required />
 
         <label>Shell</label>
-        <select name="shell"
-            style="width: 100%; padding: 8px; background: var(--bg-darker); color: var(--text); border: 1px solid var(--border); border-radius: 4px; font-family: inherit;">
+        <select name="shell">
             {{range .AvailableShells}}
-            <option value="{{.}}">{{.}}</option>
+            <option value="{{.}}" {{if eq . "/bin/bash" }}selected{{end}}>{{.}}</option>
             {{end}}
         </select>
 

@@ -17,6 +17,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates shadow
 
+COPY ./assets /usr/local/share/lumgrd/assets
 COPY --from=build /out/lumgrd /usr/local/bin/lumgrd
 
 EXPOSE 14392

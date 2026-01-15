@@ -28,6 +28,85 @@ func remoteIP(r *http.Request) string {
 	return r.RemoteAddr
 }
 
+// parseOSRelease parses /etc/os-release and returns a map of key-value pairs
+func parseOSRelease() map[string]string {
+	result := make(map[string]string)
+	b, err := os.ReadFile("/etc/os-release")
+	if err != nil {
+		return result
+	}
+	lines := strings.Split(string(b), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		key := parts[0]
+		value := strings.Trim(parts[1], `"`)
+		result[key] = value
+	}
+	return result
+}
+
+// copyDefaultBashrc copies the default .bashrc template to a user's home directory
+// For Ubuntu systems, it uses .bashrc.ubuntu.default if available
+func copyDefaultBashrc(username, homeDir string) error {
+	osInfo := parseOSRelease()
+	isUbuntu := strings.ToLower(osInfo["ID"]) == "ubuntu"
+
+	var templatePath string
+	if isUbuntu {
+		// Try Ubuntu-specific bashrc first
+		ubuntuPath := "/usr/local/share/lumgrd/assets/.bashrc.ubuntu.default"
+		if _, err := os.Stat(ubuntuPath); err == nil {
+			templatePath = ubuntuPath
+			logger.Info("Using Ubuntu-specific .bashrc template for user %s", username)
+		} else {
+			// Fallback to generic
+			templatePath = "/usr/local/share/lumgrd/assets/.bashrc.default"
+			logger.Info("Ubuntu detected but ubuntu-specific .bashrc not found, using default for user %s", username)
+		}
+	} else {
+		templatePath = "/usr/local/share/lumgrd/assets/.bashrc.default"
+		logger.Info("Using generic .bashrc template for user %s", username)
+	}
+
+	targetPath := filepath.Join(homeDir, ".bashrc")
+
+	// Read template
+	content, err := os.ReadFile(templatePath)
+	if err != nil {
+		return fmt.Errorf("failed to read .bashrc template: %w", err)
+	}
+
+	// Write to user's home
+	if err := os.WriteFile(targetPath, content, 0644); err != nil {
+		return fmt.Errorf("failed to write .bashrc: %w", err)
+	}
+
+	// Get user's UID/GID for chown
+	pw, err := usermgr.LoadPasswd("/etc/passwd")
+	if err != nil {
+		return fmt.Errorf("failed to load passwd: %w", err)
+	}
+	u := pw.Find(username)
+	if u == nil {
+		return fmt.Errorf("user not found: %s", username)
+	}
+
+	// Change ownership
+	if err := os.Chown(targetPath, u.UID, u.GID); err != nil {
+		return fmt.Errorf("failed to chown .bashrc: %w", err)
+	}
+
+	logger.Info("Copied .bashrc template to %s for user %s", targetPath, username)
+	return nil
+}
+
 func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 	cfg, _ := a.cfg.Get()
 	if r.Method == http.MethodGet || r.Method == http.MethodHead {
@@ -50,6 +129,7 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := auth.VerifyPassword(username, password); err != nil {
+		logger.Info("Failed login attempt for user %s from %s", username, remoteIP(r))
 		a.renderPage(w, "login", &ViewData{HideNav: true, RegMode: string(cfg.RegistrationMode), Flash: auth.HumanAuthError(err), FlashKind: "err"})
 		return
 	}
@@ -59,6 +139,7 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 		a.renderPage(w, "login", &ViewData{HideNav: true, RegMode: string(cfg.RegistrationMode), Flash: "Failed to create session.", FlashKind: "err"})
 		return
 	}
+	logger.Info("User %s logged in from %s", username, remoteIP(r))
 	a.issueCookie(w, tok)
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
@@ -68,6 +149,8 @@ func (a *App) handleLogout(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+	username := usernameFrom(r)
+	logger.Info("User %s logged out from %s", username, remoteIP(r))
 	a.clearCookie(w)
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
@@ -197,8 +280,18 @@ func (a *App) handleRegisterComplete(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Copy default .bashrc if home directory was created
+	if createHome {
+		if err := copyDefaultBashrc(username, home); err != nil {
+			logger.Info("Warning: failed to copy .bashrc for user %s: %v", username, err)
+		}
+	}
+
 	if mode == config.RegistrationInvite {
 		_, _ = a.invites.Consume(code, username, remoteIP(r))
+		logger.Info("User %s registered via invite from %s (groups: %v)", username, remoteIP(r), groups)
+	} else {
+		logger.Info("User %s registered via open registration from %s (groups: %v)", username, remoteIP(r), groups)
 	}
 
 	// Auto-login after registration
@@ -322,6 +415,8 @@ func (a *App) handleAdminInvitesCreate(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/admin/invites?err=1", http.StatusSeeOther)
 		return
 	}
+	adminUser := usernameFrom(r)
+	logger.Info("Admin %s created invite from %s (groups: %v, max_uses: %d)", adminUser, remoteIP(r), groups, maxUses)
 	http.Redirect(w, r, "/admin/invites?ok=1", http.StatusSeeOther)
 }
 
@@ -340,6 +435,8 @@ func (a *App) handleAdminInvitesDelete(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/admin/invites?err=1", http.StatusSeeOther)
 		return
 	}
+	adminUser := usernameFrom(r)
+	logger.Info("Admin %s deleted invite %s from %s", adminUser, inviteID, remoteIP(r))
 	http.Redirect(w, r, "/admin/invites?ok=1", http.StatusSeeOther)
 }
 
@@ -362,6 +459,17 @@ func humanInviteError(err error) string {
 func (a *App) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	data := a.baseData(r)
 	username := usernameFrom(r)
+
+	// Get OS information
+	osInfo := parseOSRelease()
+	data.OSName = osInfo["NAME"]
+	data.OSVersion = osInfo["VERSION"]
+	data.OSPrettyName = osInfo["PRETTY_NAME"]
+
+	// Get hostname
+	if hostname, err := os.ReadFile("/etc/hostname"); err == nil {
+		data.Hostname = strings.TrimSpace(string(hostname))
+	}
 
 	// Get home directory size for current user
 	if e, err := lookupUser(username); err == nil {
@@ -429,6 +537,7 @@ func (a *App) handleSettings(w http.ResponseWriter, r *http.Request) {
 		a.renderPage(w, "settings", data)
 		return
 	}
+	logger.Info("User %s updated settings from %s (shell: %s, term: %s)", user, remoteIP(r), st.Shell, st.Term)
 	http.Redirect(w, r, "/settings?ok=1", http.StatusSeeOther)
 }
 
@@ -561,6 +670,16 @@ func (a *App) handleAdminUsersCreate(w http.ResponseWriter, r *http.Request) {
 			_ = a.users.AddUserToGroup(username, g)
 		}
 	}
+
+	// Copy default .bashrc if home directory was created
+	if createHome {
+		if err := copyDefaultBashrc(username, home); err != nil {
+			logger.Info("Warning: failed to copy .bashrc for user %s: %v", username, err)
+		}
+	}
+
+	adminUser := usernameFrom(r)
+	logger.Info("Admin %s created user %s from %s (groups: %v, shell: %s)", adminUser, username, remoteIP(r), groups, shell)
 	http.Redirect(w, r, "/admin/users?ok=1", http.StatusSeeOther)
 }
 
@@ -583,6 +702,8 @@ func (a *App) handleAdminUsersDelete(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	adminUser := usernameFrom(r)
+	logger.Info("Admin %s deleted user %s from %s", adminUser, username, remoteIP(r))
 	http.Redirect(w, r, "/admin/users?ok=1", http.StatusSeeOther)
 }
 
@@ -709,6 +830,8 @@ func (a *App) handleAdminUserChmod(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/admin/users/edit?user="+username+"&flash="+msg, http.StatusSeeOther)
 		return
 	}
+	adminUser := usernameFrom(r)
+	logger.Info("Admin %s updated permissions for user %s from %s (mode: %04o, setgid: %v)", adminUser, username, remoteIP(r), m, setgid)
 	http.Redirect(w, r, "/admin/users/edit?user="+username+"&ok=1", http.StatusSeeOther)
 }
 
@@ -736,6 +859,8 @@ func (a *App) handleAdminUserUpdateGroups(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	adminUser := usernameFrom(r)
+	logger.Info("Admin %s updated groups for user %s from %s (groups: %v)", adminUser, username, remoteIP(r), groups)
 	http.Redirect(w, r, "/admin/users?ok=1", http.StatusSeeOther)
 }
 
@@ -800,6 +925,8 @@ func (a *App) handleAdminGroupsCreate(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/admin/groups?err=1", http.StatusSeeOther)
 		return
 	}
+	adminUser := usernameFrom(r)
+	logger.Info("Admin %s created group %s (gid: %d) from %s", adminUser, name, gid, remoteIP(r))
 	http.Redirect(w, r, "/admin/groups?ok=1", http.StatusSeeOther)
 }
 
@@ -815,6 +942,8 @@ func (a *App) handleAdminGroupsDelete(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/admin/groups?err=1", http.StatusSeeOther)
 		return
 	}
+	adminUser := usernameFrom(r)
+	logger.Info("Admin %s deleted group %s from %s", adminUser, name, remoteIP(r))
 	http.Redirect(w, r, "/admin/groups?ok=1", http.StatusSeeOther)
 }
 

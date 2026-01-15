@@ -6,8 +6,7 @@
         <div class="muted">These settings are stored in your home directory.</div>
         <form method="post" action="/settings">
             <label>Default Shell</label>
-            <select name="shell"
-                style="width: 100%; padding: 8px; background: var(--bg-darker); color: var(--text); border: 1px solid var(--border); border-radius: 4px; font-family: inherit;">
+            <select name="shell">
                 {{range .AvailableShells}}
                 <option value="{{.}}" {{if eq . $.Shell}}selected{{end}}>{{.}}</option>
                 {{end}}

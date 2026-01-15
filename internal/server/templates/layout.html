@@ -83,7 +83,7 @@
 
         .menuBtn {
             width: 40px;
-            height: 36px;
+            height: 40px;
             display: inline-flex;
             flex-direction: column;
             justify-content: center;
@@ -459,7 +459,7 @@
 
     <header class="mobileTop">
         <div class="mobileLeft">
-            <label for="menuOpen" class="menuBtn" aria-label="Menu" title="Menu">
+            <label for="menuOpen" class="menuBtn" style="margin-top: 0; margin-bottom: 0;" aria-label="Menu" title="Menu">
                 <span></span><span></span><span></span>
             </label>
             <div class="mobileBrand"><a href="/">lumgr</a></div>
@@ -481,7 +481,7 @@
 
             <nav class="nav">
                 {{if .Authed}}
-                <a href="/">Dashboard</a>
+                <!-- <a href="/">Dashboard</a> -->
                 <a href="/settings">Personal settings</a>
                 {{if .Admin}}
                 <div class="muted">Admin</div>

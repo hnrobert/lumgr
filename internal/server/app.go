@@ -55,6 +55,10 @@ type ViewData struct {
 	TotalUsers   int
 	AdminUsers   int
 	HomeSize     string
+	OSName       string
+	OSVersion    string
+	OSPrettyName string
+	Hostname     string
 	Groups       []GroupRow
 	SystemGroups []GroupRow
 	AllGroups    []string
