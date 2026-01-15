@@ -88,7 +88,7 @@ make build
 ./bin/lumgrd
 ```
 
-## 📋 Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -111,7 +111,7 @@ Configure in the web UI under Admin settings:
 - **Open** - Anyone can register (with optional default group assignment)
 - **Invite** - Registration requires a valid invite code with group presets
 
-## 🔒 Security Considerations
+## Security Considerations
 
 1. **Host Filesystem Access** - lumgr has direct access to `/etc/passwd`, `/etc/shadow`, `/etc/group`, and `/home`
 2. **Run with Caution** - Only deploy in trusted environments
@@ -119,7 +119,7 @@ Configure in the web UI under Admin settings:
 4. **Admin Privileges** - Admin access is determined by `sudo` or `wheel` group membership
 5. **JWT Secrets** - Set `LUMGR_JWT_SECRET` to a strong random value for persistent sessions
 
-## 🎨 User Interface
+## User Interface
 
 ### Dashboard
 - Storage usage for current user's home directory
@@ -151,7 +151,7 @@ Configure in the web UI under Admin settings:
 - Manage Git user.name and user.email
 - Configure SSH authorized_keys
 
-## 🛠️ Technical Architecture
+## Technical Architecture
 
 ### Backend
 - **Language:** Go 1.24+
@@ -181,7 +181,7 @@ internal/
   └── usermgr/              # Passwd/shadow/group parsers
 ```
 
-## 📖 File Management
+## File Management
 
 ### User Home Directory Files
 
@@ -205,7 +205,7 @@ Contributions are welcome! Please feel free to submit issues and pull requests.
 
 ## License
 
-This project is licensed under the Apache 2.0 License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the `Apache 2.0 License` - see the [LICENSE](LICENSE) file for details.
 
 ## Disclaimer
 
