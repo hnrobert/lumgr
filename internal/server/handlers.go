@@ -149,7 +149,7 @@ func setupUserShellConfig(username, shell string) error {
 	// Get shell-specific rc path
 	shellName := filepath.Base(shell)
 	var rcPath, profilePath string
-	
+
 	switch shellName {
 	case "bash":
 		rcPath = filepath.Join(u.Home, ".bashrc")
@@ -174,7 +174,7 @@ func setupUserShellConfig(username, shell string) error {
 	// Ensure rc file sources .lumgrc
 	if rcPath != "" {
 		ensureSourceLumgrc(rcPath, u.UID, u.GID)
-		
+
 		// Ensure profile sources rc file (except for fish)
 		if profilePath != "" && shellName != "fish" {
 			ensureProfileSourcesRc(profilePath, rcPath, u.UID, u.GID)
