@@ -55,15 +55,15 @@ func parseOSRelease() map[string]string {
 // getUbuntuDesktopGroups returns the list of groups needed for Ubuntu desktop login
 func getUbuntuDesktopGroups() []string {
 	return []string{
-		"video",   // Access to video hardware
-		"audio",   // Access to audio devices
-		"input",   // Access to input devices
-		"plugdev", // Access to removable devices
-		"cdrom",   // Access to CD-ROM drives
-		"dialout", // Access to serial ports
-		"lpadmin", // Printer administration
-		"adm",     // System monitoring
-		"netdev",  // Network device access
+		"adm",
+		"dialout",
+		"cdrom",
+		"audio",
+		"video",
+		"plugdev",
+		"input",
+		"netdev",
+		"lpadmin",
 	}
 }
 
@@ -71,28 +71,6 @@ func getUbuntuDesktopGroups() []string {
 func isUbuntuDesktop() bool {
 	osInfo := parseOSRelease()
 	return strings.ToLower(osInfo["ID"]) == "ubuntu"
-}
-
-// addUbuntuDesktopGroups adds Ubuntu desktop groups to a user if running on Ubuntu
-func (a *App) addUbuntuDesktopGroups(username string) {
-	if !isUbuntuDesktop() {
-		return
-	}
-
-	desktopGroups := getUbuntuDesktopGroups()
-	addedGroups := []string{}
-
-	for _, group := range desktopGroups {
-		if err := a.users.AddUserToGroup(username, group); err == nil {
-			addedGroups = append(addedGroups, group)
-		} else {
-			logger.Info("Warning: failed to add user %s to group %s: %v", username, group, err)
-		}
-	}
-
-	if len(addedGroups) > 0 {
-		logger.Info("Added Ubuntu desktop groups to user %s: %v", username, addedGroups)
-	}
 }
 
 // copyDefaultBashrc copies the default .bashrc template to a user's home directory
@@ -322,9 +300,6 @@ func (a *App) handleRegisterComplete(w http.ResponseWriter, r *http.Request) {
 			_ = a.users.AddUserToGroup(username, g)
 		}
 	}
-
-	// Add Ubuntu desktop groups if running on Ubuntu
-	a.addUbuntuDesktopGroups(username)
 
 	// Copy default .bashrc if home directory was created
 	if createHome {
@@ -716,9 +691,6 @@ func (a *App) handleAdminUsersCreate(w http.ResponseWriter, r *http.Request) {
 			_ = a.users.AddUserToGroup(username, g)
 		}
 	}
-
-	// Add Ubuntu desktop groups if running on Ubuntu
-	a.addUbuntuDesktopGroups(username)
 
 	// Copy default .bashrc if home directory was created
 	if createHome {
@@ -1137,6 +1109,13 @@ func (a *App) baseData(r *http.Request) *ViewData {
 	if f := r.URL.Query().Get("flash"); f != "" {
 		data.Flash = f
 		data.FlashKind = "err"
+	}
+	// logger.Info("baseData: isUbuntuDesktop=%v", isUbuntuDesktop())
+	// Add Ubuntu desktop groups if running on Ubuntu
+	if isUbuntuDesktop() {
+		ubuntuGroups := getUbuntuDesktopGroups()
+		data.UbuntuDesktopGroups = ubuntuGroups
+		// logger.Info("baseData: UbuntuDesktopGroups=%v", ubuntuGroups)
 	}
 	return data
 }

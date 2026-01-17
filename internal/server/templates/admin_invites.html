@@ -102,8 +102,11 @@
             <div
                 style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border); padding: 8px; border-radius: 4px;">
                 {{range .FeaturedGroups}}
+                {{$groupName := .}}
                 <div style="display: flex; align-items: center; gap: 10px;">
-                    <input type="checkbox" id="inv_{{.}}" name="groups" value="{{.}}"
+                    <input type="checkbox" id="inv_{{.}}" name="groups" value="{{.}}" {{if
+                        $.UbuntuDesktopGroups}}{{range $.UbuntuDesktopGroups}}{{if eq .
+                        $groupName}}checked{{end}}{{end}}{{end}}
                         style="width: 16px; height: 16px; flex: 0 0 16px; margin: 0;">
                     <label for="inv_{{.}}" style="display:inline; margin-top: 6px;">{{.}}</label>
                 </div>
@@ -114,8 +117,11 @@
                         system groups ({{len .OtherGroups}})</summary>
                     <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 5px;">
                         {{range .OtherGroups}}
+                        {{$groupName := .}}
                         <div style="display: flex; align-items: center; gap: 10px;">
-                            <input type="checkbox" id="inv_{{.}}" name="groups" value="{{.}}"
+                            <input type="checkbox" id="inv_{{.}}" name="groups" value="{{.}}" {{if
+                                $.UbuntuDesktopGroups}}{{range $.UbuntuDesktopGroups}}{{if eq .
+                                $groupName}}checked{{end}}{{end}}{{end}}
                                 style="width: 16px; height: 16px; flex: 0 0 16px; margin: 0;">
                             <label for="inv_{{.}}" style="display:inline; margin-top: 6px;">{{.}}</label>
                         </div>
@@ -147,8 +153,9 @@
                 style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border); padding: 8px; border-radius: 4px;">
                 {{range .FeaturedGroups}}
                 <div style="display: flex; align-items: center; gap: 10px;">
-                    <input type="checkbox" id="open_{{.}}" name="groups" value="{{.}}" {{if $.DefaultGroups}}{{range
-                        $.DefaultGroups}}{{if eq . .}}checked{{end}}{{end}}{{end}}
+                    <input type="checkbox" id="open_{{.}}" name="groups" value="{{.}}" {{$currentGroup :=.}} {{if
+                        $.DefaultGroups}} {{range $.DefaultGroups}}{{if eq . $currentGroup}}checked{{end}}{{end}}
+                        {{else}} {{if contains $.UbuntuDesktopGroups $currentGroup}}checked{{end}} {{end}}
                         style="width: 16px; height: 16px; flex: 0 0 16px; margin: 0;">
                     <label for="open_{{.}}" style="display:inline; margin-top: 6px;">{{.}}</label>
                 </div>
@@ -160,10 +167,11 @@
                     <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 5px;">
                         {{range .OtherGroups}}
                         <div style="display: flex; align-items: center; gap: 10px;">
-                            <input type="checkbox" id="open_{{.}}" name="groups" value="{{.}}" {{if
-                                $.DefaultGroups}}{{range $.DefaultGroups}}{{if eq . .}}checked{{end}}{{end}}{{end}}
+                            <input type="checkbox" id="open_sys_{{.}}" name="groups" value="{{.}}" {{$currentGroup :=.}}
+                                {{if $.DefaultGroups}} {{range $.DefaultGroups}}{{if eq .
+                                $currentGroup}}checked{{end}}{{end}} {{end}}
                                 style="width: 16px; height: 16px; flex: 0 0 16px; margin: 0;">
-                            <label for="open_{{.}}" style="display:inline; margin-top: 6px;">{{.}}</label>
+                            <label for="open_sys_{{.}}" style="display:inline; margin-top: 6px;">{{.}}</label>
                         </div>
                         {{end}}
                     </div>
