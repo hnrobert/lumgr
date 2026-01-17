@@ -20,6 +20,7 @@ A modern, containerized web-based user management interface for Linux systems. M
 - **Shell Configuration** - Select from available shells detected from `/etc/shells`
 - **SSH Key Management** - Configure `~/.ssh/authorized_keys` directly from the web UI
 - **Git Configuration** - Set user.name and user.email in `~/.gitconfig`
+- **Ubuntu Desktop Support** - Automatically adds necessary groups for desktop login on Ubuntu systems
 
 ### Advanced Features
 - **Recursive Permission Management** - Apply chmod recursively to home directories with granular control
@@ -204,6 +205,7 @@ lumgr manages these files automatically:
 - **`.ssh` Directory** - Excluded from recursive chmod operations
 - **System Users** - Users with UID < 1000 are hidden by default
 - **System Groups** - Groups with GID < 1000 are collapsed
+- **Ubuntu Desktop Login** - Users created on Ubuntu systems are automatically added to necessary desktop groups (`video`, `audio`, `input`, `plugdev`, `cdrom`, `dialout`, `lpadmin`, `adm`, `netdev`) for proper desktop environment access
 
 ## Contributing
 

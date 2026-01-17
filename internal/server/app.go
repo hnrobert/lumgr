@@ -72,7 +72,8 @@ type ViewData struct {
 	InviteCode string
 
 	// registration settings
-	DefaultGroups []string
+	DefaultGroups       []string
+	UbuntuDesktopGroups []string
 }
 
 type GroupRow struct {

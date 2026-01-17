@@ -52,6 +52,27 @@ func parseOSRelease() map[string]string {
 	return result
 }
 
+// getUbuntuDesktopGroups returns the list of groups needed for Ubuntu desktop login
+func getUbuntuDesktopGroups() []string {
+	return []string{
+		"adm",
+		"dialout",
+		"cdrom",
+		"audio",
+		"video",
+		"plugdev",
+		"input",
+		"netdev",
+		"lpadmin",
+	}
+}
+
+// isUbuntuDesktop returns true if running on Ubuntu
+func isUbuntuDesktop() bool {
+	osInfo := parseOSRelease()
+	return strings.ToLower(osInfo["ID"]) == "ubuntu"
+}
+
 // copyDefaultBashrc copies the default .bashrc template to a user's home directory
 // For Ubuntu systems, it uses .bashrc.ubuntu.default if available
 func copyDefaultBashrc(username, homeDir string) error {
@@ -104,6 +125,63 @@ func copyDefaultBashrc(username, homeDir string) error {
 	}
 
 	logger.Info("Copied .bashrc template to %s for user %s", targetPath, username)
+	return nil
+}
+
+// setupUserShellConfig configures shell rc and profile files for a user
+func setupUserShellConfig(username, shell string) error {
+	pw, err := usermgr.LoadPasswd("/etc/passwd")
+	if err != nil {
+		return err
+	}
+	u := pw.Find(username)
+	if u == nil {
+		return fmt.Errorf("user not found: %s", username)
+	}
+
+	// Create .lumgrc if it doesn't exist
+	lumgrcPath := filepath.Join(u.Home, ".lumgrc")
+	if _, err := os.Stat(lumgrcPath); os.IsNotExist(err) {
+		_ = os.WriteFile(lumgrcPath, []byte(""), 0644)
+		_ = os.Chown(lumgrcPath, u.UID, u.GID)
+	}
+
+	// Get shell-specific rc path
+	shellName := filepath.Base(shell)
+	var rcPath, profilePath string
+	
+	switch shellName {
+	case "bash":
+		rcPath = filepath.Join(u.Home, ".bashrc")
+		profilePath = filepath.Join(u.Home, ".bash_profile")
+	case "zsh":
+		rcPath = filepath.Join(u.Home, ".zshrc")
+		profilePath = filepath.Join(u.Home, ".zprofile")
+	case "sh":
+		rcPath = filepath.Join(u.Home, ".shrc")
+		profilePath = filepath.Join(u.Home, ".profile")
+	case "ksh":
+		rcPath = filepath.Join(u.Home, ".kshrc")
+		profilePath = filepath.Join(u.Home, ".profile")
+	case "fish":
+		rcPath = filepath.Join(u.Home, ".config", "fish", "config.fish")
+		// fish doesn't use profile files in the same way
+	default:
+		logger.Info("Unsupported shell %s for user %s, skipping rc/profile setup", shell, username)
+		return nil
+	}
+
+	// Ensure rc file sources .lumgrc
+	if rcPath != "" {
+		ensureSourceLumgrc(rcPath, u.UID, u.GID)
+		
+		// Ensure profile sources rc file (except for fish)
+		if profilePath != "" && shellName != "fish" {
+			ensureProfileSourcesRc(profilePath, rcPath, u.UID, u.GID)
+		}
+	}
+
+	logger.Info("Configured shell files for user %s (shell: %s)", username, shell)
 	return nil
 }
 
@@ -285,6 +363,11 @@ func (a *App) handleRegisterComplete(w http.ResponseWriter, r *http.Request) {
 		if err := copyDefaultBashrc(username, home); err != nil {
 			logger.Info("Warning: failed to copy .bashrc for user %s: %v", username, err)
 		}
+	}
+
+	// Setup shell configuration files (rc and profile)
+	if err := setupUserShellConfig(username, shell); err != nil {
+		logger.Info("Warning: failed to setup shell config for user %s: %v", username, err)
 	}
 
 	if mode == config.RegistrationInvite {
@@ -676,6 +759,11 @@ func (a *App) handleAdminUsersCreate(w http.ResponseWriter, r *http.Request) {
 		if err := copyDefaultBashrc(username, home); err != nil {
 			logger.Info("Warning: failed to copy .bashrc for user %s: %v", username, err)
 		}
+	}
+
+	// Setup shell configuration files (rc and profile)
+	if err := setupUserShellConfig(username, shell); err != nil {
+		logger.Info("Warning: failed to setup shell config for user %s: %v", username, err)
 	}
 
 	adminUser := usernameFrom(r)
@@ -1088,6 +1176,13 @@ func (a *App) baseData(r *http.Request) *ViewData {
 	if f := r.URL.Query().Get("flash"); f != "" {
 		data.Flash = f
 		data.FlashKind = "err"
+	}
+	// logger.Info("baseData: isUbuntuDesktop=%v", isUbuntuDesktop())
+	// Add Ubuntu desktop groups if running on Ubuntu
+	if isUbuntuDesktop() {
+		ubuntuGroups := getUbuntuDesktopGroups()
+		data.UbuntuDesktopGroups = ubuntuGroups
+		// logger.Info("baseData: UbuntuDesktopGroups=%v", ubuntuGroups)
 	}
 	return data
 }
