@@ -111,11 +111,17 @@ func SaveUserSettings(username string, st UserSettings) error {
 	}
 	_ = os.Chown(lumgrcPath, e.UID, e.GID)
 
-	// Ensure shell rc sources ~/.lumgrc
+	// Ensure shell rc sources ~/.lumgrc and profile sources rc
 	if st.Shell != "" {
 		rcPath := getShellRcPath(e.Home, st.Shell)
 		if rcPath != "" {
 			ensureSourceLumgrc(rcPath, e.UID, e.GID)
+
+			// Ensure profile sources rc file
+			profilePath := getShellProfilePath(e.Home, st.Shell)
+			if profilePath != "" {
+				ensureProfileSourcesRc(profilePath, rcPath, e.UID, e.GID)
+			}
 		}
 	}
 
@@ -307,6 +313,26 @@ func getShellRcPath(home, shell string) string {
 		return filepath.Join(home, ".zshrc")
 	case "fish":
 		return filepath.Join(home, ".config", "fish", "config.fish")
+	case "sh":
+		return filepath.Join(home, ".shrc")
+	case "ksh":
+		return filepath.Join(home, ".kshrc")
+	default:
+		return ""
+	}
+}
+
+func getShellProfilePath(home, shell string) string {
+	shellName := filepath.Base(shell)
+	switch shellName {
+	case "bash":
+		return filepath.Join(home, ".bash_profile")
+	case "zsh":
+		return filepath.Join(home, ".zprofile")
+	case "sh":
+		return filepath.Join(home, ".profile")
+	case "ksh":
+		return filepath.Join(home, ".profile")
 	default:
 		return ""
 	}
@@ -333,6 +359,32 @@ func ensureSourceLumgrc(rcPath string, uid, gid int) {
 	content += "\n" + sourceLine + "\n"
 	_ = os.WriteFile(rcPath, []byte(content), 0644)
 	_ = os.Chown(rcPath, uid, gid)
+}
+
+func ensureProfileSourcesRc(profilePath, rcPath string, uid, gid int) {
+	rcFilename := filepath.Base(rcPath)
+	sourceLine := "[ -f ~/" + rcFilename + " ] && source ~/" + rcFilename
+
+	b := readFileOrEmpty(profilePath)
+	// Check if already sources the rc file
+	if strings.Contains(string(b), "source ~/"+rcFilename) || strings.Contains(string(b), ". ~/"+rcFilename) {
+		return
+	}
+
+	// Create parent dir if needed
+	dir := filepath.Dir(profilePath)
+	if dir != "." {
+		_ = os.MkdirAll(dir, 0755)
+		_ = os.Chown(dir, uid, gid)
+	}
+
+	content := string(b)
+	if !strings.HasSuffix(content, "\n") && len(content) > 0 {
+		content += "\n"
+	}
+	content += "\n" + sourceLine + "\n"
+	_ = os.WriteFile(profilePath, []byte(content), 0644)
+	_ = os.Chown(profilePath, uid, gid)
 }
 
 func LoadAvailableShells() []string {
