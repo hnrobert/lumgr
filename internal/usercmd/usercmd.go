@@ -91,15 +91,25 @@ func (r *Runner) AddUser(username, home, shell string, createHome bool) error {
 		return err
 	}
 
+	// Find the next available UID
+	uid := firstFreeUID(pf, 1000)
+
 	// Create a primary group matching the username if missing.
 	gid := -1
 	if g := gr.Find(username); g != nil {
 		gid = g.GID
 	} else {
-		gid = gr.NextGID(1000)
+		// Try to use the same GID as UID for the group
+		if gr.FindByGID(uid) == nil {
+			// UID is available for GID too
+			gid = uid
+		} else {
+			// UID is taken, find next available GID starting from 1000
+			gid = gr.NextGID(1000)
+		}
+
 		_ = gr.Add(usermgr.GroupEntry{Name: username, Passwd: "x", GID: gid, Members: []string{}})
 	}
-	uid := firstFreeUID(pf, 1000)
 
 	if err := pf.Add(usermgr.PasswdEntry{Name: username, Passwd: "x", UID: uid, GID: gid, Gecos: "", Home: home, Shell: shell}); err != nil {
 		return err
