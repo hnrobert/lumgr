@@ -112,13 +112,21 @@ func (f *GroupFile) Delete(name string) bool {
 }
 
 func (f *GroupFile) NextGID(min int) int {
-	max := min - 1
-	for _, e := range f.pf.entries() {
-		if e.GID > max {
-			max = e.GID
+	// Find the next available GID starting from min
+	gid := min
+	for {
+		found := false
+		for _, e := range f.pf.entries() {
+			if e.GID == gid {
+				found = true
+				break
+			}
 		}
+		if !found {
+			return gid
+		}
+		gid++
 	}
-	return max + 1
 }
 
 func (f *GroupFile) AddMember(group, user string) error {

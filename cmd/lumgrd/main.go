@@ -20,7 +20,10 @@ func main() {
 	if err := logger.Init(dataDir); err != nil {
 		log.Fatalf("Failed to init logger: %v", err)
 	}
-	defer logger.Close()
+	defer func() {
+		logger.Info("lumgr shutting down")
+		logger.Close()
+	}()
 
 	// 3. Permission Fix (World Writable)
 	// Make dataDir and all contents writable by all users so host user can access/edit.
