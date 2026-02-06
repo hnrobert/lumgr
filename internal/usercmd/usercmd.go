@@ -11,6 +11,7 @@ import (
 
 	"github.com/GehirnInc/crypt/sha512_crypt"
 	"github.com/hnrobert/lumgr/internal/hostfs"
+	"github.com/hnrobert/lumgr/internal/logger"
 	"github.com/hnrobert/lumgr/internal/usermgr"
 )
 
@@ -48,6 +49,7 @@ func writePreservePerm(path string, data []byte) error {
 		// If stat fails, fall back to a conservative default.
 		perm = 0600
 	}
+	logger.Info("Updating %s (%d bytes, perm %04o)", path, len(data), perm)
 	return hostfs.WriteFileAtomic(path, data, perm)
 }
 
@@ -128,6 +130,8 @@ func (r *Runner) AddUser(username, home, shell string, createHome bool) error {
 		return err
 	}
 
+	logger.Info("Created user %s (uid=%d gid=%d home=%s shell=%s create_home=%v)", username, uid, gid, home, shell, createHome)
+
 	if createHome {
 		if err := os.MkdirAll(home, 0750); err != nil {
 			return err
@@ -160,7 +164,28 @@ func (r *Runner) SetPassword(username, password string) error {
 	}
 	se.Hash = hash
 	se.LastChange = daysSinceEpochUTC(time.Now())
-	return writePreservePerm(sp, sh.Bytes())
+	if err := writePreservePerm(sp, sh.Bytes()); err != nil {
+		return err
+	}
+	logger.Info("Updated password hash in %s for user %s (hash_prefix=%s)", sp, username, hashPrefix(hash))
+	return nil
+}
+
+func hashPrefix(h string) string {
+	if h == "" {
+		return ""
+	}
+	if strings.HasPrefix(h, "$") {
+		// Return algo prefix like "$6$" or "$y$".
+		parts := strings.SplitN(h, "$", 4)
+		if len(parts) >= 3 {
+			return "$" + parts[1] + "$"
+		}
+	}
+	if len(h) > 6 {
+		return h[:6]
+	}
+	return h
 }
 
 func (r *Runner) DelUser(username string, removeHome bool) error {
@@ -224,6 +249,7 @@ func (r *Runner) DelUser(username string, removeHome bool) error {
 	if err := writePreservePerm(pp, pf.Bytes()); err != nil {
 		return err
 	}
+	logger.Info("Deleted user %s (remove_home=%v)", username, removeHome)
 
 	if removeHome {
 		home := pe.Home

@@ -40,6 +40,25 @@ ssh-ed25519 AAAAC3NzAIC3... user2@example.com" spellcheck="false">{{.SSHKeys}}</
         </form>
     </div>
     <div class="card">
+        <h3 style="margin:0 0 8px;">Change password</h3>
+        <div class="muted" style="margin-bottom: 12px;">Update your host Linux account password.</div>
+        <form method="post" action="/settings/password">
+            <label>Current password</label>
+            <input type="password" name="current_password" autocomplete="current-password" required />
+
+            <label>New password</label>
+            <input type="password" name="new_password" autocomplete="new-password" required />
+
+            <label>Confirm new password</label>
+            <input type="password" name="new_password2" autocomplete="new-password" required />
+
+            <div style="display:flex; justify-content:flex-end; margin-top: 14px;">
+                <button class="btn primary" type="submit">Update password</button>
+            </div>
+        </form>
+
+        <div style="height: 18px;"></div>
+
         <h3 style="margin:0 0 8px;">What this edits</h3>
         <div class="muted" style="line-height:1.55;">
             <p style="margin:0 0 10px;">lumgr updates these files in your home directory:</p>

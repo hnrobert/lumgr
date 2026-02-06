@@ -87,6 +87,7 @@ type UserRow struct {
 	UID    int
 	Home   string
 	Groups []string
+	Umask  string
 }
 
 type HomePerms struct {
@@ -106,6 +107,7 @@ type InviteRow struct {
 	ExpiresAt  time.Time
 	CreateHome bool
 	Groups     []string
+	Umask      string
 }
 
 func newApp() (*App, error) {
@@ -182,6 +184,7 @@ func (a *App) routes() http.Handler {
 
 	mux.HandleFunc("/", a.requireAuth(a.handleDashboard))
 	mux.HandleFunc("/settings", a.requireAuth(a.handleSettings))
+	mux.HandleFunc("/settings/password", a.requireAuth(a.handleSettingsPassword))
 
 	mux.HandleFunc("/admin/users", a.requireAdmin(a.handleAdminUsers))
 	mux.HandleFunc("/admin/users/create", a.requireAdmin(a.handleAdminUsersCreate))
@@ -189,6 +192,7 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("/admin/users/edit", a.requireAdmin(a.handleAdminUserEdit))
 	mux.HandleFunc("/admin/users/update_groups", a.requireAdmin(a.handleAdminUserUpdateGroups))
 	mux.HandleFunc("/admin/users/chmod", a.requireAdmin(a.handleAdminUserChmod))
+	mux.HandleFunc("/admin/users/umask", a.requireAdmin(a.handleAdminUserUmask))
 
 	mux.HandleFunc("/admin/groups", a.requireAdmin(a.handleAdminGroups))
 	mux.HandleFunc("/admin/groups/create", a.requireAdmin(a.handleAdminGroupsCreate))

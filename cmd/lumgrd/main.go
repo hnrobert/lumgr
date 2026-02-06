@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	dataDir := "lumgr_data"
+	dataDir := "/lumgr_data"
 	// Ensure data directory exists
 	if err := os.MkdirAll(dataDir, 0777); err != nil {
 		log.Printf("Failed to create data dir: %v", err)

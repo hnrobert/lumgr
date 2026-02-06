@@ -38,13 +38,14 @@
                         <th>Expires</th>
                         <th>Home</th>
                         <th>Groups</th>
+                        <th>Umask</th>
                         <th></th>
                     </tr>
                 </thead>
                 <tbody>
                     {{if not .Invites}}
                     <tr>
-                        <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">No invite
+                        <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 24px;">No invite
                             codes created.</td>
                     </tr>
                     {{else}}
@@ -56,6 +57,7 @@
                                 class="muted">{{.ExpiresAt}}</span>{{end}}</td>
                         <td>{{if .CreateHome}}Yes{{else}}No{{end}}</td>
                         <td><small>{{if .Groups}}{{range .Groups}}{{.}} {{end}}{{else}}-{{end}}</small></td>
+                        <td><span class="muted">{{if .Umask}}{{.Umask}}{{else}}-{{end}}</span></td>
                         <td style="text-align:right;">
                             <form method="post" action="/admin/invites/delete" style="margin:0; display:inline;"
                                 onsubmit="return confirm('Delete invite code {{.ID}}? This action cannot be undone!');">
@@ -97,6 +99,10 @@
                 <input id="ch_n" type="radio" name="create_home" value="0" />
                 <label for="ch_n">No</label>
             </div>
+
+            <label style="margin-top: 12px;">User umask (optional)</label>
+            <input name="umask" placeholder="022" />
+            <small class="muted" style="display:block; margin-top:4px;">Leave empty to use system defaults.</small>
 
             <label style="margin-top: 12px;">Assign Groups</label>
             <div
