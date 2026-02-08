@@ -636,6 +636,14 @@ func (a *App) handleSettings(w http.ResponseWriter, r *http.Request) {
 				data.Flash = "Failed to save umask."
 			}
 		}
+		if r.URL.Query().Get("ok") == "1" {
+			data.Flash = "Saved."
+			data.FlashKind = "ok"
+		}
+		if msg := r.URL.Query().Get("flash"); msg != "" {
+			data.Flash = msg
+			data.FlashKind = "err"
+		}
 		st, _ := LoadUserSettings(user)
 		data.Term = st.Term
 		data.Redirect = st.Redirect
@@ -646,6 +654,10 @@ func (a *App) handleSettings(w http.ResponseWriter, r *http.Request) {
 		data.AvailableShells = LoadAvailableShells()
 		if um, err := LoadUserUmask(user); err == nil {
 			data.Umask = um
+		}
+		// Load current home dir perms
+		if e, err := lookupUser(user); err == nil {
+			data.HomePerms = getHomeDirPerms(e.Home)
 		}
 		a.renderPage(w, "settings", data)
 		return
@@ -716,6 +728,71 @@ func (a *App) handleSettingsPassword(w http.ResponseWriter, r *http.Request) {
 	}
 	logger.Info("User %s changed password from %s", user, remoteIP(r))
 	http.Redirect(w, r, "/settings?pwok=1", http.StatusSeeOther)
+}
+
+func (a *App) handleSettingsChmod(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	_ = r.ParseForm()
+	username := usernameFrom(r)
+
+	ur := r.Form.Get("ur") == "1"
+	uw := r.Form.Get("uw") == "1"
+	ux := r.Form.Get("ux") == "1"
+
+	gr := r.Form.Get("gr") == "1"
+	gw := r.Form.Get("gw") == "1"
+	gx := r.Form.Get("gx") == "1"
+
+	or := r.Form.Get("or") == "1"
+	ow := r.Form.Get("ow") == "1"
+	ox := r.Form.Get("ox") == "1"
+
+	var m os.FileMode
+	if ur {
+		m |= 0400
+	}
+	if uw {
+		m |= 0200
+	}
+	if ux {
+		m |= 0100
+	}
+	if gr {
+		m |= 0040
+	}
+	if gw {
+		m |= 0020
+	}
+	if gx {
+		m |= 0010
+	}
+	if or {
+		m |= 0004
+	}
+	if ow {
+		m |= 0002
+	}
+	if ox {
+		m |= 0001
+	}
+
+	// Users cannot set special bits via this endpoint
+	if err := a.users.RecursiveChmodHome(username, m, false, false, false); err != nil {
+		logger.Error("RecursiveChmodHome failed for %s: %v", username, err)
+		msg := url.QueryEscape(err.Error())
+		http.Redirect(w, r, "/settings?flash="+msg, http.StatusSeeOther)
+		return
+	}
+
+	// Calculate octal for logging
+	var octalValue int
+	octalValue += int(m & 0777)
+
+	logger.Info("User %s updated own permissions from %s (mode: %04o)", username, remoteIP(r), octalValue)
+	http.Redirect(w, r, "/settings?ok=1", http.StatusSeeOther)
 }
 
 func (a *App) handleSettingsUmask(w http.ResponseWriter, r *http.Request) {

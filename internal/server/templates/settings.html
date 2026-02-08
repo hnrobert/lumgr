@@ -41,13 +41,79 @@ ssh-ed25519 AAAAC3NzAIC3... user2@example.com" spellcheck="false">{{.SSHKeys}}</
     </div>
 
     <div class="card">
-        <h3 style="margin:0 0 8px;">Default umask</h3>
-        <div class="muted" style="margin-bottom: 10px; font-size: 12px;">Applies via <code>~/.lumgrc</code> (e.g.
-            <code>022</code>, <code>027</code>). Leave blank to clear.</div>
-        <form method="post" action="/settings/umask" style="margin:0;">
-            <input name="umask" placeholder="022" value="{{.Umask}}" />
-            <div style="display:flex; justify-content:flex-end; margin-top: 12px;">
-                <button class="btn primary small" type="submit">Save Umask</button>
+        <h3 style="margin:0 0 8px;">File Permissions</h3>
+        <div class="muted" style="margin-bottom: 12px;">Recursively apply chmod to your home (skips .ssh).</div>
+
+        <form method="post" action="/settings/chmod">
+            <table
+                style="width: 100%; border-collapse: collapse; margin-bottom: 16px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                <thead>
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <th style="text-align: left; padding: 8px;">Scope</th>
+                        <th style="text-align: center; padding: 8px;">R</th>
+                        <th style="text-align: center; padding: 8px;">W</th>
+                        <th style="text-align: center; padding: 8px;">X</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="padding: 8px;">User (Owner)</td>
+                        <td style="text-align: center;"><input type="checkbox" name="ur" value="1" {{if
+                                .HomePerms.UserR}}checked{{end}}
+                                style="width:16px; height:16px; margin:0 auto; display:block;" /></td>
+                        <td style="text-align: center;"><input type="checkbox" name="uw" value="1" {{if
+                                .HomePerms.UserW}}checked{{end}}
+                                style="width:16px; height:16px; margin:0 auto; display:block;" /></td>
+                        <td style="text-align: center;"><input type="checkbox" name="ux" value="1" {{if
+                                .HomePerms.UserX}}checked{{end}}
+                                style="width:16px; height:16px; margin:0 auto; display:block;" /></td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px;">Group</td>
+                        <td style="text-align: center;"><input type="checkbox" name="gr" value="1" {{if
+                                .HomePerms.GroupR}}checked{{end}}
+                                style="width:16px; height:16px; margin:0 auto; display:block;" /></td>
+                        <td style="text-align: center;"><input type="checkbox" name="gw" value="1" {{if
+                                .HomePerms.GroupW}}checked{{end}}
+                                style="width:16px; height:16px; margin:0 auto; display:block;" /></td>
+                        <td style="text-align: center;"><input type="checkbox" name="gx" value="1" {{if
+                                .HomePerms.GroupX}}checked{{end}}
+                                style="width:16px; height:16px; margin:0 auto; display:block;" /></td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px;">Other</td>
+                        <td style="text-align: center;"><input type="checkbox" name="or" value="1" {{if
+                                .HomePerms.OtherR}}checked{{end}}
+                                style="width:16px; height:16px; margin:0 auto; display:block;" /></td>
+                        <td style="text-align: center;"><input type="checkbox" name="ow" value="1" {{if
+                                .HomePerms.OtherW}}checked{{end}}
+                                style="width:16px; height:16px; margin:0 auto; display:block;" /></td>
+                        <td style="text-align: center;"><input type="checkbox" name="ox" value="1" {{if
+                                .HomePerms.OtherX}}checked{{end}}
+                                style="width:16px; height:16px; margin:0 auto; display:block;" /></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div style="margin-bottom: 16px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                <div style="margin-bottom: 10px;">
+                    <span class="muted" style="font-size: 13px;">Current permissions (octal):</span>
+                    <code style="margin-left: 8px; font-size: 14px; color: var(--accent);">{{.HomePerms.Octal}}</code>
+                </div>
+
+                <div
+                    style="margin-top: 12px; padding-top: 12px; border-top:1px solid rgba(255,255,255,0.04); display:flex; gap:12px; align-items:center;">
+                    <form method="post" action="/settings/umask"
+                        style="margin:0; display:flex; gap:8px; align-items:center;">
+                        <label style="margin:0; font-size:13px; color:var(--muted);">Default umask</label>
+                        <input name="umask" placeholder="022" value="{{.Umask}}" style="width:80px;" />
+                        <button class="btn primary small" type="submit">Save Umask</button>
+                    </form>
+                </div>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; margin-top: 14px;">
+                <button class="btn danger" type="submit">Apply Recursive Chmod</button>
             </div>
         </form>
     </div>

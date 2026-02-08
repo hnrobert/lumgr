@@ -187,6 +187,7 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("/settings", a.requireAuth(a.handleSettings))
 	mux.HandleFunc("/settings/password", a.requireAuth(a.handleSettingsPassword))
 	mux.HandleFunc("/settings/umask", a.requireAuth(a.handleSettingsUmask))
+	mux.HandleFunc("/settings/chmod", a.requireAuth(a.handleSettingsChmod))
 
 	mux.HandleFunc("/admin/users", a.requireAdmin(a.handleAdminUsers))
 	mux.HandleFunc("/admin/users/create", a.requireAdmin(a.handleAdminUsersCreate))

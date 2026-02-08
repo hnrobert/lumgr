@@ -51,18 +51,6 @@
         </form>
     </div>
 
-    <div class="card">
-        <h3 style="margin:0 0 8px;">Default umask</h3>
-        <div class="muted" style="margin-bottom: 10px; font-size: 12px;">Applies via <code>~/.lumgrc</code> (e.g.
-            <code>022</code>, <code>027</code>). Leave blank to clear.</div>
-        <form method="post" action="/admin/users/umask" style="margin:0;">
-            <input type="hidden" name="username" value="{{.EditUser.Name}}" />
-            <input name="umask" placeholder="022" value="{{.EditUser.Umask}}" />
-            <div style="display:flex; justify-content:flex-end; margin-top: 12px;">
-                <button class="btn primary small" type="submit">Save Umask</button>
-            </div>
-        </form>
-    </div>
 
     <div class="card">
         <h2 style="margin:0 0 8px;">File Permissions</h2>
@@ -148,6 +136,17 @@
                         <label for="sticky" style="margin:0; cursor: pointer; display: block; flex: 1;">Sticky bit (t) —
                             1000</label>
                     </div>
+                </div>
+
+                <div
+                    style="margin-top: 12px; padding-top: 12px; border-top:1px solid rgba(255,255,255,0.04); display:flex; gap:12px; align-items:center;">
+                    <form method="post" action="/admin/users/umask"
+                        style="margin:0; display:flex; gap:8px; align-items:center;">
+                        <input type="hidden" name="username" value="{{.EditUser.Name}}" />
+                        <label style="margin:0; font-size:13px; color:var(--muted);">Default umask</label>
+                        <input name="umask" placeholder="022" value="{{.EditUser.Umask}}" style="width:80px;" />
+                        <button class="btn primary small" type="submit">Save Umask</button>
+                    </form>
                 </div>
             </div>
 
