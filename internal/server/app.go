@@ -46,6 +46,13 @@ type ViewData struct {
 	AvailableShells []string
 	Umask           string
 
+	// permission helpers (used by perms subtemplate)
+	PermFormAction      string
+	PermIncludeSpecial  bool
+	PermUmaskFormAction string
+	PermUmaskValue      string
+	PermSubmitLabel     string
+
 	// admin
 	Users       []UserRow
 	SystemUsers []UserRow

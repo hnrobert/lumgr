@@ -659,6 +659,13 @@ func (a *App) handleSettings(w http.ResponseWriter, r *http.Request) {
 		if e, err := lookupUser(user); err == nil {
 			data.HomePerms = getHomeDirPerms(e.Home)
 		}
+		// perms form helpers for user settings
+		data.PermFormAction = "/settings/chmod"
+		data.PermIncludeSpecial = false
+		data.PermUmaskFormAction = "/settings/umask"
+		data.PermUmaskValue = data.Umask
+		data.PermSubmitLabel = "Apply Recursive Chmod"
+
 		a.renderPage(w, "settings", data)
 		return
 	}
@@ -1127,8 +1134,15 @@ func (a *App) handleAdminUserEdit(w http.ResponseWriter, r *http.Request) {
 	data.FeaturedGroups = feat
 	data.OtherGroups = other
 
-	// Get current permissions from .lumgrc file
+	// Get current permissions from user home
 	data.HomePerms = getHomeDirPerms(u.Home)
+
+	// perms form helpers
+	data.PermFormAction = "/admin/users/chmod"
+	data.PermIncludeSpecial = true
+	data.PermUmaskFormAction = "/admin/users/umask"
+	data.PermUmaskValue = data.EditUser.Umask
+	data.PermSubmitLabel = "Apply Recursive Chmod"
 
 	a.renderPage(w, "admin_user_edit", data)
 }
