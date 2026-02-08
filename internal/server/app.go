@@ -44,6 +44,7 @@ type ViewData struct {
 	GitEmail        string
 	SSHKeys         string
 	AvailableShells []string
+	Umask           string
 
 	// admin
 	Users       []UserRow
@@ -185,6 +186,7 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("/", a.requireAuth(a.handleDashboard))
 	mux.HandleFunc("/settings", a.requireAuth(a.handleSettings))
 	mux.HandleFunc("/settings/password", a.requireAuth(a.handleSettingsPassword))
+	mux.HandleFunc("/settings/umask", a.requireAuth(a.handleSettingsUmask))
 
 	mux.HandleFunc("/admin/users", a.requireAdmin(a.handleAdminUsers))
 	mux.HandleFunc("/admin/users/create", a.requireAdmin(a.handleAdminUsersCreate))

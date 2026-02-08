@@ -623,6 +623,19 @@ func (a *App) handleSettings(w http.ResponseWriter, r *http.Request) {
 				data.Flash = "Password update failed. Check server logs for /etc/shadow update details."
 			}
 		}
+		if r.URL.Query().Get("umok") == "1" {
+			data.Flash = "Umask saved."
+			data.FlashKind = "ok"
+		}
+		if code := r.URL.Query().Get("umerr"); code != "" {
+			data.FlashKind = "err"
+			switch code {
+			case "invalid":
+				data.Flash = "Invalid umask. Use octal digits like 022."
+			default:
+				data.Flash = "Failed to save umask."
+			}
+		}
 		st, _ := LoadUserSettings(user)
 		data.Term = st.Term
 		data.Redirect = st.Redirect
@@ -631,6 +644,9 @@ func (a *App) handleSettings(w http.ResponseWriter, r *http.Request) {
 		data.GitEmail = st.GitEmail
 		data.SSHKeys = st.SSHKeys
 		data.AvailableShells = LoadAvailableShells()
+		if um, err := LoadUserUmask(user); err == nil {
+			data.Umask = um
+		}
 		a.renderPage(w, "settings", data)
 		return
 	}
@@ -700,6 +716,32 @@ func (a *App) handleSettingsPassword(w http.ResponseWriter, r *http.Request) {
 	}
 	logger.Info("User %s changed password from %s", user, remoteIP(r))
 	http.Redirect(w, r, "/settings?pwok=1", http.StatusSeeOther)
+}
+
+func (a *App) handleSettingsUmask(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	user := usernameFrom(r)
+	_ = r.ParseForm()
+	um := strings.TrimSpace(r.Form.Get("umask"))
+	// Allow empty to clear
+	if strings.TrimSpace(um) == "" {
+		um = ""
+	}
+	if err := SaveUserUmask(user, um); err != nil {
+		logger.Warn("Failed to save umask for %s: %v", user, err)
+		// Distinguish invalid format
+		if _, e := NormalizeUmask(um); e != nil {
+			http.Redirect(w, r, "/settings?umerr=invalid", http.StatusSeeOther)
+			return
+		}
+		http.Redirect(w, r, "/settings?umerr=1", http.StatusSeeOther)
+		return
+	}
+	logger.Info("User %s updated umask to %q from %s", user, um, remoteIP(r))
+	http.Redirect(w, r, "/settings?umok=1", http.StatusSeeOther)
 }
 
 func (a *App) handleAdminUsers(w http.ResponseWriter, r *http.Request) {
