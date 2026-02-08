@@ -1093,7 +1093,7 @@ const defaultNotice = "\nlumgr updates these files in your home directory:\n\n" 
 	"- `~/.gitconfig` (user.name / user.email)\n" +
 	"- `~/.lumgrc` (TERM + optional redirect + umask)\n" +
 	"- `~/.bashrc` / `~/.zshrc` (sources ~/.lumgrc)\n\n" +
-	"Also modify these system files:\n" +
+	"And these system files:\n" +
 	"- `/etc/passwd` (default shell)\n" +
 	"- `/etc/shadow` (password hash)\n\n" +
 	"If you already manage these yourself, you can keep doing so.\n"
