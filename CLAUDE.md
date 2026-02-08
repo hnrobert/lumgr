@@ -41,7 +41,7 @@ make restart-docker   # Rebuild and restart
 
 The codebase follows a clean layered architecture:
 
-```
+```text
 cmd/lumgrd/main.go          # Entry point
 internal/
   ├── auth/                 # JWT tokens, password hashing, sudo verification
@@ -100,6 +100,7 @@ internal/
 ## Security Considerations
 
 This tool directly modifies critical system files. Key points:
+
 - All file writes to `/etc/passwd`, `/etc/shadow`, `/etc/group` use atomic writes
 - Shadow file permissions: `0600`
 - Password hashing uses `github.com/GehirnInc/crypt` (SHA-512)
@@ -109,6 +110,7 @@ This tool directly modifies critical system files. Key points:
 ## Registration Modes
 
 Configured via `internal/config/store.go`:
+
 - **Admin Only**: Only admins can create users
 - **Open**: Anyone can register; configurable default groups
 - **Invite**: Registration requires valid invite code with expiration/usage limits
