@@ -88,17 +88,11 @@ ssh-ed25519 AAAAC3NzAIC3... user2@example.com" spellcheck="false">{{.SSHKeys}}</
 
         <div style="height: 18px;"></div>
 
-        <h3 style="margin:0 0 8px;">What this edits</h3>
-        <div class="muted" style="line-height:1.55;">
-            <p style="margin:0 0 10px;">lumgr updates these files in your home directory:</p>
-            <ul style="margin:0; padding-left:18px;">
-                <li><code>~/.ssh/authorized_keys</code></li>
-                <li><code>~/.gitconfig</code> (user.name / user.email)</li>
-                <li><code>~/.lumgrc</code> (TERM + optional redirect + umask)</li>
-                <li><code>~/.bashrc</code> / <code>~/.zshrc</code> (sources ~/.lumgrc)</li>
-                <li><code>/etc/passwd</code> (default shell)</li>
-            </ul>
-            <p style="margin:10px 0 0;">If you already manage these yourself, you can keep doing so.</p>
+        <div class="card">
+            <h3 style="margin:0 0 8px;">Notice</h3>
+            <div class="muted" style="line-height:1.55;">
+                {{.LumgrWhatEditsHTML}}
+            </div>
         </div>
     </div>
 </div>

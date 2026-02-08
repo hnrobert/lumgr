@@ -59,6 +59,10 @@ type ViewData struct {
 	Invites     []InviteRow
 	EditUser    UserRow
 
+	// lumgr settings (markdown)
+	LumgrWhatEdits     string
+	LumgrWhatEditsHTML template.HTML
+
 	// dashboard stats
 	TotalUsers   int
 	AdminUsers   int
@@ -150,10 +154,11 @@ func newApp() (*App, error) {
 			}
 			return false
 		},
+		"RenderHTML": func(s string) template.HTML { return RenderMarkdown(s) },
 	})
 
 	pages := map[string]*template.Template{}
-	for _, page := range []string{"login", "register", "dashboard", "settings", "admin_users", "admin_groups", "admin_invites", "admin_user_edit"} {
+	for _, page := range []string{"login", "register", "dashboard", "settings", "admin_users", "admin_groups", "admin_invites", "admin_user_edit", "admin_lumgr_settings"} {
 		t, err := base.Clone()
 		if err != nil {
 			return nil, err
@@ -212,6 +217,7 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("/admin/invites/create", a.requireAdmin(a.handleAdminInvitesCreate))
 	mux.HandleFunc("/admin/invites/delete", a.requireAdmin(a.handleAdminInvitesDelete))
 	mux.HandleFunc("/admin/settings/registration", a.requireAdmin(a.handleAdminRegistrationMode))
+	mux.HandleFunc("/admin/lumgr_settings", a.requireAdmin(a.handleAdminLumgrSettings))
 
 	// Static assets
 	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("/usr/local/share/lumgrd/assets/"))))

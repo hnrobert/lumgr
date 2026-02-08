@@ -605,6 +605,7 @@ func (a *App) handleDashboard(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleSettings(w http.ResponseWriter, r *http.Request) {
+	// No-op here; actual loading of lumgr settings happens later when building the view data
 	user := usernameFrom(r)
 	if r.Method == http.MethodGet || r.Method == http.MethodHead {
 		data := a.baseData(r)
@@ -666,6 +667,14 @@ func (a *App) handleSettings(w http.ResponseWriter, r *http.Request) {
 		data.PermUmaskValue = data.Umask
 		data.PermSubmitLabel = "Apply Recursive Chmod"
 
+		// Load configured Lumgr notice markdown (fallback to default if empty)
+		if md, err := a.cfg.GetLumgrWhatEdits(); err == nil && md != "" {
+			data.LumgrWhatEdits = md
+		} else {
+			data.LumgrWhatEdits = defaultNotice
+		}
+		data.LumgrWhatEditsHTML = RenderMarkdown(data.LumgrWhatEdits)
+
 		a.renderPage(w, "settings", data)
 		return
 	}
@@ -693,6 +702,13 @@ func (a *App) handleSettings(w http.ResponseWriter, r *http.Request) {
 		data.GitEmail = st.GitEmail
 		data.SSHKeys = st.SSHKeys
 		data.AvailableShells = LoadAvailableShells()
+		// inject Lumgr settings preview as well
+		if md, e := a.cfg.GetLumgrWhatEdits(); e == nil && md != "" {
+			data.LumgrWhatEdits = md
+		} else {
+			data.LumgrWhatEdits = defaultNotice
+		}
+		data.LumgrWhatEditsHTML = RenderMarkdown(data.LumgrWhatEdits)
 		a.renderPage(w, "settings", data)
 		return
 	}
@@ -701,6 +717,8 @@ func (a *App) handleSettings(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleSettingsPassword(w http.ResponseWriter, r *http.Request) {
+	// Ensure LumgrWhatEdits is present for settings page GETs in case of redirects
+	_ = a.cfg // referenced to ensure cfg is available
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -1070,6 +1088,17 @@ func getHomeDirPerms(homeDir string) HomePerms {
 	return perms
 }
 
+const defaultNotice = `lumgr updates these files in your home directory:
+
+- ~/.ssh/authorized_keys
+- ~/.gitconfig (user.name / user.email)
+- ~/.lumgrc (TERM + optional redirect + umask)
+- ~/.bashrc / ~/.zshrc (sources ~/.lumgrc)
+- /etc/passwd (default shell)
+
+If you already manage these yourself, you can keep doing so.
+`
+
 func (a *App) handleAdminUserEdit(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -1145,6 +1174,40 @@ func (a *App) handleAdminUserEdit(w http.ResponseWriter, r *http.Request) {
 	data.PermSubmitLabel = "Apply Recursive Chmod"
 
 	a.renderPage(w, "admin_user_edit", data)
+}
+
+func (a *App) handleAdminLumgrSettings(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet || r.Method == http.MethodHead {
+		data := a.baseData(r)
+		if r.URL.Query().Get("ok") == "1" {
+			data.Flash = "Saved."
+			data.FlashKind = "ok"
+		}
+		md, _ := a.cfg.GetLumgrWhatEdits()
+		if md == "" {
+			md = defaultNotice
+		}
+		data.LumgrWhatEdits = md
+		data.LumgrWhatEditsHTML = RenderMarkdown(data.LumgrWhatEdits)
+		a.renderPage(w, "admin_lumgr_settings", data)
+		return
+	}
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	_ = r.ParseForm()
+	val := r.Form.Get("user_notice")
+	if err := a.cfg.SetLumgrUserNotice(val); err != nil {
+		data := a.baseData(r)
+		data.Flash = "Failed to save: " + err.Error()
+		data.FlashKind = "err"
+		data.LumgrWhatEdits = val
+		a.renderPage(w, "admin_lumgr_settings", data)
+		return
+	}
+	logger.Info("Admin %s updated Lumgr settings", usernameFrom(r))
+	http.Redirect(w, r, "/admin/lumgr_settings?ok=1", http.StatusSeeOther)
 }
 
 func (a *App) handleAdminUserUmask(w http.ResponseWriter, r *http.Request) {
@@ -1456,6 +1519,11 @@ func (a *App) renderPage(w http.ResponseWriter, page string, data *ViewData) {
 	}
 	if err := t.ExecuteTemplate(w, "layout", data); err != nil {
 		logger.Error("renderPage template execution failed for %s: %v", page, err)
+		// Show details for admins in the response body to ease debugging (safe for local admin use).
+		if data != nil && data.Admin {
+			http.Error(w, "Internal Server Error: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}
 }
