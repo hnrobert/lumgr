@@ -159,8 +159,8 @@ func newApp() (*App, error) {
 			return nil, err
 		}
 		// Each page file defines the same block names (title/content).
-		// Parse layout first, then page to override blocks.
-		if _, err := t.ParseFS(templatesFS, "templates/layout.html", "templates/"+page+".html"); err != nil {
+		// Parse layout, perms subtemplate, then page to override blocks.
+		if _, err := t.ParseFS(templatesFS, "templates/layout.html", "templates/perms_table.html", "templates/"+page+".html"); err != nil {
 			return nil, err
 		}
 		pages[page] = t

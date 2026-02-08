@@ -1454,5 +1454,8 @@ func (a *App) renderPage(w http.ResponseWriter, page string, data *ViewData) {
 		http.Error(w, "template not found", http.StatusInternalServerError)
 		return
 	}
-	_ = t.ExecuteTemplate(w, "layout", data)
+	if err := t.ExecuteTemplate(w, "layout", data); err != nil {
+		logger.Error("renderPage template execution failed for %s: %v", page, err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
 }
