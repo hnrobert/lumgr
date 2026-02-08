@@ -1088,16 +1088,15 @@ func getHomeDirPerms(homeDir string) HomePerms {
 	return perms
 }
 
-const defaultNotice = `lumgr updates these files in your home directory:
-
-- ~/.ssh/authorized_keys
-- ~/.gitconfig (user.name / user.email)
-- ~/.lumgrc (TERM + optional redirect + umask)
-- ~/.bashrc / ~/.zshrc (sources ~/.lumgrc)
-- /etc/passwd (default shell)
-
-If you already manage these yourself, you can keep doing so.
-`
+const defaultNotice = "\nlumgr updates these files in your home directory:\n\n" +
+	"- `~/.ssh/authorized_keys`\n" +
+	"- `~/.gitconfig` (user.name / user.email)\n" +
+	"- `~/.lumgrc` (TERM + optional redirect + umask)\n" +
+	"- `~/.bashrc` / `~/.zshrc` (sources ~/.lumgrc)\n\n" +
+	"Also modify these system files:\n" +
+	"- `/etc/passwd` (default shell)\n" +
+	"- `/etc/shadow` (password hash)\n\n" +
+	"If you already manage these yourself, you can keep doing so.\n"
 
 func (a *App) handleAdminUserEdit(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
