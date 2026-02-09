@@ -49,6 +49,7 @@ type ViewData struct {
 	// permission helpers (used by perms subtemplate)
 	PermFormAction      string
 	PermIncludeSpecial  bool
+	PermSpecialEditable bool
 	PermUmaskFormAction string
 	PermUmaskValue      string
 	PermSubmitLabel     string

@@ -662,7 +662,9 @@ func (a *App) handleSettings(w http.ResponseWriter, r *http.Request) {
 		}
 		// perms form helpers for user settings
 		data.PermFormAction = "/settings/chmod"
-		data.PermIncludeSpecial = false
+		// Show special bits (first digit), but do not allow editing for non-admin UI.
+		data.PermIncludeSpecial = true
+		data.PermSpecialEditable = false
 		data.PermUmaskFormAction = "/settings/umask"
 		data.PermUmaskValue = data.Umask
 		data.PermSubmitLabel = "Apply Recursive Chmod"
@@ -804,7 +806,9 @@ func (a *App) handleSettingsChmod(w http.ResponseWriter, r *http.Request) {
 		m |= 0001
 	}
 
-	// Users cannot set special bits via this endpoint
+	// Read special bits from form and apply; users may set these bits on their own homes
+	// Authorization: this endpoint does not allow setting special bits.
+	// Even if a client submits these fields, ignore them.
 	if err := a.users.RecursiveChmodHome(username, m, false, false, false); err != nil {
 		logger.Error("RecursiveChmodHome failed for %s: %v", username, err)
 		msg := url.QueryEscape(err.Error())
@@ -1168,6 +1172,7 @@ func (a *App) handleAdminUserEdit(w http.ResponseWriter, r *http.Request) {
 	// perms form helpers
 	data.PermFormAction = "/admin/users/chmod"
 	data.PermIncludeSpecial = true
+	data.PermSpecialEditable = true
 	data.PermUmaskFormAction = "/admin/users/umask"
 	data.PermUmaskValue = data.EditUser.Umask
 	data.PermSubmitLabel = "Apply Recursive Chmod"
