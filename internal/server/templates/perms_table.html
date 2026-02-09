@@ -75,6 +75,13 @@
                 1000</label>
         </div>
     </div>
+    {{else}}
+    <div class="muted" style="font-size: 13px; line-height: 1.55;">
+        <div style="margin-bottom: 6px;">Special bits (first digit):</div>
+        <div>Set-UID (u+s) — 4000</div>
+        <div>Set-GID on directories (g+s) — 2000</div>
+        <div>Sticky bit (t) — 1000</div>
+    </div>
     {{end}}
 </div>
 {{end}}

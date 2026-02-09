@@ -66,13 +66,16 @@
                 <button class="btn danger small" type="submit">{{.PermSubmitLabel}}</button>
             </div>
         </form>
+    </div>
 
-        <form method="post" action="{{.PermUmaskFormAction}}"
-            style="margin-top:12px; display:flex; gap:8px; align-items:center;">
+    <div class="card">
+        <h2 style="margin:0 0 8px;">Default umask</h2>
+        <div class="muted" style="margin-bottom: 12px;">Used when creating new files and directories.</div>
+
+        <form method="post" action="{{.PermUmaskFormAction}}" style="display:flex; gap:8px; align-items:center;">
             <input type="hidden" name="username" value="{{.EditUser.Name}}" />
-            <label style="margin:0; font-size:13px; color:var(--muted);">Default umask</label>
             <input name="umask" placeholder="022" value="{{.PermUmaskValue}}" style="width:80px;" />
-            <button class="btn primary small" type="submit">Save Umask</button>
+            <button class="btn primary small" type="submit">Save</button>
         </form>
     </div>
 </div>

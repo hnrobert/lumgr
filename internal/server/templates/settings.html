@@ -41,7 +41,7 @@ ssh-ed25519 AAAAC3NzAIC3... user2@example.com" spellcheck="false">{{.SSHKeys}}</
     </div>
 
     <div class="card">
-        <h3 style="margin:0 0 8px;">File Permissions</h3>
+        <h2 style="margin:0 0 8px;">File Permissions</h2>
         <div class="muted" style="margin-bottom: 12px;">Recursively apply chmod to your home (skips .ssh).</div>
 
         <form method="post" action="{{.PermFormAction}}">
@@ -51,16 +51,20 @@ ssh-ed25519 AAAAC3NzAIC3... user2@example.com" spellcheck="false">{{.SSHKeys}}</
                 <button class="btn danger" type="submit">{{.PermSubmitLabel}}</button>
             </div>
         </form>
+    </div>
 
-        <form method="post" action="{{.PermUmaskFormAction}}"
-            style="margin-top:12px; display:flex; gap:8px; align-items:center;">
-            <label style="margin:0; font-size:13px; color:var(--muted);">Default umask</label>
+    <div class="card">
+        <h2 style="margin:0 0 8px;">Default umask</h2>
+        <div class="muted" style="margin-bottom: 12px;">Used when creating new files and directories.</div>
+
+        <form method="post" action="{{.PermUmaskFormAction}}" style="display:flex; gap:8px; align-items:center;">
             <input name="umask" placeholder="022" value="{{.PermUmaskValue}}" style="width:80px;" />
-            <button class="btn primary small" type="submit">Save Umask</button>
+            <button class="btn primary small" type="submit">Save</button>
         </form>
     </div>
+
     <div class="card">
-        <h3 style="margin:0 0 8px;">Change password</h3>
+        <h2 style="margin:0 0 8px;">Change password</h2>
         <div class="muted" style="margin-bottom: 12px;">Update your host Linux account password.</div>
         <form method="post" action="/settings/password">
             <label>Current password</label>
@@ -76,14 +80,12 @@ ssh-ed25519 AAAAC3NzAIC3... user2@example.com" spellcheck="false">{{.SSHKeys}}</
                 <button class="btn primary" type="submit">Update password</button>
             </div>
         </form>
+    </div>
 
-        <div style="height: 18px;"></div>
-
-        <div class="card">
-            <h3 style="margin:0 0 8px;">Notice</h3>
-            <div class="muted" style="line-height:1.55;">
-                {{.LumgrWhatEditsHTML}}
-            </div>
+    <div class="card">
+        <h2 style="margin:0 0 8px;">Notice</h2>
+        <div class="muted" style="line-height:1.55;">
+            {{.LumgrWhatEditsHTML}}
         </div>
     </div>
 </div>
