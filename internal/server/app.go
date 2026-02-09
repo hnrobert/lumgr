@@ -15,7 +15,7 @@ import (
 	"github.com/hnrobert/lumgr/internal/usercmd"
 )
 
-//go:embed templates/*.html
+//go:embed templates/*.html templates/components/*.html
 var templatesFS embed.FS
 
 type App struct {
@@ -165,7 +165,7 @@ func newApp() (*App, error) {
 		}
 		// Each page file defines the same block names (title/content).
 		// Parse layout, perms subtemplate, then page to override blocks.
-		if _, err := t.ParseFS(templatesFS, "templates/layout.html", "templates/perms_table.html", "templates/"+page+".html"); err != nil {
+		if _, err := t.ParseFS(templatesFS, "templates/layout.html", "templates/components/perms_table.html", "templates/"+page+".html"); err != nil {
 			return nil, err
 		}
 		pages[page] = t

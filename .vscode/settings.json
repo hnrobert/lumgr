@@ -34,6 +34,7 @@
         "setuid",
         "shrc",
         "softprops",
+        "subtemplate",
         "Timezone",
         "topbar",
         "trimpath",
