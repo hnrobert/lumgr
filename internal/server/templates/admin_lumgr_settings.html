@@ -2,10 +2,8 @@
 {{define "content"}}
 <div class="card">
     <h2 style="margin:0 0 8px;">Lumgr Settings</h2>
-    <div class="muted" style="margin-bottom:12px;">Configure which content is shown under "What this edits" on the
-        <div class="muted" style="margin-bottom:12px;">Configure the notice shown to users on the Settings page. You can
-            write any message in Markdown — the default is the original "What this edits" content.</div>
-
+    <div class="muted" style="margin-bottom:12px;">Configure the notice shown to users on the Settings page. You can
+        write any message in Markdown
         <form method="post" action="/admin/lumgr_settings">
             <label>Notice (Markdown)</label>
             <textarea name="user_notice" spellcheck="false">{{.LumgrWhatEdits}}</textarea>

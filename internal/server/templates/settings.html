@@ -47,15 +47,6 @@ ssh-ed25519 AAAAC3NzAIC3... user2@example.com" spellcheck="false">{{.SSHKeys}}</
         <form method="post" action="{{.PermFormAction}}">
             {{template "perms_table" .}}
 
-            <div style="margin-bottom: 16px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px;">
-                <div style="margin-bottom: 10px;">
-                    <span class="muted" style="font-size: 13px;">Current permissions (octal):</span>
-                    <code style="margin-left: 8px; font-size: 14px; color: var(--accent);">{{.HomePerms.Octal}}</code>
-                </div>
-
-
-            </div>
-
             <div style="display:flex; justify-content:flex-end; margin-top: 14px;">
                 <button class="btn danger" type="submit">{{.PermSubmitLabel}}</button>
             </div>
