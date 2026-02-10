@@ -213,6 +213,23 @@
             color: var(--muted);
         }
 
+        /* Disabled permission controls: make it visually obvious */
+        .permRowDisabled {
+            opacity: .55;
+        }
+
+        .permRowDisabled label {
+            color: var(--muted);
+        }
+
+        .permRowDisabled input {
+            cursor: not-allowed;
+        }
+
+        input[type="checkbox"][disabled] {
+            accent-color: var(--muted);
+        }
+
         .btn {
             display: inline-flex;
             align-items: center;
