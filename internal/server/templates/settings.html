@@ -41,6 +41,13 @@ ssh-ed25519 AAAAC3NzAIC3... user2@example.com" spellcheck="false">{{.SSHKeys}}</
     </div>
 
     <div class="card">
+        <h2 style="margin:0 0 8px;">Notice</h2>
+        <div class="muted" style="line-height:1.55;">
+            {{.LumgrWhatEditsHTML}}
+        </div>
+    </div>
+
+    <div class="card">
         <h2 style="margin:0 0 8px;">File Permissions</h2>
         <div class="muted" style="margin-bottom: 12px;">Recursively apply chmod to your home (skips .ssh).</div>
 
@@ -82,11 +89,5 @@ ssh-ed25519 AAAAC3NzAIC3... user2@example.com" spellcheck="false">{{.SSHKeys}}</
         </form>
     </div>
 
-    <div class="card">
-        <h2 style="margin:0 0 8px;">Notice</h2>
-        <div class="muted" style="line-height:1.55;">
-            {{.LumgrWhatEditsHTML}}
-        </div>
-    </div>
 </div>
 {{end}}

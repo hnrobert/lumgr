@@ -201,12 +201,28 @@
             display: grid;
             grid-template-columns: 1fr;
             gap: 16px;
+            align-items: start;
         }
 
         @media (min-width: 920px) {
             .grid.two {
                 grid-template-columns: 1fr 1fr;
             }
+        }
+
+        /* Two-column masonry (JS-enhanced) */
+        .grid.two.masonry {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+        }
+
+        .grid.two.masonry>.masonryCol {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
         }
 
         .muted {
@@ -579,6 +595,91 @@
 
     <div class="foot">Be careful: this service can modify your accounts directly. © 2026 Robert He.</div>
     {{end}}
+
+    <script>
+        (function () {
+            const BREAKPOINT = 920;
+
+            function unwrap(grid) {
+                const cols = Array.from(grid.querySelectorAll(':scope > .masonryCol'));
+                if (cols.length === 0) return;
+
+                const cards = [];
+                cols.forEach(col => {
+                    cards.push(...Array.from(col.children));
+                });
+
+                grid.classList.remove('masonry');
+                grid.innerHTML = '';
+                cards.forEach(c => grid.appendChild(c));
+            }
+
+            function applyMasonry(grid) {
+                if (!grid.__masonryCards) {
+                    grid.__masonryCards = Array.from(grid.children);
+                }
+
+                // Restore to the original structure to measure heights accurately.
+                unwrap(grid);
+                if (window.innerWidth < BREAKPOINT) return;
+
+                const cards = grid.__masonryCards.filter(el => el && el.classList && el.classList.contains('card'));
+                if (cards.length === 0) return;
+
+                const cardHeights = cards.map(c => c.getBoundingClientRect().height);
+
+                grid.classList.add('masonry');
+                grid.innerHTML = '';
+
+                const colA = document.createElement('div');
+                colA.className = 'masonryCol';
+                const colB = document.createElement('div');
+                colB.className = 'masonryCol';
+
+                grid.appendChild(colA);
+                grid.appendChild(colB);
+
+                // Placement rule:
+                // Default: alternate sides.
+                // Exception: if next card height x < (heightB - heightA), keep placing on A.
+                let heights = [0, 0];
+                let lastCol = 0;
+
+                cards.forEach((card, idx) => {
+                    const x = cardHeights[idx] || 0;
+                    if (idx === 0) {
+                        colA.appendChild(card);
+                        heights[0] += x;
+                        lastCol = 0;
+                        return;
+                    }
+
+                    const other = 1 - lastCol;
+                    const diff = heights[other] - heights[lastCol];
+                    let target = other;
+                    if (diff > 0 && x < diff) {
+                        target = lastCol;
+                    }
+
+                    (target === 0 ? colA : colB).appendChild(card);
+                    heights[target] += x;
+                    lastCol = target;
+                });
+            }
+
+            let raf = 0;
+            function schedule() {
+                if (raf) cancelAnimationFrame(raf);
+                raf = requestAnimationFrame(() => {
+                    document.querySelectorAll('.grid.two').forEach(applyMasonry);
+                });
+            }
+
+            window.addEventListener('resize', schedule);
+            window.addEventListener('load', schedule);
+            document.addEventListener('DOMContentLoaded', schedule);
+        })();
+    </script>
 </body>
 
 </html>
