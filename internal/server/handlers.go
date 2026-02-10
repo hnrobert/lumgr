@@ -662,9 +662,13 @@ func (a *App) handleSettings(w http.ResponseWriter, r *http.Request) {
 		}
 		// perms form helpers for user settings
 		data.PermFormAction = "/settings/chmod"
-		// Show special bits (first digit), but do not allow editing for non-admin UI.
+		// Show special bits (first digit).
+		// Admins can edit all special bits in their own settings.
+		// Normal users can only toggle setgid (2000); setuid (4000) and sticky (1000) remain disabled.
 		data.PermIncludeSpecial = true
-		data.PermSpecialEditable = false
+		data.PermSpecialSetUIDEditable = data.Admin
+		data.PermSpecialSetGIDEditable = true
+		data.PermSpecialStickyEditable = data.Admin
 		data.PermUmaskFormAction = "/settings/umask"
 		data.PermUmaskValue = data.Umask
 		data.PermSubmitLabel = "Apply Recursive Chmod"
@@ -777,6 +781,10 @@ func (a *App) handleSettingsChmod(w http.ResponseWriter, r *http.Request) {
 	ow := r.Form.Get("ow") == "1"
 	ox := r.Form.Get("ox") == "1"
 
+	setuid := r.Form.Get("setuid") == "1"
+	setgid := r.Form.Get("setgid") == "1"
+	sticky := r.Form.Get("sticky") == "1"
+
 	var m os.FileMode
 	if ur {
 		m |= 0400
@@ -806,10 +814,14 @@ func (a *App) handleSettingsChmod(w http.ResponseWriter, r *http.Request) {
 		m |= 0001
 	}
 
-	// Read special bits from form and apply; users may set these bits on their own homes
-	// Authorization: this endpoint does not allow setting special bits.
-	// Even if a client submits these fields, ignore them.
-	if err := a.users.RecursiveChmodHome(username, m, false, false, false); err != nil {
+	admin := isAdminFrom(r)
+	if !admin {
+		// Non-admin: allow setgid only.
+		setuid = false
+		sticky = false
+	}
+
+	if err := a.users.RecursiveChmodHome(username, m, setuid, setgid, sticky); err != nil {
 		logger.Error("RecursiveChmodHome failed for %s: %v", username, err)
 		msg := url.QueryEscape(err.Error())
 		http.Redirect(w, r, "/settings?flash="+msg, http.StatusSeeOther)
@@ -818,6 +830,15 @@ func (a *App) handleSettingsChmod(w http.ResponseWriter, r *http.Request) {
 
 	// Calculate octal for logging
 	var octalValue int
+	if setuid {
+		octalValue += 4000
+	}
+	if setgid {
+		octalValue += 2000
+	}
+	if sticky {
+		octalValue += 1000
+	}
 	octalValue += int(m & 0777)
 
 	logger.Info("User %s updated own permissions from %s (mode: %04o)", username, remoteIP(r), octalValue)
@@ -1172,7 +1193,9 @@ func (a *App) handleAdminUserEdit(w http.ResponseWriter, r *http.Request) {
 	// perms form helpers
 	data.PermFormAction = "/admin/users/chmod"
 	data.PermIncludeSpecial = true
-	data.PermSpecialEditable = true
+	data.PermSpecialSetUIDEditable = true
+	data.PermSpecialSetGIDEditable = true
+	data.PermSpecialStickyEditable = true
 	data.PermUmaskFormAction = "/admin/users/umask"
 	data.PermUmaskValue = data.EditUser.Umask
 	data.PermSubmitLabel = "Apply Recursive Chmod"
