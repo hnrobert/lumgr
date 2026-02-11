@@ -73,7 +73,7 @@
                 <input id="inviteCode" name="code" required placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
             </div>
             <div style="flex: 0 0 auto;">
-                <button class="btn" type="button" onclick="pasteInvite()">Paste</button>
+                <button class="btn" type="button" onclick="pasteInvite(this)">Paste</button>
             </div>
         </div>
         <div style="display:flex; justify-content:flex-end; margin-top: 14px;">
@@ -82,13 +82,40 @@
     </form>
 
     <script>
-        async function pasteInvite() {
+        function setPasteFeedback(btn, ok) {
+            if (!btn) return;
+
+            const original = btn.getAttribute('data-paste-label') || btn.textContent;
+            if (!btn.getAttribute('data-paste-label')) {
+                btn.setAttribute('data-paste-label', original);
+            }
+
+            if (btn._pasteFeedbackTimer) {
+                clearTimeout(btn._pasteFeedbackTimer);
+            }
+
+            btn.textContent = ok ? 'Pasted' : 'Failed';
+            btn.disabled = true;
+
+            btn._pasteFeedbackTimer = setTimeout(() => {
+                btn.textContent = btn.getAttribute('data-paste-label') || 'Paste';
+                btn.disabled = false;
+                btn._pasteFeedbackTimer = null;
+            }, 1200);
+        }
+
+        async function pasteInvite(btn) {
             try {
                 const text = await navigator.clipboard.readText();
                 const el = document.getElementById('inviteCode');
-                if (el && text) el.value = text.trim();
+                if (el && text && text.trim()) {
+                    el.value = text.trim();
+                    setPasteFeedback(btn, true);
+                } else {
+                    setPasteFeedback(btn, false);
+                }
             } catch (e) {
-                alert('Paste failed. Please paste manually.');
+                setPasteFeedback(btn, false);
             }
         }
     </script>

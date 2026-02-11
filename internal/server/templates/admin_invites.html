@@ -82,31 +82,57 @@
 
             <script>
                 async function copyInviteCode(text) {
-                    if (!text) return;
+                    if (!text) return false;
+                    const value = text.trim();
                     try {
-                        await navigator.clipboard.writeText(text.trim());
+                        await navigator.clipboard.writeText(value);
+                        return true;
                     } catch (e) {
                         try {
                             const el = document.createElement('textarea');
-                            el.value = text.trim();
+                            el.value = value;
                             el.setAttribute('readonly', '');
                             el.style.position = 'absolute';
                             el.style.left = '-9999px';
                             document.body.appendChild(el);
                             el.select();
-                            document.execCommand('copy');
+                            const ok = document.execCommand('copy');
                             document.body.removeChild(el);
+                            return !!ok;
                         } catch (e2) {
-                            alert('Copy failed. Please copy manually.');
+                            return false;
                         }
                     }
+                }
+
+                function setCopyFeedback(btn, ok) {
+                    if (!btn) return;
+
+                    const original = btn.getAttribute('data-copy-label') || btn.textContent;
+                    if (!btn.getAttribute('data-copy-label')) {
+                        btn.setAttribute('data-copy-label', original);
+                    }
+
+                    if (btn._copyFeedbackTimer) {
+                        clearTimeout(btn._copyFeedbackTimer);
+                    }
+
+                    btn.textContent = ok ? 'Copied' : 'Failed';
+                    btn.disabled = true;
+
+                    btn._copyFeedbackTimer = setTimeout(() => {
+                        btn.textContent = btn.getAttribute('data-copy-label') || 'Copy';
+                        btn.disabled = false;
+                        btn._copyFeedbackTimer = null;
+                    }, 1200);
                 }
 
                 document.addEventListener('click', async (ev) => {
                     const btn = ev.target && ev.target.closest && ev.target.closest('[data-copy-invite-code]');
                     if (!btn) return;
                     const code = btn.getAttribute('data-copy-invite-code');
-                    await copyInviteCode(code);
+                    const ok = await copyInviteCode(code);
+                    setCopyFeedback(btn, ok);
                 });
             </script>
         </div>
