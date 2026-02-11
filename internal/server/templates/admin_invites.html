@@ -30,46 +30,85 @@
         {{if eq .RegMode "invite"}}
         <div class="card" style="padding:14px;">
             <h3 style="margin:0 0 8px; font-size: 14px;">Invite codes</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Code</th>
-                        <th>Uses</th>
-                        <th>Expires</th>
-                        <th>Home</th>
-                        <th>Groups</th>
-                        <th>Umask</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {{if not .Invites}}
-                    <tr>
-                        <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 24px;">No invite
-                            codes created.</td>
-                    </tr>
-                    {{else}}
-                    {{range .Invites}}
-                    <tr>
-                        <td><code>{{.ID}}</code></td>
-                        <td>{{.UsedCount}}{{if gt .MaxUses 0}} / {{.MaxUses}}{{end}}</td>
-                        <td>{{if .ExpiresAt.IsZero}}<span class="muted">never</span>{{else}}<span
-                                class="muted">{{.ExpiresAt}}</span>{{end}}</td>
-                        <td>{{if .CreateHome}}Yes{{else}}No{{end}}</td>
-                        <td><small>{{if .Groups}}{{range .Groups}}{{.}} {{end}}{{else}}-{{end}}</small></td>
-                        <td><span class="muted">{{if .Umask}}{{.Umask}}{{else}}-{{end}}</span></td>
-                        <td style="text-align:right;">
-                            <form method="post" action="/admin/invites/delete" style="margin:0; display:inline;"
-                                onsubmit="return confirm('Delete invite code {{.ID}}? This action cannot be undone!');">
-                                <input type="hidden" name="invite_id" value="{{.ID}}" />
-                                <button class="btn danger small" type="submit">Del</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {{end}}
-                    {{end}}
-                </tbody>
-            </table>
+            <div style="overflow-x:auto; width:100%; -webkit-overflow-scrolling:touch;">
+                <table style="min-width: 860px;">
+                    <thead>
+                        <tr>
+                            <th>Code</th>
+                            <th>Uses</th>
+                            <th>Expires</th>
+                            <th>Home</th>
+                            <th>Groups</th>
+                            <th>Umask</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{if not .Invites}}
+                        <tr>
+                            <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 24px;">No
+                                invite
+                                codes created.</td>
+                        </tr>
+                        {{else}}
+                        {{range .Invites}}
+                        <tr>
+                            <td>
+                                <div style="display:flex; align-items:center; gap:8px;">
+                                    <code>{{.ID}}</code>
+                                    <button class="btn small" type="button"
+                                        data-copy-invite-code="{{.ID}}">Copy</button>
+                                </div>
+                            </td>
+                            <td>{{.UsedCount}}{{if gt .MaxUses 0}} / {{.MaxUses}}{{end}}</td>
+                            <td>{{if .ExpiresAt.IsZero}}<span class="muted">never</span>{{else}}<span
+                                    class="muted">{{.ExpiresAt}}</span>{{end}}</td>
+                            <td>{{if .CreateHome}}Yes{{else}}No{{end}}</td>
+                            <td><small>{{if .Groups}}{{range .Groups}}{{.}} {{end}}{{else}}-{{end}}</small></td>
+                            <td><span class="muted">{{if .Umask}}{{.Umask}}{{else}}-{{end}}</span></td>
+                            <td style="text-align:right;">
+                                <form method="post" action="/admin/invites/delete" style="margin:0; display:inline;"
+                                    onsubmit="return confirm('Delete invite code {{.ID}}? This action cannot be undone!');">
+                                    <input type="hidden" name="invite_id" value="{{.ID}}" />
+                                    <button class="btn danger small" type="submit">Del</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {{end}}
+                        {{end}}
+                    </tbody>
+                </table>
+            </div>
+
+            <script>
+                async function copyInviteCode(text) {
+                    if (!text) return;
+                    try {
+                        await navigator.clipboard.writeText(text.trim());
+                    } catch (e) {
+                        try {
+                            const el = document.createElement('textarea');
+                            el.value = text.trim();
+                            el.setAttribute('readonly', '');
+                            el.style.position = 'absolute';
+                            el.style.left = '-9999px';
+                            document.body.appendChild(el);
+                            el.select();
+                            document.execCommand('copy');
+                            document.body.removeChild(el);
+                        } catch (e2) {
+                            alert('Copy failed. Please copy manually.');
+                        }
+                    }
+                }
+
+                document.addEventListener('click', async (ev) => {
+                    const btn = ev.target && ev.target.closest && ev.target.closest('[data-copy-invite-code]');
+                    if (!btn) return;
+                    const code = btn.getAttribute('data-copy-invite-code');
+                    await copyInviteCode(code);
+                });
+            </script>
         </div>
         {{end}}
     </div>
