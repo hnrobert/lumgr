@@ -36,10 +36,20 @@
             background: radial-gradient(1200px 800px at 20% 0%, #18214a 0%, var(--bg) 60%);
             color: var(--text);
             min-height: 1vh;
+            overflow-x: hidden;
         }
 
         html {
             background-color: var(--bg);
+            overflow-x: hidden;
+        }
+
+        img,
+        video,
+        svg,
+        canvas {
+            max-width: 100%;
+            height: auto;
         }
 
         a {
@@ -202,6 +212,10 @@
             grid-template-columns: 1fr;
             gap: 16px;
             align-items: start;
+        }
+
+        .grid>* {
+            min-width: 0;
         }
 
         @media (min-width: 920px) {
@@ -369,6 +383,7 @@
 
         .row>* {
             flex: 1;
+            min-width: 0;
         }
 
         @media (max-width: 720px) {
@@ -404,10 +419,24 @@
             text-align: left;
             padding: 10px;
             border-bottom: 1px solid rgba(122, 162, 255, .16);
+            overflow-wrap: anywhere;
         }
 
         code {
             color: #cfe0ff;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        pre {
+            max-width: 100%;
+            overflow-x: auto;
+        }
+
+        pre code {
+            white-space: pre;
+            overflow-wrap: normal;
+            word-break: normal;
         }
 
         .foot {
