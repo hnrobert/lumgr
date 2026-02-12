@@ -7,3 +7,5 @@ require (
 	github.com/creack/pty v1.1.24
 	github.com/golang-jwt/jwt/v5 v5.3.0
 )
+
+require github.com/yuin/goldmark v1.4.11

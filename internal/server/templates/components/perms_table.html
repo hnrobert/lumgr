@@ -1,0 +1,91 @@
+{{define "perms_table"}}
+<table
+    style="width: 100%; border-collapse: collapse; margin-bottom: 16px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+    <thead>
+        <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+            <th style="text-align: left; padding: 8px;">Scope</th>
+            <th style="text-align: center; padding: 8px;">R</th>
+            <th style="text-align: center; padding: 8px;">W</th>
+            <th style="text-align: center; padding: 8px;">X</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td style="padding: 8px;">User (Owner)</td>
+            <td style="text-align: center;"><input type="checkbox" name="ur" value="1" {{if
+                    .HomePerms.UserR}}checked{{end}} style="width:16px; height:16px; margin:0 auto; display:block;" />
+            </td>
+            <td style="text-align: center;"><input type="checkbox" name="uw" value="1" {{if
+                    .HomePerms.UserW}}checked{{end}} style="width:16px; height:16px; margin:0 auto; display:block;" />
+            </td>
+            <td style="text-align: center;"><input type="checkbox" name="ux" value="1" {{if
+                    .HomePerms.UserX}}checked{{end}} style="width:16px; height:16px; margin:0 auto; display:block;" />
+            </td>
+        </tr>
+        <tr>
+            <td style="padding: 8px;">Group</td>
+            <td style="text-align: center;"><input type="checkbox" name="gr" value="1" {{if
+                    .HomePerms.GroupR}}checked{{end}} style="width:16px; height:16px; margin:0 auto; display:block;" />
+            </td>
+            <td style="text-align: center;"><input type="checkbox" name="gw" value="1" {{if
+                    .HomePerms.GroupW}}checked{{end}} style="width:16px; height:16px; margin:0 auto; display:block;" />
+            </td>
+            <td style="text-align: center;"><input type="checkbox" name="gx" value="1" {{if
+                    .HomePerms.GroupX}}checked{{end}} style="width:16px; height:16px; margin:0 auto; display:block;" />
+            </td>
+        </tr>
+        <tr>
+            <td style="padding: 8px;">Other</td>
+            <td style="text-align: center;"><input type="checkbox" name="or" value="1" {{if
+                    .HomePerms.OtherR}}checked{{end}} style="width:16px; height:16px; margin:0 auto; display:block;" />
+            </td>
+            <td style="text-align: center;"><input type="checkbox" name="ow" value="1" {{if
+                    .HomePerms.OtherW}}checked{{end}} style="width:16px; height:16px; margin:0 auto; display:block;" />
+            </td>
+            <td style="text-align: center;"><input type="checkbox" name="ox" value="1" {{if
+                    .HomePerms.OtherX}}checked{{end}} style="width:16px; height:16px; margin:0 auto; display:block;" />
+            </td>
+        </tr>
+    </tbody>
+</table>
+
+<div style="margin-bottom: 16px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+    <div style="margin-bottom: 10px;">
+        <span class="muted" style="font-size: 13px;">Current permissions (octal):</span>
+        <code style="margin-left: 8px; font-size: 14px; color: var(--accent);">{{.HomePerms.Octal}}</code>
+    </div>
+
+    {{if .PermIncludeSpecial}}
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div class="{{if .PermSpecialSetUIDEditable}}{{else}}permRowDisabled{{end}}"
+            style="display: flex; align-items: center; gap: 10px;">
+            <input type="checkbox" id="setuid" name="setuid" value="1" {{if .HomePerms.SetUID}}checked{{end}} {{if
+                .PermSpecialSetUIDEditable}}{{else}}disabled="disabled" {{end}}
+                style="width:16px; height:16px; margin:0; flex: 0 0 16px;" />
+            <label for="setuid" style="margin:0; display: block; flex: 1;">Set-UID (u+s) — 4000</label>
+        </div>
+        <div class="{{if .PermSpecialSetGIDEditable}}{{else}}permRowDisabled{{end}}"
+            style="display: flex; align-items: center; gap: 10px;">
+            <input type="checkbox" id="setgid" name="setgid" value="1" {{if .HomePerms.SetGID}}checked{{end}} {{if
+                .PermSpecialSetGIDEditable}}{{else}}disabled="disabled" {{end}}
+                style="width:16px; height:16px; margin:0; flex: 0 0 16px;" />
+            <label for="setgid" style="margin:0; display: block; flex: 1;">Set-GID on directories (g+s) — 2000</label>
+        </div>
+        <div class="{{if .PermSpecialStickyEditable}}{{else}}permRowDisabled{{end}}"
+            style="display: flex; align-items: center; gap: 10px;">
+            <input type="checkbox" id="sticky" name="sticky" value="1" {{if .HomePerms.Sticky}}checked{{end}} {{if
+                .PermSpecialStickyEditable}}{{else}}disabled="disabled" {{end}}
+                style="width:16px; height:16px; margin:0; flex: 0 0 16px;" />
+            <label for="sticky" style="margin:0; display: block; flex: 1;">Sticky bit (t) — 1000</label>
+        </div>
+    </div>
+    {{else}}
+    <div class="muted" style="font-size: 13px; line-height: 1.55;">
+        <div style="margin-bottom: 6px;">Special bits (first digit):</div>
+        <div>Set-UID (u+s) — 4000</div>
+        <div>Set-GID on directories (g+s) — 2000</div>
+        <div>Sticky bit (t) — 1000</div>
+    </div>
+    {{end}}
+</div>
+{{end}}

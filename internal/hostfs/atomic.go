@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"sync"
 	"syscall"
+
+	"github.com/hnrobert/lumgr/internal/logger"
 )
 
 var globalMu sync.Mutex
@@ -63,6 +65,7 @@ func WriteFileAtomic(path string, data []byte, perm os.FileMode) error {
 		// If the target path is a bind-mounted file, replacing it via rename
 		// fails with errors like EBUSY/EXDEV. Fall back to an in-place rewrite.
 		if errors.Is(err, syscall.EBUSY) || errors.Is(err, syscall.EXDEV) || errors.Is(err, syscall.EPERM) {
+			logger.Warn("WriteFileAtomic rename failed for %s (%v); falling back to in-place rewrite", path, err)
 			f, err2 := os.OpenFile(path, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, perm)
 			if err2 != nil {
 				return err

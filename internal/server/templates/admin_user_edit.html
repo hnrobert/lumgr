@@ -5,16 +5,18 @@
         <h2 style="margin:0 0 8px;">Edit Groups: {{.EditUser.Name}}</h2>
         <div class="muted" style="margin-bottom: 12px;">Manage group memberships.</div>
 
+
         <form method="post" action="/admin/users/update_groups">
             <input type="hidden" name="username" value="{{.EditUser.Name}}" />
 
             <div style="margin-bottom: 16px;">
-                <label>Groups</label>
+                <label>Groups (<span class="muted" data-groups-selected-count>0</span>
+                    <span class="muted">selected</span>)</label>
                 <div class="muted" style="margin-bottom: 8px; font-size: 13px;">
                     Select the groups this user should belong to.
                 </div>
 
-                <div
+                <div data-groups-container
                     style="display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px;">
                     {{range .FeaturedGroups}}
                     <div style="display: flex; align-items: center; gap: 10px;">
@@ -48,99 +50,70 @@
                 <button class="btn primary small" type="submit">Save Join</button>
             </div>
         </form>
+
+        <script>
+            (function () {
+                function initGroupsSelectedCount(container) {
+                    if (!container) return;
+                    const label = container.previousElementSibling && container.previousElementSibling.previousElementSibling
+                        ? container.previousElementSibling.previousElementSibling
+                        : container.previousElementSibling;
+                    const countEl = label && label.querySelector ? label.querySelector('[data-groups-selected-count]') : null;
+                    if (!countEl) return;
+
+                    const update = () => {
+                        const n = container.querySelectorAll('input[type="checkbox"]:checked').length;
+                        countEl.textContent = String(n);
+                    };
+
+                    update();
+
+                    container.addEventListener('change', (ev) => {
+                        const t = ev && ev.target;
+                        if (t && t.matches && t.matches('input[type="checkbox"]')) {
+                            update();
+                        }
+                    });
+                }
+
+                function init() {
+                    document.querySelectorAll('[data-groups-container]').forEach(initGroupsSelectedCount);
+                }
+
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', init);
+                } else {
+                    init();
+                }
+            })();
+        </script>
     </div>
+
 
     <div class="card">
         <h2 style="margin:0 0 8px;">File Permissions</h2>
         <div class="muted" style="margin-bottom: 12px;">Recursively apply chmod to user's home (skips .ssh).</div>
 
-        <form method="post" action="/admin/users/chmod">
+        <form method="post" action="{{.PermFormAction}}">
             <input type="hidden" name="username" value="{{.EditUser.Name}}" />
 
-            <table
-                style="width: 100%; border-collapse: collapse; margin-bottom: 16px; background: rgba(0,0,0,0.2); border-radius: 8px;">
-                <thead>
-                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
-                        <th style="text-align: left; padding: 8px;">Scope</th>
-                        <th style="text-align: center; padding: 8px;">R</th>
-                        <th style="text-align: center; padding: 8px;">W</th>
-                        <th style="text-align: center; padding: 8px;">X</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td style="padding: 8px;">User (Owner)</td>
-                        <td style="text-align: center;"><input type="checkbox" name="ur" value="1" {{if
-                                .HomePerms.UserR}}checked{{end}}
-                                style="width:16px; height:16px; margin:0 auto; display:block;" /></td>
-                        <td style="text-align: center;"><input type="checkbox" name="uw" value="1" {{if
-                                .HomePerms.UserW}}checked{{end}}
-                                style="width:16px; height:16px; margin:0 auto; display:block;" /></td>
-                        <td style="text-align: center;"><input type="checkbox" name="ux" value="1" {{if
-                                .HomePerms.UserX}}checked{{end}}
-                                style="width:16px; height:16px; margin:0 auto; display:block;" /></td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 8px;">Group</td>
-                        <td style="text-align: center;"><input type="checkbox" name="gr" value="1" {{if
-                                .HomePerms.GroupR}}checked{{end}}
-                                style="width:16px; height:16px; margin:0 auto; display:block;" /></td>
-                        <td style="text-align: center;"><input type="checkbox" name="gw" value="1" {{if
-                                .HomePerms.GroupW}}checked{{end}}
-                                style="width:16px; height:16px; margin:0 auto; display:block;" /></td>
-                        <td style="text-align: center;"><input type="checkbox" name="gx" value="1" {{if
-                                .HomePerms.GroupX}}checked{{end}}
-                                style="width:16px; height:16px; margin:0 auto; display:block;" /></td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 8px;">Other</td>
-                        <td style="text-align: center;"><input type="checkbox" name="or" value="1" {{if
-                                .HomePerms.OtherR}}checked{{end}}
-                                style="width:16px; height:16px; margin:0 auto; display:block;" /></td>
-                        <td style="text-align: center;"><input type="checkbox" name="ow" value="1" {{if
-                                .HomePerms.OtherW}}checked{{end}}
-                                style="width:16px; height:16px; margin:0 auto; display:block;" /></td>
-                        <td style="text-align: center;"><input type="checkbox" name="ox" value="1" {{if
-                                .HomePerms.OtherX}}checked{{end}}
-                                style="width:16px; height:16px; margin:0 auto; display:block;" /></td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <div style="margin-bottom: 16px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px;">
-                <div style="margin-bottom: 10px;">
-                    <span class="muted" style="font-size: 13px;">Current permissions (octal):</span>
-                    <code style="margin-left: 8px; font-size: 14px; color: var(--accent);">{{.HomePerms.Octal}}</code>
-                </div>
-                <div style="display: flex; flex-direction: column; gap: 8px;">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <input type="checkbox" id="setuid" name="setuid" value="1" {{if
-                            .HomePerms.SetUID}}checked{{end}}
-                            style="width:16px; height:16px; margin:0; flex: 0 0 16px;" />
-                        <label for="setuid" style="margin:0; cursor: pointer; display: block; flex: 1;">Set-UID (u+s) —
-                            4000</label>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <input type="checkbox" id="setgid" name="setgid" value="1" {{if
-                            .HomePerms.SetGID}}checked{{end}}
-                            style="width:16px; height:16px; margin:0; flex: 0 0 16px;" />
-                        <label for="setgid" style="margin:0; cursor: pointer; display: block; flex: 1;">Set-GID on
-                            directories (g+s) — 2000</label>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <input type="checkbox" id="sticky" name="sticky" value="1" {{if
-                            .HomePerms.Sticky}}checked{{end}}
-                            style="width:16px; height:16px; margin:0; flex: 0 0 16px;" />
-                        <label for="sticky" style="margin:0; cursor: pointer; display: block; flex: 1;">Sticky bit (t) —
-                            1000</label>
-                    </div>
-                </div>
-            </div>
+            {{template "perms_table" .}}
 
             <div style="display:flex; justify-content:space-between; margin-top: 14px;">
                 <a href="/admin/users" class="btn ghost">Back</a>
-                <button class="btn danger small" type="submit">Apply Recursive Chmod</button>
+                <button class="btn danger small" type="submit">{{.PermSubmitLabel}}</button>
             </div>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2 style="margin:0 0 8px;">Default umask</h2>
+        <div class="muted" style="margin-bottom: 12px;">Used when creating new files and directories.</div>
+
+        <form method="post" action="{{.PermUmaskFormAction}}" style="display:flex; gap:8px; align-items:center;">
+            <input type="hidden" name="username" value="{{.EditUser.Name}}" />
+            <input name="umask" placeholder="022" value="{{.PermUmaskValue}}" style="width:80px;" />
+            <button class="btn primary small" type="submit">Save</button>
         </form>
     </div>
 </div>

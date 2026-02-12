@@ -293,6 +293,7 @@ func (a *App) handleRegisterComplete(w http.ResponseWriter, r *http.Request) {
 
 	createHome := true
 	var groups []string
+	umask := ""
 
 	switch mode {
 	case config.RegistrationInvite:
@@ -311,6 +312,7 @@ func (a *App) handleRegisterComplete(w http.ResponseWriter, r *http.Request) {
 		}
 		createHome = inv.CreateHome
 		groups = inv.Groups
+		umask = inv.Umask
 		data.InviteCode = code
 	case config.RegistrationOpen:
 		groups = cfg.DefaultGroups
@@ -351,6 +353,13 @@ func (a *App) handleRegisterComplete(w http.ResponseWriter, r *http.Request) {
 		a.renderPage(w, "register", data)
 		return
 	}
+	if err := auth.VerifyPassword(username, password); err != nil {
+		logger.Error("Registration password verification failed for %s from %s: %v", username, remoteIP(r), err)
+		data.Flash = "Password update failed to verify. Check server logs for /etc/shadow update details."
+		data.FlashKind = "err"
+		a.renderPage(w, "register", data)
+		return
+	}
 
 	for _, g := range groups {
 		if g != "" {
@@ -368,6 +377,14 @@ func (a *App) handleRegisterComplete(w http.ResponseWriter, r *http.Request) {
 	// Setup shell configuration files (rc and profile)
 	if err := setupUserShellConfig(username, shell); err != nil {
 		logger.Info("Warning: failed to setup shell config for user %s: %v", username, err)
+	}
+
+	if strings.TrimSpace(umask) != "" {
+		if err := SaveUserUmask(username, umask); err != nil {
+			logger.Warn("Warning: failed to apply umask for user %s: %v", username, err)
+		} else {
+			logger.Info("Applied umask %s for user %s", umask, username)
+		}
 	}
 
 	if mode == config.RegistrationInvite {
@@ -402,7 +419,7 @@ func (a *App) handleAdminInvites(w http.ResponseWriter, r *http.Request) {
 	}
 	for _, inv := range list {
 		inv.UsedCount = len(inv.Uses)
-		data.Invites = append(data.Invites, InviteRow{ID: inv.ID, UsedCount: inv.UsedCount, MaxUses: inv.MaxUses, ExpiresAt: inv.ExpiresAt, CreateHome: inv.CreateHome, Groups: inv.Groups})
+		data.Invites = append(data.Invites, InviteRow{ID: inv.ID, UsedCount: inv.UsedCount, MaxUses: inv.MaxUses, ExpiresAt: inv.ExpiresAt, CreateHome: inv.CreateHome, Groups: inv.Groups, Umask: inv.Umask})
 	}
 
 	cfg, _ := a.cfg.Get()
@@ -481,6 +498,15 @@ func (a *App) handleAdminInvitesCreate(w http.ResponseWriter, r *http.Request) {
 	expiresText := strings.TrimSpace(r.Form.Get("expires_at"))
 	createHome := r.Form.Get("create_home") != "0"
 	groups := r.Form["groups"]
+	umask := strings.TrimSpace(r.Form.Get("umask"))
+	if umask != "" {
+		norm, err := NormalizeUmask(umask)
+		if err != nil {
+			http.Redirect(w, r, "/admin/invites?err=1", http.StatusSeeOther)
+			return
+		}
+		umask = norm
+	}
 
 	maxUses := 0
 	if maxUsesText != "" {
@@ -494,12 +520,12 @@ func (a *App) handleAdminInvitesCreate(w http.ResponseWriter, r *http.Request) {
 			expiresAt = t
 		}
 	}
-	if _, err := a.invites.Create(usernameFrom(r), maxUses, expiresAt, createHome, groups); err != nil {
+	if _, err := a.invites.Create(usernameFrom(r), maxUses, expiresAt, createHome, groups, umask); err != nil {
 		http.Redirect(w, r, "/admin/invites?err=1", http.StatusSeeOther)
 		return
 	}
 	adminUser := usernameFrom(r)
-	logger.Info("Admin %s created invite from %s (groups: %v, max_uses: %d)", adminUser, remoteIP(r), groups, maxUses)
+	logger.Info("Admin %s created invite from %s (groups: %v, max_uses: %d, umask: %s)", adminUser, remoteIP(r), groups, maxUses, umask)
 	http.Redirect(w, r, "/admin/invites?ok=1", http.StatusSeeOther)
 }
 
@@ -579,9 +605,46 @@ func (a *App) handleDashboard(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleSettings(w http.ResponseWriter, r *http.Request) {
+	// No-op here; actual loading of lumgr settings happens later when building the view data
 	user := usernameFrom(r)
 	if r.Method == http.MethodGet || r.Method == http.MethodHead {
 		data := a.baseData(r)
+		if r.URL.Query().Get("pwok") == "1" {
+			data.Flash = "Password updated."
+			data.FlashKind = "ok"
+		}
+		if code := r.URL.Query().Get("pwerr"); code != "" {
+			data.FlashKind = "err"
+			switch code {
+			case "mismatch":
+				data.Flash = "Passwords do not match."
+			case "current":
+				data.Flash = "Current password is incorrect."
+			default:
+				data.Flash = "Password update failed. Check server logs for /etc/shadow update details."
+			}
+		}
+		if r.URL.Query().Get("umok") == "1" {
+			data.Flash = "Umask saved."
+			data.FlashKind = "ok"
+		}
+		if code := r.URL.Query().Get("umerr"); code != "" {
+			data.FlashKind = "err"
+			switch code {
+			case "invalid":
+				data.Flash = "Invalid umask. Use octal digits like 022."
+			default:
+				data.Flash = "Failed to save umask."
+			}
+		}
+		if r.URL.Query().Get("ok") == "1" {
+			data.Flash = "Saved."
+			data.FlashKind = "ok"
+		}
+		if msg := r.URL.Query().Get("flash"); msg != "" {
+			data.Flash = msg
+			data.FlashKind = "err"
+		}
 		st, _ := LoadUserSettings(user)
 		data.Term = st.Term
 		data.Redirect = st.Redirect
@@ -590,6 +653,34 @@ func (a *App) handleSettings(w http.ResponseWriter, r *http.Request) {
 		data.GitEmail = st.GitEmail
 		data.SSHKeys = st.SSHKeys
 		data.AvailableShells = LoadAvailableShells()
+		if um, err := LoadUserUmask(user); err == nil {
+			data.Umask = um
+		}
+		// Load current home dir perms
+		if e, err := lookupUser(user); err == nil {
+			data.HomePerms = getHomeDirPerms(e.Home)
+		}
+		// perms form helpers for user settings
+		data.PermFormAction = "/settings/chmod"
+		// Show special bits (first digit).
+		// Admins can edit all special bits in their own settings.
+		// Normal users can only toggle setgid (2000); setuid (4000) and sticky (1000) remain disabled.
+		data.PermIncludeSpecial = true
+		data.PermSpecialSetUIDEditable = data.Admin
+		data.PermSpecialSetGIDEditable = true
+		data.PermSpecialStickyEditable = data.Admin
+		data.PermUmaskFormAction = "/settings/umask"
+		data.PermUmaskValue = data.Umask
+		data.PermSubmitLabel = "Apply Recursive Chmod"
+
+		// Load configured Lumgr notice markdown (fallback to default if empty)
+		if md, err := a.cfg.GetLumgrWhatEdits(); err == nil && md != "" {
+			data.LumgrWhatEdits = md
+		} else {
+			data.LumgrWhatEdits = defaultNotice
+		}
+		data.LumgrWhatEditsHTML = RenderMarkdown(data.LumgrWhatEdits)
+
 		a.renderPage(w, "settings", data)
 		return
 	}
@@ -617,11 +708,167 @@ func (a *App) handleSettings(w http.ResponseWriter, r *http.Request) {
 		data.GitEmail = st.GitEmail
 		data.SSHKeys = st.SSHKeys
 		data.AvailableShells = LoadAvailableShells()
+		// inject Lumgr settings preview as well
+		if md, e := a.cfg.GetLumgrWhatEdits(); e == nil && md != "" {
+			data.LumgrWhatEdits = md
+		} else {
+			data.LumgrWhatEdits = defaultNotice
+		}
+		data.LumgrWhatEditsHTML = RenderMarkdown(data.LumgrWhatEdits)
 		a.renderPage(w, "settings", data)
 		return
 	}
 	logger.Info("User %s updated settings from %s (shell: %s, term: %s)", user, remoteIP(r), st.Shell, st.Term)
 	http.Redirect(w, r, "/settings?ok=1", http.StatusSeeOther)
+}
+
+func (a *App) handleSettingsPassword(w http.ResponseWriter, r *http.Request) {
+	// Ensure LumgrWhatEdits is present for settings page GETs in case of redirects
+	_ = a.cfg // referenced to ensure cfg is available
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	user := usernameFrom(r)
+	_ = r.ParseForm()
+	current := r.Form.Get("current_password")
+	newPass := r.Form.Get("new_password")
+	newPass2 := r.Form.Get("new_password2")
+	if strings.TrimSpace(current) == "" || strings.TrimSpace(newPass) == "" {
+		http.Redirect(w, r, "/settings?pwerr=1", http.StatusSeeOther)
+		return
+	}
+	if newPass != newPass2 {
+		http.Redirect(w, r, "/settings?pwerr=mismatch", http.StatusSeeOther)
+		return
+	}
+	if err := auth.VerifyPassword(user, current); err != nil {
+		logger.Warn("Password change failed (verify current) for %s from %s: %v", user, remoteIP(r), err)
+		http.Redirect(w, r, "/settings?pwerr=current", http.StatusSeeOther)
+		return
+	}
+	if err := a.users.SetPassword(user, newPass); err != nil {
+		logger.Error("Password change failed (set) for %s: %v", user, err)
+		http.Redirect(w, r, "/settings?pwerr=1", http.StatusSeeOther)
+		return
+	}
+	if err := auth.VerifyPassword(user, newPass); err != nil {
+		logger.Error("Password change verification failed for %s from %s: %v", user, remoteIP(r), err)
+		http.Redirect(w, r, "/settings?pwerr=1", http.StatusSeeOther)
+		return
+	}
+	logger.Info("User %s changed password from %s", user, remoteIP(r))
+	http.Redirect(w, r, "/settings?pwok=1", http.StatusSeeOther)
+}
+
+func (a *App) handleSettingsChmod(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	_ = r.ParseForm()
+	username := usernameFrom(r)
+
+	ur := r.Form.Get("ur") == "1"
+	uw := r.Form.Get("uw") == "1"
+	ux := r.Form.Get("ux") == "1"
+
+	gr := r.Form.Get("gr") == "1"
+	gw := r.Form.Get("gw") == "1"
+	gx := r.Form.Get("gx") == "1"
+
+	or := r.Form.Get("or") == "1"
+	ow := r.Form.Get("ow") == "1"
+	ox := r.Form.Get("ox") == "1"
+
+	setuid := r.Form.Get("setuid") == "1"
+	setgid := r.Form.Get("setgid") == "1"
+	sticky := r.Form.Get("sticky") == "1"
+
+	var m os.FileMode
+	if ur {
+		m |= 0400
+	}
+	if uw {
+		m |= 0200
+	}
+	if ux {
+		m |= 0100
+	}
+	if gr {
+		m |= 0040
+	}
+	if gw {
+		m |= 0020
+	}
+	if gx {
+		m |= 0010
+	}
+	if or {
+		m |= 0004
+	}
+	if ow {
+		m |= 0002
+	}
+	if ox {
+		m |= 0001
+	}
+
+	admin := isAdminFrom(r)
+	if !admin {
+		// Non-admin: allow setgid only.
+		setuid = false
+		sticky = false
+	}
+
+	if err := a.users.RecursiveChmodHome(username, m, setuid, setgid, sticky); err != nil {
+		logger.Error("RecursiveChmodHome failed for %s: %v", username, err)
+		msg := url.QueryEscape(err.Error())
+		http.Redirect(w, r, "/settings?flash="+msg, http.StatusSeeOther)
+		return
+	}
+
+	// Calculate octal for logging
+	var octalValue int
+	if setuid {
+		octalValue += 4000
+	}
+	if setgid {
+		octalValue += 2000
+	}
+	if sticky {
+		octalValue += 1000
+	}
+	octalValue += int(m & 0777)
+
+	logger.Info("User %s updated own permissions from %s (mode: %04o)", username, remoteIP(r), octalValue)
+	http.Redirect(w, r, "/settings?ok=1", http.StatusSeeOther)
+}
+
+func (a *App) handleSettingsUmask(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	user := usernameFrom(r)
+	_ = r.ParseForm()
+	um := strings.TrimSpace(r.Form.Get("umask"))
+	// Allow empty to clear
+	if strings.TrimSpace(um) == "" {
+		um = ""
+	}
+	if err := SaveUserUmask(user, um); err != nil {
+		logger.Warn("Failed to save umask for %s: %v", user, err)
+		// Distinguish invalid format
+		if _, e := NormalizeUmask(um); e != nil {
+			http.Redirect(w, r, "/settings?umerr=invalid", http.StatusSeeOther)
+			return
+		}
+		http.Redirect(w, r, "/settings?umerr=1", http.StatusSeeOther)
+		return
+	}
+	logger.Info("User %s updated umask to %q from %s", user, um, remoteIP(r))
+	http.Redirect(w, r, "/settings?umok=1", http.StatusSeeOther)
 }
 
 func (a *App) handleAdminUsers(w http.ResponseWriter, r *http.Request) {
@@ -726,6 +973,15 @@ func (a *App) handleAdminUsersCreate(w http.ResponseWriter, r *http.Request) {
 	shell := strings.TrimSpace(r.Form.Get("shell"))
 	createHome := r.Form.Get("create_home") != "0"
 	groups := r.Form["groups"]
+	umask := strings.TrimSpace(r.Form.Get("umask"))
+	if umask != "" {
+		norm, err := NormalizeUmask(umask)
+		if err != nil {
+			http.Error(w, "invalid umask", http.StatusBadRequest)
+			return
+		}
+		umask = norm
+	}
 
 	if username == "" || password == "" {
 		http.Redirect(w, r, "/admin/users?err=1", http.StatusSeeOther)
@@ -748,6 +1004,11 @@ func (a *App) handleAdminUsersCreate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	if err := auth.VerifyPassword(username, password); err != nil {
+		logger.Error("Admin create-user password verification failed for %s from %s: %v", username, remoteIP(r), err)
+		http.Error(w, "password update failed to verify; check server logs", http.StatusInternalServerError)
+		return
+	}
 	for _, g := range groups {
 		if g != "" {
 			_ = a.users.AddUserToGroup(username, g)
@@ -765,9 +1026,14 @@ func (a *App) handleAdminUsersCreate(w http.ResponseWriter, r *http.Request) {
 	if err := setupUserShellConfig(username, shell); err != nil {
 		logger.Info("Warning: failed to setup shell config for user %s: %v", username, err)
 	}
+	if umask != "" {
+		if err := SaveUserUmask(username, umask); err != nil {
+			logger.Warn("Warning: failed to apply umask for new user %s: %v", username, err)
+		}
+	}
 
 	adminUser := usernameFrom(r)
-	logger.Info("Admin %s created user %s from %s (groups: %v, shell: %s)", adminUser, username, remoteIP(r), groups, shell)
+	logger.Info("Admin %s created user %s from %s (groups: %v, shell: %s, umask: %s)", adminUser, username, remoteIP(r), groups, shell, umask)
 	http.Redirect(w, r, "/admin/users?ok=1", http.StatusSeeOther)
 }
 
@@ -847,6 +1113,16 @@ func getHomeDirPerms(homeDir string) HomePerms {
 	return perms
 }
 
+const defaultNotice = "\nlumgr updates these files in your home directory:\n\n" +
+	"- `~/.ssh/authorized_keys`\n" +
+	"- `~/.gitconfig` (user.name / user.email)\n" +
+	"- `~/.lumgrc` (TERM + optional redirect + umask)\n" +
+	"- `~/.bashrc` / `~/.zshrc` (sources ~/.lumgrc)\n\n" +
+	"And these system files:\n" +
+	"- `/etc/passwd` (default shell)\n" +
+	"- `/etc/shadow` (password hash)\n\n" +
+	"If you already manage these yourself, you can keep doing so.\n"
+
 func (a *App) handleAdminUserEdit(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -888,7 +1164,8 @@ func (a *App) handleAdminUserEdit(w http.ResponseWriter, r *http.Request) {
 	}
 	gp, _ := usermgr.LoadGroup("/etc/group")
 
-	data.EditUser = UserRow{Name: u.Name, UID: u.UID, Home: u.Home, Groups: groups}
+	um, _ := LoadUserUmask(username)
+	data.EditUser = UserRow{Name: u.Name, UID: u.UID, Home: u.Home, Groups: groups, Umask: um}
 
 	// Split groups
 	var feat, other []string
@@ -910,10 +1187,83 @@ func (a *App) handleAdminUserEdit(w http.ResponseWriter, r *http.Request) {
 	data.FeaturedGroups = feat
 	data.OtherGroups = other
 
-	// Get current permissions from .lumgrc file
+	// Get current permissions from user home
 	data.HomePerms = getHomeDirPerms(u.Home)
 
+	// perms form helpers
+	data.PermFormAction = "/admin/users/chmod"
+	data.PermIncludeSpecial = true
+	data.PermSpecialSetUIDEditable = true
+	data.PermSpecialSetGIDEditable = true
+	data.PermSpecialStickyEditable = true
+	data.PermUmaskFormAction = "/admin/users/umask"
+	data.PermUmaskValue = data.EditUser.Umask
+	data.PermSubmitLabel = "Apply Recursive Chmod"
+
 	a.renderPage(w, "admin_user_edit", data)
+}
+
+func (a *App) handleAdminLumgrSettings(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet || r.Method == http.MethodHead {
+		data := a.baseData(r)
+		if r.URL.Query().Get("ok") == "1" {
+			data.Flash = "Saved."
+			data.FlashKind = "ok"
+		}
+		md, _ := a.cfg.GetLumgrWhatEdits()
+		if md == "" {
+			md = defaultNotice
+		}
+		data.LumgrWhatEdits = md
+		data.LumgrWhatEditsHTML = RenderMarkdown(data.LumgrWhatEdits)
+		a.renderPage(w, "admin_lumgr_settings", data)
+		return
+	}
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	_ = r.ParseForm()
+	val := r.Form.Get("user_notice")
+	if err := a.cfg.SetLumgrUserNotice(val); err != nil {
+		data := a.baseData(r)
+		data.Flash = "Failed to save: " + err.Error()
+		data.FlashKind = "err"
+		data.LumgrWhatEdits = val
+		a.renderPage(w, "admin_lumgr_settings", data)
+		return
+	}
+	logger.Info("Admin %s updated Lumgr settings", usernameFrom(r))
+	http.Redirect(w, r, "/admin/lumgr_settings?ok=1", http.StatusSeeOther)
+}
+
+func (a *App) handleAdminUserUmask(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	_ = r.ParseForm()
+	username := strings.TrimSpace(r.Form.Get("username"))
+	umask := strings.TrimSpace(r.Form.Get("umask"))
+	if username == "" {
+		http.Redirect(w, r, "/admin/users?err=1", http.StatusSeeOther)
+		return
+	}
+	if umask != "" {
+		norm, err := NormalizeUmask(umask)
+		if err != nil {
+			http.Redirect(w, r, "/admin/users/edit?user="+url.QueryEscape(username)+"&err=1", http.StatusSeeOther)
+			return
+		}
+		umask = norm
+	}
+	if err := SaveUserUmask(username, umask); err != nil {
+		logger.Error("Admin failed to set umask for %s: %v", username, err)
+		http.Redirect(w, r, "/admin/users/edit?user="+url.QueryEscape(username)+"&err=1", http.StatusSeeOther)
+		return
+	}
+	logger.Info("Admin %s set umask for %s to %q", usernameFrom(r), username, umask)
+	http.Redirect(w, r, "/admin/users/edit?user="+url.QueryEscape(username)+"&ok=1", http.StatusSeeOther)
 }
 
 func (a *App) handleAdminUserChmod(w http.ResponseWriter, r *http.Request) {
@@ -1194,5 +1544,13 @@ func (a *App) renderPage(w http.ResponseWriter, page string, data *ViewData) {
 		http.Error(w, "template not found", http.StatusInternalServerError)
 		return
 	}
-	_ = t.ExecuteTemplate(w, "layout", data)
+	if err := t.ExecuteTemplate(w, "layout", data); err != nil {
+		logger.Error("renderPage template execution failed for %s: %v", page, err)
+		// Show details for admins in the response body to ease debugging (safe for local admin use).
+		if data != nil && data.Admin {
+			http.Error(w, "Internal Server Error: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
 }

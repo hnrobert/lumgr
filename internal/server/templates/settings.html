@@ -39,19 +39,55 @@ ssh-ed25519 AAAAC3NzAIC3... user2@example.com" spellcheck="false">{{.SSHKeys}}</
             </div>
         </form>
     </div>
+
     <div class="card">
-        <h3 style="margin:0 0 8px;">What this edits</h3>
+        <h2 style="margin:0 0 8px;">Notice</h2>
         <div class="muted" style="line-height:1.55;">
-            <p style="margin:0 0 10px;">lumgr updates these files in your home directory:</p>
-            <ul style="margin:0; padding-left:18px;">
-                <li><code>~/.ssh/authorized_keys</code></li>
-                <li><code>~/.gitconfig</code> (user.name / user.email)</li>
-                <li><code>~/.lumgrc</code> (TERM + optional redirect)</li>
-                <li><code>~/.bashrc</code> / <code>~/.zshrc</code> (sources ~/.lumgrc)</li>
-                <li><code>/etc/passwd</code> (default shell)</li>
-            </ul>
-            <p style="margin:10px 0 0;">If you already manage these yourself, you can keep doing so.</p>
+            {{.LumgrWhatEditsHTML}}
         </div>
     </div>
+
+    <div class="card">
+        <h2 style="margin:0 0 8px;">File Permissions</h2>
+        <div class="muted" style="margin-bottom: 12px;">Recursively apply chmod to your home (skips .ssh).</div>
+
+        <form method="post" action="{{.PermFormAction}}">
+            {{template "perms_table" .}}
+
+            <div style="display:flex; justify-content:flex-end; margin-top: 14px;">
+                <button class="btn danger" type="submit">{{.PermSubmitLabel}}</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2 style="margin:0 0 8px;">Default umask</h2>
+        <div class="muted" style="margin-bottom: 12px;">Used when creating new files and directories.</div>
+
+        <form method="post" action="{{.PermUmaskFormAction}}" style="display:flex; gap:8px; align-items:center;">
+            <input name="umask" placeholder="022" value="{{.PermUmaskValue}}" style="width:80px;" />
+            <button class="btn primary small" type="submit">Save</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2 style="margin:0 0 8px;">Change password</h2>
+        <div class="muted" style="margin-bottom: 12px;">Update your host Linux account password.</div>
+        <form method="post" action="/settings/password">
+            <label>Current password</label>
+            <input type="password" name="current_password" autocomplete="current-password" required />
+
+            <label>New password</label>
+            <input type="password" name="new_password" autocomplete="new-password" required />
+
+            <label>Confirm new password</label>
+            <input type="password" name="new_password2" autocomplete="new-password" required />
+
+            <div style="display:flex; justify-content:flex-end; margin-top: 14px;">
+                <button class="btn primary" type="submit">Update password</button>
+            </div>
+        </form>
+    </div>
+
 </div>
 {{end}}

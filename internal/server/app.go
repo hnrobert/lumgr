@@ -15,7 +15,7 @@ import (
 	"github.com/hnrobert/lumgr/internal/usercmd"
 )
 
-//go:embed templates/*.html
+//go:embed templates/*.html templates/components/*.html
 var templatesFS embed.FS
 
 type App struct {
@@ -44,12 +44,27 @@ type ViewData struct {
 	GitEmail        string
 	SSHKeys         string
 	AvailableShells []string
+	Umask           string
+
+	// permission helpers (used by perms subtemplate)
+	PermFormAction            string
+	PermIncludeSpecial        bool
+	PermSpecialSetUIDEditable bool
+	PermSpecialSetGIDEditable bool
+	PermSpecialStickyEditable bool
+	PermUmaskFormAction       string
+	PermUmaskValue            string
+	PermSubmitLabel           string
 
 	// admin
 	Users       []UserRow
 	SystemUsers []UserRow
 	Invites     []InviteRow
 	EditUser    UserRow
+
+	// lumgr settings (markdown)
+	LumgrWhatEdits     string
+	LumgrWhatEditsHTML template.HTML
 
 	// dashboard stats
 	TotalUsers   int
@@ -87,6 +102,7 @@ type UserRow struct {
 	UID    int
 	Home   string
 	Groups []string
+	Umask  string
 }
 
 type HomePerms struct {
@@ -106,6 +122,7 @@ type InviteRow struct {
 	ExpiresAt  time.Time
 	CreateHome bool
 	Groups     []string
+	Umask      string
 }
 
 func newApp() (*App, error) {
@@ -140,17 +157,18 @@ func newApp() (*App, error) {
 			}
 			return false
 		},
+		"RenderHTML": func(s string) template.HTML { return RenderMarkdown(s) },
 	})
 
 	pages := map[string]*template.Template{}
-	for _, page := range []string{"login", "register", "dashboard", "settings", "admin_users", "admin_groups", "admin_invites", "admin_user_edit"} {
+	for _, page := range []string{"login", "register", "dashboard", "settings", "admin_users", "admin_groups", "admin_invites", "admin_user_edit", "admin_lumgr_settings"} {
 		t, err := base.Clone()
 		if err != nil {
 			return nil, err
 		}
 		// Each page file defines the same block names (title/content).
-		// Parse layout first, then page to override blocks.
-		if _, err := t.ParseFS(templatesFS, "templates/layout.html", "templates/"+page+".html"); err != nil {
+		// Parse layout, perms subtemplate, then page to override blocks.
+		if _, err := t.ParseFS(templatesFS, "templates/layout.html", "templates/components/perms_table.html", "templates/"+page+".html"); err != nil {
 			return nil, err
 		}
 		pages[page] = t
@@ -182,6 +200,9 @@ func (a *App) routes() http.Handler {
 
 	mux.HandleFunc("/", a.requireAuth(a.handleDashboard))
 	mux.HandleFunc("/settings", a.requireAuth(a.handleSettings))
+	mux.HandleFunc("/settings/password", a.requireAuth(a.handleSettingsPassword))
+	mux.HandleFunc("/settings/umask", a.requireAuth(a.handleSettingsUmask))
+	mux.HandleFunc("/settings/chmod", a.requireAuth(a.handleSettingsChmod))
 
 	mux.HandleFunc("/admin/users", a.requireAdmin(a.handleAdminUsers))
 	mux.HandleFunc("/admin/users/create", a.requireAdmin(a.handleAdminUsersCreate))
@@ -189,6 +210,7 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("/admin/users/edit", a.requireAdmin(a.handleAdminUserEdit))
 	mux.HandleFunc("/admin/users/update_groups", a.requireAdmin(a.handleAdminUserUpdateGroups))
 	mux.HandleFunc("/admin/users/chmod", a.requireAdmin(a.handleAdminUserChmod))
+	mux.HandleFunc("/admin/users/umask", a.requireAdmin(a.handleAdminUserUmask))
 
 	mux.HandleFunc("/admin/groups", a.requireAdmin(a.handleAdminGroups))
 	mux.HandleFunc("/admin/groups/create", a.requireAdmin(a.handleAdminGroupsCreate))
@@ -198,6 +220,7 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("/admin/invites/create", a.requireAdmin(a.handleAdminInvitesCreate))
 	mux.HandleFunc("/admin/invites/delete", a.requireAdmin(a.handleAdminInvitesDelete))
 	mux.HandleFunc("/admin/settings/registration", a.requireAdmin(a.handleAdminRegistrationMode))
+	mux.HandleFunc("/admin/lumgr_settings", a.requireAdmin(a.handleAdminLumgrSettings))
 
 	// Static assets
 	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("/usr/local/share/lumgrd/assets/"))))

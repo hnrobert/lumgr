@@ -20,6 +20,29 @@ type UserSettings struct {
 	SSHKeys  string
 }
 
+// NormalizeUmask validates and normalizes umask input.
+// Accepts formats like "22", "022", "0022" and returns a 3-digit string (e.g. "022").
+func NormalizeUmask(s string) (string, error) {
+	s = strings.TrimSpace(s)
+	s = strings.TrimPrefix(s, "0")
+	if s == "" {
+		return "", fmt.Errorf("invalid umask")
+	}
+	if len(s) > 3 {
+		// If someone pasted 4 digits like 0022, keep last 3.
+		s = s[len(s)-3:]
+	}
+	if len(s) < 3 {
+		s = strings.Repeat("0", 3-len(s)) + s
+	}
+	for _, ch := range s {
+		if ch < '0' || ch > '7' {
+			return "", fmt.Errorf("invalid umask")
+		}
+	}
+	return s, nil
+}
+
 func lookupUser(username string) (*usermgr.PasswdEntry, error) {
 	pw, err := usermgr.LoadPasswd("/etc/passwd")
 	if err != nil {
@@ -105,7 +128,9 @@ func SaveUserSettings(username string, st UserSettings) error {
 
 	// Write ~/.lumgrc
 	lumgrcPath := filepath.Join(e.Home, ".lumgrc")
-	lumgrcNew := updateLumgrc(readFileOrEmpty(lumgrcPath), st.Term, st.Redirect)
+	orig := readFileOrEmpty(lumgrcPath)
+	_, _, um := parseLumgrcWithUmask(orig)
+	lumgrcNew := updateLumgrc(orig, st.Term, st.Redirect, um)
 	if err := os.WriteFile(lumgrcPath, lumgrcNew, 0644); err != nil {
 		return err
 	}
@@ -239,12 +264,19 @@ const (
 )
 
 func parseLumgrc(b []byte) (term, redirect string) {
+	term, redirect, _ = parseLumgrcWithUmask(b)
+	return term, redirect
+}
+
+func parseLumgrcWithUmask(b []byte) (term, redirect, umask string) {
 	lines := strings.Split(string(b), "\n")
 	in := false
+	sawBlock := false
 	for _, line := range lines {
 		trim := strings.TrimSpace(line)
 		if trim == lumgrcBegin {
 			in = true
+			sawBlock = true
 			continue
 		}
 		if trim == lumgrcEnd {
@@ -259,11 +291,37 @@ func parseLumgrc(b []byte) (term, redirect string) {
 		if strings.HasPrefix(trim, "cd ") {
 			redirect = strings.TrimSpace(strings.TrimPrefix(trim, "cd "))
 		}
+		if strings.HasPrefix(trim, "umask ") {
+			umask = strings.TrimSpace(strings.TrimPrefix(trim, "umask "))
+		}
 	}
-	return term, redirect
+
+	// If the file doesn't contain a lumgr-managed block, treat the whole file as lumgr-managed.
+	// This allows ~/.lumgrc to be a simple config file without begin/end markers.
+	if !sawBlock {
+		for _, line := range lines {
+			trim := strings.TrimSpace(line)
+			if trim == "" || strings.HasPrefix(trim, "#") {
+				continue
+			}
+			if strings.HasPrefix(trim, "export TERM=") {
+				term = strings.TrimPrefix(trim, "export TERM=")
+				continue
+			}
+			if strings.HasPrefix(trim, "cd ") {
+				redirect = strings.TrimSpace(strings.TrimPrefix(trim, "cd "))
+				continue
+			}
+			if strings.HasPrefix(trim, "umask ") {
+				umask = strings.TrimSpace(strings.TrimPrefix(trim, "umask "))
+				continue
+			}
+		}
+	}
+	return term, redirect, umask
 }
 
-func updateLumgrc(orig []byte, term, redirect string) []byte {
+func updateLumgrc(orig []byte, term, redirect, umask string) []byte {
 	lines := strings.Split(string(orig), "\n")
 	var out []string
 	in := false
@@ -283,12 +341,37 @@ func updateLumgrc(orig []byte, term, redirect string) []byte {
 		out = append(out, line)
 	}
 
+	// If the file is effectively only lumgr-managed content (no other lines besides the managed block and whitespace),
+	// rewrite it without begin/end markers.
+	outside := strings.TrimSpace(strings.Join(out, "\n"))
+	if outside == "" {
+		var managed []string
+		if strings.TrimSpace(term) != "" {
+			managed = append(managed, "export TERM="+strings.TrimSpace(term))
+		}
+		if strings.TrimSpace(redirect) != "" {
+			managed = append(managed, "cd "+strings.TrimSpace(redirect))
+		}
+		if strings.TrimSpace(umask) != "" {
+			managed = append(managed, "umask "+strings.TrimSpace(umask))
+		}
+
+		res := strings.Join(managed, "\n")
+		if res != "" && !strings.HasSuffix(res, "\n") {
+			res += "\n"
+		}
+		return []byte(res)
+	}
+
 	block := []string{lumgrcBegin}
 	if strings.TrimSpace(term) != "" {
 		block = append(block, "export TERM="+strings.TrimSpace(term))
 	}
 	if strings.TrimSpace(redirect) != "" {
 		block = append(block, "cd "+strings.TrimSpace(redirect))
+	}
+	if strings.TrimSpace(umask) != "" {
+		block = append(block, "umask "+strings.TrimSpace(umask))
 	}
 	block = append(block, lumgrcEnd)
 
@@ -302,6 +385,51 @@ func updateLumgrc(orig []byte, term, redirect string) []byte {
 		res += "\n"
 	}
 	return []byte(res)
+}
+
+func LoadUserUmask(username string) (string, error) {
+	e, err := lookupUser(username)
+	if err != nil {
+		return "", err
+	}
+	b, err := os.ReadFile(filepath.Join(e.Home, ".lumgrc"))
+	if err != nil {
+		return "", nil
+	}
+	_, _, um := parseLumgrcWithUmask(b)
+	if um == "" {
+		return "", nil
+	}
+	norm, err := NormalizeUmask(um)
+	if err != nil {
+		return "", nil
+	}
+	return norm, nil
+}
+
+// SaveUserUmask sets (or clears) the user's umask in ~/.lumgrc.
+// If umask is empty, it removes the umask line from the lumgr-managed block.
+func SaveUserUmask(username string, umask string) error {
+	e, err := lookupUser(username)
+	if err != nil {
+		return err
+	}
+	lumgrcPath := filepath.Join(e.Home, ".lumgrc")
+	orig := readFileOrEmpty(lumgrcPath)
+	term, redirect, _ := parseLumgrcWithUmask(orig)
+	if strings.TrimSpace(umask) != "" {
+		norm, err := NormalizeUmask(umask)
+		if err != nil {
+			return err
+		}
+		umask = norm
+	}
+	newBytes := updateLumgrc(orig, term, redirect, umask)
+	if err := os.WriteFile(lumgrcPath, newBytes, 0644); err != nil {
+		return err
+	}
+	_ = os.Chown(lumgrcPath, e.UID, e.GID)
+	return nil
 }
 
 func getShellRcPath(home, shell string) string {
@@ -340,9 +468,37 @@ func getShellProfilePath(home, shell string) string {
 
 func ensureSourceLumgrc(rcPath string, uid, gid int) {
 	sourceLine := "[ -f ~/.lumgrc ] && source ~/.lumgrc"
+	comment1 := "# Linux User Manager: loads ~/.lumgrc (umask/TERM/cd, etc.)"
+	comment2 := "# If you change your login shell, copy this block to the new shell rc (e.g. ~/.bashrc or ~/.zshrc) so these settings still apply."
 	b := readFileOrEmpty(rcPath)
-	if strings.Contains(string(b), "source ~/.lumgrc") || strings.Contains(string(b), ". ~/.lumgrc") {
-		return // Already sourced
+
+	// Normalize to a single lumgr-managed block in the rc file.
+	// - Remove any existing lumgr block (even if it doesn't contain the correct line)
+	// - Remove any loose occurrences of sourcing ~/.lumgrc
+	lines := strings.Split(string(b), "\n")
+	var out []string
+	in := false
+	for _, line := range lines {
+		trim := strings.TrimSpace(line)
+		if trim == lumgrcBegin {
+			in = true
+			continue
+		}
+		if trim == lumgrcEnd {
+			in = false
+			continue
+		}
+		if in {
+			continue
+		}
+		if strings.Contains(line, "source ~/.lumgrc") || strings.Contains(line, ". ~/.lumgrc") {
+			continue
+		}
+		out = append(out, line)
+	}
+
+	for len(out) > 0 && strings.TrimSpace(out[len(out)-1]) == "" {
+		out = out[:len(out)-1]
 	}
 
 	// Create parent dir if needed
@@ -352,11 +508,15 @@ func ensureSourceLumgrc(rcPath string, uid, gid int) {
 		_ = os.Chown(dir, uid, gid)
 	}
 
-	content := string(b)
-	if !strings.HasSuffix(content, "\n") && len(content) > 0 {
+	resLines := out
+	if len(resLines) > 0 {
+		resLines = append(resLines, "")
+	}
+	resLines = append(resLines, lumgrcBegin, comment1, comment2, sourceLine, lumgrcEnd)
+	content := strings.Join(resLines, "\n")
+	if !strings.HasSuffix(content, "\n") {
 		content += "\n"
 	}
-	content += "\n" + sourceLine + "\n"
 	_ = os.WriteFile(rcPath, []byte(content), 0644)
 	_ = os.Chown(rcPath, uid, gid)
 }

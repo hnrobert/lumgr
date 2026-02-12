@@ -36,10 +36,20 @@
             background: radial-gradient(1200px 800px at 20% 0%, #18214a 0%, var(--bg) 60%);
             color: var(--text);
             min-height: 1vh;
+            overflow-x: hidden;
         }
 
         html {
             background-color: var(--bg);
+            overflow-x: hidden;
+        }
+
+        img,
+        video,
+        svg,
+        canvas {
+            max-width: 100%;
+            height: auto;
         }
 
         a {
@@ -54,6 +64,8 @@
         .shell {
             display: flex;
             min-height: 100vh;
+            height: 100vh;
+            overflow: hidden;
         }
 
         .sidebar {
@@ -64,6 +76,8 @@
             position: sticky;
             top: 0;
             height: 100vh;
+            overflow-y: auto;
+            overscroll-behavior: contain;
         }
 
         .mobileTop {
@@ -122,6 +136,7 @@
         .main {
             flex: 1;
             min-width: 0;
+            overflow-y: auto;
         }
 
         .wrap {
@@ -158,7 +173,15 @@
             user-select: none;
         }
 
-        .brand a {
+        .brand {
+            color: var(--text);
+        }
+
+        a.brand {
+            display: block;
+        }
+
+        .brand:visited {
             color: var(--text);
         }
 
@@ -201,6 +224,11 @@
             display: grid;
             grid-template-columns: 1fr;
             gap: 16px;
+            align-items: start;
+        }
+
+        .grid>* {
+            min-width: 0;
         }
 
         @media (min-width: 920px) {
@@ -209,8 +237,40 @@
             }
         }
 
+        /* Two-column masonry (JS-enhanced) */
+        .grid.two.masonry {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+        }
+
+        .grid.two.masonry>.masonryCol {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
         .muted {
             color: var(--muted);
+        }
+
+        /* Disabled permission controls: make it visually obvious */
+        .permRowDisabled {
+            opacity: .55;
+        }
+
+        .permRowDisabled label {
+            color: var(--muted);
+        }
+
+        .permRowDisabled input {
+            cursor: not-allowed;
+        }
+
+        input[type="checkbox"][disabled] {
+            accent-color: var(--muted);
         }
 
         .btn {
@@ -336,6 +396,7 @@
 
         .row>* {
             flex: 1;
+            min-width: 0;
         }
 
         @media (max-width: 720px) {
@@ -366,15 +427,47 @@
             border-collapse: collapse;
         }
 
+        table th,
+        table td {
+            white-space: nowrap;
+        }
+
+        table th.cellWrap,
+        table td.cellWrap {
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        table td.cellWrap code {
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
         th,
         td {
             text-align: left;
             padding: 10px;
             border-bottom: 1px solid rgba(122, 162, 255, .16);
+            overflow-wrap: anywhere;
         }
 
         code {
             color: #cfe0ff;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        pre {
+            max-width: 100%;
+            overflow-x: auto;
+        }
+
+        pre code {
+            white-space: pre;
+            overflow-wrap: normal;
+            word-break: normal;
         }
 
         .foot {
@@ -442,6 +535,12 @@
             .shell {
                 display: block;
                 min-height: 100vh;
+                height: auto;
+                overflow: visible;
+            }
+
+            .main {
+                overflow-y: visible;
             }
 
             .sidebar {
@@ -470,7 +569,13 @@
                 {{block "content" .}}{{end}}
             </div>
         </main>
-        <div class="foot">Be careful: this service can modify your accounts directly. © 2026 Robert He.</div>
+        <div class="foot">
+            Be careful: this service can modify your accounts directly.<br>
+            <a href="https://github.com/hnrobert/lumgr">Open Source Project on GitHub</a>. © 2026 <a
+                href="https://github.com/hnrobert">Robert He</a>.<br>
+            Licensed under <a
+                href="https://www.apache.org/licenses/LICENSE-2.0">Apache License 2.0</a>.
+        </div>
     </div>
     {{else}}
     <input id="menuOpen" type="checkbox" />
@@ -494,9 +599,7 @@
 
     <div class="shell">
         <aside class="sidebar">
-            <div class="brand">
-                <a href="/">Linux User Manager</a>
-            </div>
+            <a class="brand" href="/">Linux User Manager</a>
 
             <nav class="nav">
                 {{if .Authed}}
@@ -507,6 +610,7 @@
                 <a href="/admin/users">Users</a>
                 <a href="/admin/groups">Groups</a>
                 <a href="/admin/invites">Invites</a>
+                <a href="/admin/lumgr_settings">Lumgr Settings</a>
                 {{end}}
                 {{else}}
                 <a href="/login">Login</a>
@@ -549,6 +653,7 @@
                 <a href="/admin/users">Users</a>
                 <a href="/admin/groups">Groups</a>
                 <a href="/admin/invites">Invites</a>
+                <a href="/admin/lumgr_settings">Lumgr Settings</a>
                 {{end}}
                 {{else}}
                 <a href="/login">Login</a>
@@ -558,8 +663,98 @@
         </div>
     </div>
 
-    <div class="foot">Be careful: this service can modify your accounts directly. © 2026 Robert He.</div>
+    <div class="foot">
+        Be careful: this service can modify your accounts directly.<br>
+        <a href="https://github.com/hnrobert/lumgr">Open Source Project on GitHub</a>. © 2026 <a
+            href="https://github.com/hnrobert">Robert He</a>.<br>
+        Licensed under <a href="https://www.apache.org/licenses/LICENSE-2.0">Apache License 2.0</a>.
+    </div>
     {{end}}
+
+    <script>
+        (function () {
+            const BREAKPOINT = 920;
+
+            function unwrap(grid) {
+                const cols = Array.from(grid.querySelectorAll(':scope > .masonryCol'));
+                if (cols.length === 0) return;
+
+                const cards = [];
+                cols.forEach(col => {
+                    cards.push(...Array.from(col.children));
+                });
+
+                grid.classList.remove('masonry');
+                grid.innerHTML = '';
+                cards.forEach(c => grid.appendChild(c));
+            }
+
+            function applyMasonry(grid) {
+                if (!grid.__masonryCards) {
+                    grid.__masonryCards = Array.from(grid.children);
+                }
+
+                // Restore to the original structure to measure heights accurately.
+                unwrap(grid);
+                if (window.innerWidth < BREAKPOINT) return;
+
+                const cards = grid.__masonryCards.filter(el => el && el.classList && el.classList.contains('card'));
+                if (cards.length === 0) return;
+
+                const cardHeights = cards.map(c => c.getBoundingClientRect().height);
+
+                grid.classList.add('masonry');
+                grid.innerHTML = '';
+
+                const colA = document.createElement('div');
+                colA.className = 'masonryCol';
+                const colB = document.createElement('div');
+                colB.className = 'masonryCol';
+
+                grid.appendChild(colA);
+                grid.appendChild(colB);
+
+                // Placement rule:
+                // Default: alternate sides.
+                // Exception: if next card height x < (heightB - heightA), keep placing on A.
+                let heights = [0, 0];
+                let lastCol = 0;
+
+                cards.forEach((card, idx) => {
+                    const x = cardHeights[idx] || 0;
+                    if (idx === 0) {
+                        colA.appendChild(card);
+                        heights[0] += x;
+                        lastCol = 0;
+                        return;
+                    }
+
+                    const other = 1 - lastCol;
+                    const diff = heights[other] - heights[lastCol];
+                    let target = other;
+                    if (diff > 0 && x < diff) {
+                        target = lastCol;
+                    }
+
+                    (target === 0 ? colA : colB).appendChild(card);
+                    heights[target] += x;
+                    lastCol = target;
+                });
+            }
+
+            let raf = 0;
+            function schedule() {
+                if (raf) cancelAnimationFrame(raf);
+                raf = requestAnimationFrame(() => {
+                    document.querySelectorAll('.grid.two').forEach(applyMasonry);
+                });
+            }
+
+            window.addEventListener('resize', schedule);
+            window.addEventListener('load', schedule);
+            document.addEventListener('DOMContentLoaded', schedule);
+        })();
+    </script>
 </body>
 
 </html>

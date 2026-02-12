@@ -23,6 +23,8 @@ type Config struct {
 	UpdatedAt        time.Time        `json:"updated_at"`
 	RegistrationMode RegistrationMode `json:"registration_mode"`
 	DefaultGroups    []string         `json:"default_groups"`
+	// LumgrWhatEdits stores the markdown shown on the Personal Settings page
+	LumgrWhatEdits string `json:"lumgr_user_notice,omitempty"`
 }
 
 type Store struct {
@@ -89,6 +91,25 @@ func (s *Store) SetDefaultGroups(groups []string) error {
 	cfg.DefaultGroups = groups
 	cfg.UpdatedAt = time.Now().UTC()
 	return s.saveLocked(cfg)
+}
+
+// SetLumgrUserNotice stores the markdown string used in the users' Personal Settings page "Notice" block.
+func (s *Store) SetLumgrUserNotice(md string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	cfg, _ := s.getLocked()
+	cfg.LumgrWhatEdits = md
+	cfg.UpdatedAt = time.Now().UTC()
+	return s.saveLocked(cfg)
+}
+
+// GetLumgrWhatEdits returns the stored markdown or empty string if not set.
+func (s *Store) GetLumgrWhatEdits() (string, error) {
+	cfg, err := s.Get()
+	if err != nil {
+		return "", err
+	}
+	return cfg.LumgrWhatEdits, nil
 }
 
 func (s *Store) getLocked() (Config, error) {
