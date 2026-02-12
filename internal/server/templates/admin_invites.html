@@ -56,8 +56,8 @@
                             <td>
                                 <div style="display:flex; align-items:center; gap:8px;">
                                     <code>{{.ID}}</code>
-                                    <button class="btn small" type="button"
-                                        data-copy-invite-code="{{.ID}}">Copy</button>
+                                    <button class="btn small" type="button" data-copy-invite-code="{{.ID}}"
+                                        style="min-width:84px; text-align:center; white-space:nowrap;">Copy</button>
                                 </div>
                             </td>
                             <td>{{.UsedCount}}{{if gt .MaxUses 0}} / {{.MaxUses}}{{end}}</td>
