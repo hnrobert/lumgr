@@ -54,10 +54,10 @@
                         {{range .Invites}}
                         <tr>
                             <td class="cellWrap">
-                                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; min-width:0;">
-                                    <code style="min-width:0;">{{.ID}}</code>
+                                <div style="display:flex; align-items:center; gap:8px; flex-wrap:nowrap; min-width:0;">
+                                    <code style="min-width:0; flex:1 1 auto;">{{.ID}}</code>
                                     <button class="btn small" type="button" data-copy-invite-code="{{.ID}}"
-                                        style="min-width:84px; white-space:nowrap; display:inline-flex; justify-content:center; align-items:center;">Copy</button>
+                                        style="min-width:84px; white-space:nowrap; flex:0 0 auto; display:inline-flex; justify-content:center; align-items:center;">Copy</button>
                                 </div>
                             </td>
                             <td>{{.UsedCount}}{{if gt .MaxUses 0}} / {{.MaxUses}}{{end}}</td>
