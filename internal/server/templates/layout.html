@@ -74,6 +74,8 @@
             position: sticky;
             top: 0;
             height: 100vh;
+            overflow-y: auto;
+            overscroll-behavior: contain;
         }
 
         .mobileTop {
@@ -168,7 +170,15 @@
             user-select: none;
         }
 
-        .brand a {
+        .brand {
+            color: var(--text);
+        }
+
+        a.brand {
+            display: block;
+        }
+
+        .brand:visited {
             color: var(--text);
         }
 
@@ -414,6 +424,24 @@
             border-collapse: collapse;
         }
 
+        table th,
+        table td {
+            white-space: nowrap;
+        }
+
+        table th.cellWrap,
+        table td.cellWrap {
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        table td.cellWrap code {
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
         th,
         td {
             text-align: left;
@@ -556,9 +584,7 @@
 
     <div class="shell">
         <aside class="sidebar">
-            <div class="brand">
-                <a href="/">Linux User Manager</a>
-            </div>
+            <a class="brand" href="/">Linux User Manager</a>
 
             <nav class="nav">
                 {{if .Authed}}

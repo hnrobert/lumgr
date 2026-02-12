@@ -53,9 +53,9 @@
                         {{else}}
                         {{range .Invites}}
                         <tr>
-                            <td>
-                                <div style="display:flex; align-items:center; gap:8px;">
-                                    <code>{{.ID}}</code>
+                            <td class="cellWrap">
+                                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; min-width:0;">
+                                    <code style="min-width:0;">{{.ID}}</code>
                                     <button class="btn small" type="button" data-copy-invite-code="{{.ID}}"
                                         style="min-width:84px; white-space:nowrap; display:inline-flex; justify-content:center; align-items:center;">Copy</button>
                                 </div>
@@ -64,7 +64,8 @@
                             <td>{{if .ExpiresAt.IsZero}}<span class="muted">never</span>{{else}}<span
                                     class="muted">{{.ExpiresAt}}</span>{{end}}</td>
                             <td>{{if .CreateHome}}Yes{{else}}No{{end}}</td>
-                            <td><small>{{if .Groups}}{{range .Groups}}{{.}} {{end}}{{else}}-{{end}}</small></td>
+                            <td class="cellWrap"><small>{{if .Groups}}{{range .Groups}}{{.}}
+                                    {{end}}{{else}}-{{end}}</small></td>
                             <td><span class="muted">{{if .Umask}}{{.Umask}}{{else}}-{{end}}</span></td>
                             <td style="text-align:right;">
                                 <form method="post" action="/admin/invites/delete" style="margin:0; display:inline;"

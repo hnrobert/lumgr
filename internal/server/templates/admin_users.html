@@ -20,7 +20,8 @@
                     {{range .Users}}
                     <tr>
                         <td><code>{{.Name}}</code></td>
-                        <td><span class="muted" style="font-size: 12px;">{{range .Groups}}{{.}} {{end}}</span></td>
+                        <td class="cellWrap"><span class="muted" style="font-size: 12px;">{{range .Groups}}{{.}}
+                                {{end}}</span></td>
                         <td>{{.UID}}</td>
                         <td><span class="muted">{{.Home}}</span></td>
                         <td style="text-align:right; white-space: nowrap;">
@@ -49,7 +50,8 @@
                         {{range .SystemUsers}}
                         <tr>
                             <td style="width:25%"><code>{{.Name}}</code></td>
-                            <td style="width:25%"><span class="muted" style="font-size: 12px;">{{range .Groups}}{{.}}
+                            <td class="cellWrap" style="width:25%"><span class="muted" style="font-size: 12px;">{{range
+                                    .Groups}}{{.}}
                                     {{end}}</span></td>
                             <td style="width:10%">{{.UID}}</td>
                             <td style="width:30%"><span class="muted">{{.Home}}</span></td>
