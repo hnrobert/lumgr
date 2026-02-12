@@ -64,6 +64,8 @@
         .shell {
             display: flex;
             min-height: 100vh;
+            height: 100vh;
+            overflow: hidden;
         }
 
         .sidebar {
@@ -134,6 +136,7 @@
         .main {
             flex: 1;
             min-width: 0;
+            overflow-y: auto;
         }
 
         .wrap {
@@ -532,6 +535,12 @@
             .shell {
                 display: block;
                 min-height: 100vh;
+                height: auto;
+                overflow: visible;
+            }
+
+            .main {
+                overflow-y: visible;
             }
 
             .sidebar {
