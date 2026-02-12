@@ -74,7 +74,7 @@
             </div>
             <div style="flex: 0 0 auto;">
                 <button class="btn" type="button" onclick="pasteInvite(this)"
-                    style="min-width:84px; text-align:center; white-space:nowrap;">Paste</button>
+                    style="min-width:84px; white-space:nowrap; display:inline-flex; justify-content:center; align-items:center;">Paste</button>
             </div>
         </div>
         <div style="display:flex; justify-content:flex-end; margin-top: 14px;">
@@ -95,7 +95,7 @@
                 clearTimeout(btn._pasteFeedbackTimer);
             }
 
-            btn.textContent = ok ? 'Pasted' : 'Failed';
+            btn.textContent = ok ? 'Pasted!' : 'Failed';
             btn.disabled = true;
 
             btn._pasteFeedbackTimer = setTimeout(() => {
