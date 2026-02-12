@@ -106,9 +106,10 @@
         }
 
         async function pasteInvite(btn) {
+            const el = document.getElementById('inviteCode');
+            if (el && el.focus) el.focus();
             try {
                 const text = await navigator.clipboard.readText();
-                const el = document.getElementById('inviteCode');
                 if (el && text && text.trim()) {
                     el.value = text.trim();
                     setPasteFeedback(btn, true);
@@ -116,7 +117,15 @@
                     setPasteFeedback(btn, false);
                 }
             } catch (e) {
-                setPasteFeedback(btn, false);
+                // Clipboard read can be blocked (non-HTTPS, permissions, browser policy).
+                // Fallback to a manual prompt so the button remains useful.
+                const manual = window.prompt('Paste invite code:', '');
+                if (el && manual && manual.trim()) {
+                    el.value = manual.trim();
+                    setPasteFeedback(btn, true);
+                } else {
+                    setPasteFeedback(btn, false);
+                }
             }
         }
     </script>
