@@ -10,12 +10,13 @@
             <input type="hidden" name="username" value="{{.EditUser.Name}}" />
 
             <div style="margin-bottom: 16px;">
-                <label>Groups</label>
+                <label>Groups (<span class="muted" data-groups-selected-count>0</span>
+                    <span class="muted">selected</span>)</label>
                 <div class="muted" style="margin-bottom: 8px; font-size: 13px;">
                     Select the groups this user should belong to.
                 </div>
 
-                <div
+                <div data-groups-container
                     style="display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px;">
                     {{range .FeaturedGroups}}
                     <div style="display: flex; align-items: center; gap: 10px;">
@@ -49,6 +50,43 @@
                 <button class="btn primary small" type="submit">Save Join</button>
             </div>
         </form>
+
+        <script>
+            (function () {
+                function initGroupsSelectedCount(container) {
+                    if (!container) return;
+                    const label = container.previousElementSibling && container.previousElementSibling.previousElementSibling
+                        ? container.previousElementSibling.previousElementSibling
+                        : container.previousElementSibling;
+                    const countEl = label && label.querySelector ? label.querySelector('[data-groups-selected-count]') : null;
+                    if (!countEl) return;
+
+                    const update = () => {
+                        const n = container.querySelectorAll('input[type="checkbox"]:checked').length;
+                        countEl.textContent = String(n);
+                    };
+
+                    update();
+
+                    container.addEventListener('change', (ev) => {
+                        const t = ev && ev.target;
+                        if (t && t.matches && t.matches('input[type="checkbox"]')) {
+                            update();
+                        }
+                    });
+                }
+
+                function init() {
+                    document.querySelectorAll('[data-groups-container]').forEach(initGroupsSelectedCount);
+                }
+
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', init);
+                } else {
+                    init();
+                }
+            })();
+        </script>
     </div>
 
 
