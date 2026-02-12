@@ -169,8 +169,10 @@
             <input name="umask" placeholder="022" />
             <small class="muted" style="display:block; margin-top:4px;">Leave empty to use system defaults.</small>
 
-            <label style="margin-top: 12px;">Assign Groups</label>
-            <div
+            <label style="margin-top: 12px;">Assign Groups (<span class="muted"
+                    data-groups-selected-count="invite">0</span>
+                <span class="muted">selected</span>)</label>
+            <div data-groups-container="invite"
                 style="max-height: 200px; overflow-y: auto; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.2);">
                 {{range .FeaturedGroups}}
                 {{$groupName := .}}
@@ -219,8 +221,10 @@
                 <label for="ch_open_n">No</label>
             </div>
 
-            <label style="margin-top: 12px;">Assign Groups</label>
-            <div
+            <label style="margin-top: 12px;">Assign Groups (<span class="muted"
+                    data-groups-selected-count="open">0</span>
+                <span class="muted">selected</span>)</label>
+            <div data-groups-container="open"
                 style="max-height: 200px; overflow-y: auto; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.2);">
                 {{range .FeaturedGroups}}
                 <div style="display: flex; align-items: center; gap: 10px;">
@@ -257,6 +261,41 @@
         {{else}}
         <div class="muted" style="padding: 20px; text-align: center;">Registration is currently closed.</div>
         {{end}}
+
+        <script>
+            (function () {
+                function initGroupsSelectedCount(section) {
+                    const container = document.querySelector('[data-groups-container="' + section + '"]');
+                    const countEl = document.querySelector('[data-groups-selected-count="' + section + '"]');
+                    if (!container || !countEl) return;
+
+                    const update = () => {
+                        const n = container.querySelectorAll('input[type="checkbox"]:checked').length;
+                        countEl.textContent = String(n);
+                    };
+
+                    update();
+
+                    container.addEventListener('change', (ev) => {
+                        const t = ev && ev.target;
+                        if (t && t.matches && t.matches('input[type="checkbox"]')) {
+                            update();
+                        }
+                    });
+                }
+
+                function init() {
+                    initGroupsSelectedCount('invite');
+                    initGroupsSelectedCount('open');
+                }
+
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', init);
+                } else {
+                    init();
+                }
+            })();
+        </script>
     </div>
 </div>
 {{end}}
