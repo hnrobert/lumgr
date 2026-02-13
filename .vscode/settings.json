@@ -20,6 +20,7 @@
         "GOOS",
         "healthz",
         "hostfs",
+        "keygen",
         "kshrc",
         "ldflags",
         "localtime",
