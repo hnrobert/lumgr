@@ -1,7 +1,7 @@
 {{define "title"}}File System Settings · lumgr{{end}}
 {{define "content"}}
 <div class="grid">
-    <form method="post" action="/settings/filesystem">
+    <form method="post" action="/settings/filesystem" style="display:flex; flex-direction:column; gap:16px;">
         <div class="card">
             <h2 style="margin:0 0 8px;">File Permissions</h2>
             <div class="muted" style="margin-bottom: 12px;">Recursively apply chmod to your home (skips .ssh).</div>

@@ -751,7 +751,21 @@
                     if (!card) return false;
                     if (card.classList && card.classList.contains('spanAll')) return true;
                     const span = card.getAttribute && card.getAttribute('data-span');
-                    return span === 'all';
+                    if (span === 'all') return true;
+
+                    // Auto-detect common full-width pattern when authors use CSS grid spans.
+                    // This lets pages keep using `style="grid-column: 1 / -1"` without also adding data-span.
+                    try {
+                        const inline = (card.style && card.style.gridColumn) ? String(card.style.gridColumn) : '';
+                        if (inline.includes('-1')) return true;
+                        const cs = window.getComputedStyle ? window.getComputedStyle(card) : null;
+                        const end = cs ? (cs.gridColumnEnd || cs.getPropertyValue('grid-column-end')) : '';
+                        if (String(end).trim() === '-1') return true;
+                    } catch (_) {
+                        // ignore
+                    }
+
+                    return false;
                 }
 
                 let colA = null;
