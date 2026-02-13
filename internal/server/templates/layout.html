@@ -227,6 +227,11 @@
             align-items: start;
         }
 
+        /* Opt-in: make a two-card row share the same height (Dashboard, etc.) */
+        .grid.rowMatch {
+            align-items: stretch;
+        }
+
         .grid>* {
             min-width: 0;
         }
@@ -737,6 +742,7 @@
 
                 // Restore to the original structure to measure heights accurately.
                 unwrap(grid);
+                if (grid.classList && grid.classList.contains('rowMatch')) return;
                 if (window.innerWidth < BREAKPOINT) return;
 
                 const cards = grid.__masonryCards.filter(el => el && el.classList && el.classList.contains('card'));
