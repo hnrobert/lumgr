@@ -12,12 +12,13 @@ import (
 )
 
 type UserSettings struct {
-	Term     string
-	Redirect string
-	Shell    string
-	GitName  string
-	GitEmail string
-	SSHKeys  string
+	Term          string
+	Redirect      string
+	Shell         string
+	GitName       string
+	GitEmail      string
+	GitSigningKey string
+	SSHKeys       string
 }
 
 // NormalizeUmask validates and normalizes umask input.
@@ -70,9 +71,10 @@ func LoadUserSettings(username string) (UserSettings, error) {
 
 	gcPath := filepath.Join(e.Home, ".gitconfig")
 	if b, err := os.ReadFile(gcPath); err == nil {
-		name, email := parseGitUser(b)
+		name, email, signingKey := parseGitUser(b)
 		st.GitName = name
 		st.GitEmail = email
+		st.GitSigningKey = signingKey
 	}
 
 	lumgrcPath := filepath.Join(e.Home, ".lumgrc")
@@ -120,7 +122,10 @@ func SaveUserSettings(username string, st UserSettings) error {
 	_ = os.Chown(akPath, e.UID, e.GID)
 
 	gcPath := filepath.Join(e.Home, ".gitconfig")
-	gcNew := updateGitUser(readFileOrEmpty(gcPath), st.GitName, st.GitEmail)
+	gcNew := updateGitUser(readFileOrEmpty(gcPath), st.GitName, st.GitEmail, st.GitSigningKey)
+	if strings.TrimSpace(st.GitSigningKey) != "" {
+		gcNew = updateGitGPGFormatSSH(gcNew)
+	}
 	if err := os.WriteFile(gcPath, gcNew, 0644); err != nil {
 		return err
 	}
@@ -158,10 +163,10 @@ func readFileOrEmpty(path string) []byte {
 	return b
 }
 
-func parseGitUser(b []byte) (string, string) {
+func parseGitUser(b []byte) (string, string, string) {
 	s := bufio.NewScanner(bytes.NewReader(b))
 	inUser := false
-	var name, email string
+	var name, email, signingKey string
 	for s.Scan() {
 		line := strings.TrimSpace(s.Text())
 		if strings.HasPrefix(line, "[") && strings.HasSuffix(line, "]") {
@@ -182,17 +187,23 @@ func parseGitUser(b []byte) (string, string) {
 				email = strings.TrimSpace(parts[1])
 			}
 		}
+		if strings.HasPrefix(line, "signingkey") {
+			if parts := strings.SplitN(line, "=", 2); len(parts) == 2 {
+				signingKey = strings.TrimSpace(parts[1])
+			}
+		}
 	}
-	return name, email
+	return name, email, signingKey
 }
 
-func updateGitUser(orig []byte, name, email string) []byte {
+func updateGitUser(orig []byte, name, email, signingKey string) []byte {
 	lines := strings.Split(string(orig), "\n")
 	var out []string
 	seenUser := false
 	inUser := false
 	setName := false
 	setEmail := false
+	setSigningKey := false
 
 	flushUserKV := func() {
 		if !inUser {
@@ -203,6 +214,9 @@ func updateGitUser(orig []byte, name, email string) []byte {
 		}
 		if !setEmail && strings.TrimSpace(email) != "" {
 			out = append(out, "\temail = "+strings.TrimSpace(email))
+		}
+		if !setSigningKey && strings.TrimSpace(signingKey) != "" {
+			out = append(out, "\tsigningkey = "+strings.TrimSpace(signingKey))
 		}
 	}
 
@@ -215,7 +229,7 @@ func updateGitUser(orig []byte, name, email string) []byte {
 			inUser = strings.EqualFold(strings.TrimSpace(sec), "user")
 			if inUser {
 				seenUser = true
-				setName, setEmail = false, false
+				setName, setEmail, setSigningKey = false, false, false
 			}
 			out = append(out, line)
 			continue
@@ -236,12 +250,19 @@ func updateGitUser(orig []byte, name, email string) []byte {
 				}
 				continue
 			}
+			if strings.EqualFold(k, "signingkey") {
+				if strings.TrimSpace(signingKey) != "" {
+					out = append(out, "\tsigningkey = "+strings.TrimSpace(signingKey))
+					setSigningKey = true
+				}
+				continue
+			}
 		}
 		out = append(out, line)
 	}
 	flushUserKV()
 
-	if !seenUser && (strings.TrimSpace(name) != "" || strings.TrimSpace(email) != "") {
+	if !seenUser && (strings.TrimSpace(name) != "" || strings.TrimSpace(email) != "" || strings.TrimSpace(signingKey) != "") {
 		out = append(out, "", "[user]")
 		if strings.TrimSpace(name) != "" {
 			out = append(out, "\tname = "+strings.TrimSpace(name))
@@ -249,6 +270,62 @@ func updateGitUser(orig []byte, name, email string) []byte {
 		if strings.TrimSpace(email) != "" {
 			out = append(out, "\temail = "+strings.TrimSpace(email))
 		}
+		if strings.TrimSpace(signingKey) != "" {
+			out = append(out, "\tsigningkey = "+strings.TrimSpace(signingKey))
+		}
+	}
+
+	res := strings.Join(out, "\n")
+	if !strings.HasSuffix(res, "\n") {
+		res += "\n"
+	}
+	return []byte(res)
+}
+
+func updateGitGPGFormatSSH(orig []byte) []byte {
+	lines := strings.Split(string(orig), "\n")
+	var out []string
+	seenGpg := false
+	inGpg := false
+	setFormat := false
+
+	flushGpgKV := func() {
+		if !inGpg {
+			return
+		}
+		if !setFormat {
+			out = append(out, "\tformat = ssh")
+		}
+	}
+
+	for i := 0; i < len(lines); i++ {
+		line := lines[i]
+		trim := strings.TrimSpace(line)
+		if strings.HasPrefix(trim, "[") && strings.HasSuffix(trim, "]") {
+			flushGpgKV()
+			sec := strings.Trim(trim, "[]")
+			inGpg = strings.EqualFold(strings.TrimSpace(sec), "gpg")
+			if inGpg {
+				seenGpg = true
+				setFormat = false
+			}
+			out = append(out, line)
+			continue
+		}
+		if inGpg {
+			k := strings.TrimSpace(strings.SplitN(trim, "=", 2)[0])
+			if strings.EqualFold(k, "format") {
+				out = append(out, "\tformat = ssh")
+				setFormat = true
+				continue
+			}
+		}
+		out = append(out, line)
+	}
+	flushGpgKV()
+
+	if !seenGpg {
+		out = append(out, "", "[gpg]", "\tformat = ssh")
 	}
 
 	res := strings.Join(out, "\n")

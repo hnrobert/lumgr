@@ -42,6 +42,9 @@ type ViewData struct {
 	Shell           string
 	GitName         string
 	GitEmail        string
+	GitSigningKey   string
+	GitSigningPub   string
+	SSHPrivateKeys  []string
 	SSHKeys         string
 	AvailableShells []string
 	Umask           string
@@ -161,7 +164,22 @@ func newApp() (*App, error) {
 	})
 
 	pages := map[string]*template.Template{}
-	for _, page := range []string{"login", "register", "dashboard", "settings", "admin_users", "admin_groups", "admin_invites", "admin_user_edit", "admin_lumgr_settings"} {
+	for _, page := range []string{
+		"login",
+		"register",
+		"dashboard",
+		"settings",
+		"settings_shell",
+		"settings_ssh",
+		"settings_git",
+		"settings_filesystem",
+		"settings_security",
+		"admin_users",
+		"admin_groups",
+		"admin_invites",
+		"admin_user_edit",
+		"admin_lumgr_settings",
+	} {
 		t, err := base.Clone()
 		if err != nil {
 			return nil, err
@@ -200,6 +218,12 @@ func (a *App) routes() http.Handler {
 
 	mux.HandleFunc("/", a.requireAuth(a.handleDashboard))
 	mux.HandleFunc("/settings", a.requireAuth(a.handleSettings))
+	mux.HandleFunc("/settings/shell", a.requireAuth(a.handleSettingsShell))
+	mux.HandleFunc("/settings/ssh", a.requireAuth(a.handleSettingsSSH))
+	mux.HandleFunc("/settings/ssh/keygen", a.requireAuth(a.handleSettingsSSHKeygen))
+	mux.HandleFunc("/settings/git", a.requireAuth(a.handleSettingsGit))
+	mux.HandleFunc("/settings/filesystem", a.requireAuth(a.handleSettingsFilesystem))
+	mux.HandleFunc("/settings/security", a.requireAuth(a.handleSettingsSecurity))
 	mux.HandleFunc("/settings/password", a.requireAuth(a.handleSettingsPassword))
 	mux.HandleFunc("/settings/umask", a.requireAuth(a.handleSettingsUmask))
 	mux.HandleFunc("/settings/chmod", a.requireAuth(a.handleSettingsChmod))

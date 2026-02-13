@@ -1,0 +1,103 @@
+{{define "title"}}Git Settings · lumgr{{end}}
+{{define "content"}}
+<div class="grid">
+    <div class="card">
+        <h2 style="margin:0 0 8px;">Git</h2>
+        <div class="muted" style="margin-bottom: 12px;">Config stored in <code>~/.gitconfig</code>.</div>
+
+        <form method="post" action="/settings/git">
+            <div class="row">
+                <div>
+                    <label>Git user.name</label>
+                    <input name="git_name" placeholder="Your Git Name" value="{{.GitName}}" />
+                </div>
+                <div>
+                    <label>Git user.email</label>
+                    <input name="git_email" placeholder="name@example.com" value="{{.GitEmail}}" />
+                </div>
+            </div>
+
+            <label>Git SSH signing key (private key path)</label>
+            <select name="git_signing_key">
+                <option value="">(none)</option>
+                {{range .SSHPrivateKeys}}
+                <option value="{{.}}" {{if eq . $.GitSigningKey}}selected{{end}}>{{.}}</option>
+                {{end}}
+            </select>
+            <small class="muted" style="display:block; margin-top:4px;">Or enter another path under your home
+                directory:</small>
+            <input name="git_signing_key_other" placeholder="~/.ssh/id_ed25519" />
+
+            {{if .GitSigningPub}}
+            <label style="margin-top: 12px;">Signing public key</label>
+            <div style="display:flex; gap:8px; align-items:flex-start;">
+                <textarea id="gitSigningPub" readonly spellcheck="false"
+                    style="min-height:72px;">{{.GitSigningPub}}</textarea>
+                <button class="btn small" type="button" data-copy-textarea="gitSigningPub"
+                    style="width:84px; text-align:center;">Copy</button>
+            </div>
+            <small class="muted" style="display:block; margin-top:6px;">Tip: enable SSH signing with
+                <code>git config --global gpg.format ssh</code> and set <code>user.signingkey</code> to your key
+                path.</small>
+            {{end}}
+
+            <div style="display:flex; justify-content:flex-end; margin-top: 14px;">
+                <button class="btn primary" type="submit" name="section" value="git">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    async function copyText(text) {
+        if (!text) return false;
+        const value = text.trim();
+        try {
+            await navigator.clipboard.writeText(value);
+            return true;
+        } catch (e) {
+            try {
+                const el = document.createElement('textarea');
+                el.value = value;
+                el.setAttribute('readonly', '');
+                el.style.position = 'absolute';
+                el.style.left = '-9999px';
+                document.body.appendChild(el);
+                el.select();
+                const ok = document.execCommand('copy');
+                document.body.removeChild(el);
+                return !!ok;
+            } catch (e2) {
+                return false;
+            }
+        }
+    }
+
+    function setCopyFeedback(btn, ok) {
+        if (!btn) return;
+        const original = btn.getAttribute('data-copy-label') || btn.textContent;
+        if (!btn.getAttribute('data-copy-label')) {
+            btn.setAttribute('data-copy-label', original);
+        }
+        if (btn._copyFeedbackTimer) {
+            clearTimeout(btn._copyFeedbackTimer);
+        }
+        btn.textContent = ok ? 'Copied!' : 'Failed';
+        btn.disabled = true;
+        btn._copyFeedbackTimer = setTimeout(() => {
+            btn.textContent = btn.getAttribute('data-copy-label') || 'Copy';
+            btn.disabled = false;
+            btn._copyFeedbackTimer = null;
+        }, 1200);
+    }
+
+    document.addEventListener('click', async (ev) => {
+        const btn = ev.target && ev.target.closest && ev.target.closest('[data-copy-textarea]');
+        if (!btn) return;
+        const id = btn.getAttribute('data-copy-textarea');
+        const el = document.getElementById(id);
+        const ok = await copyText(el ? el.value : '');
+        setCopyFeedback(btn, ok);
+    });
+</script>
+{{end}}

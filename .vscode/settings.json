@@ -35,6 +35,7 @@
         "setgid",
         "setuid",
         "shrc",
+        "signingkey",
         "softprops",
         "subtemplate",
         "Timezone",

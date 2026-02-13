@@ -1,0 +1,27 @@
+{{define "title"}}Shell Settings · lumgr{{end}}
+{{define "content"}}
+<div class="grid">
+    <div class="card">
+        <h2 style="margin:0 0 8px;">Shell</h2>
+        <div class="muted">These settings are stored in your home directory.</div>
+        <form method="post" action="/settings/shell">
+            <label>Default Shell</label>
+            <select name="shell">
+                {{range .AvailableShells}}
+                <option value="{{.}}" {{if eq . $.Shell}}selected{{end}}>{{.}}</option>
+                {{end}}
+            </select>
+
+            <label>Preferred terminal type (TERM)</label>
+            <input name="term" placeholder="xterm-256color" value="{{.Term}}" />
+
+            <label>Login redirect directory (optional)</label>
+            <input name="redirect" placeholder="/home/{{.Username}}/example-directory" value="{{.Redirect}}" />
+
+            <div style="display:flex; justify-content:flex-end; margin-top: 14px;">
+                <button class="btn primary" type="submit" name="section" value="shell">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+{{end}}

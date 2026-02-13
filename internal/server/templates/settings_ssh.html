@@ -1,0 +1,48 @@
+{{define "title"}}SSH Settings · lumgr{{end}}
+{{define "content"}}
+<div class="grid">
+    <div class="card">
+        <h2 style="margin:0 0 8px;">SSH authorized_keys</h2>
+        <div class="muted" style="margin-bottom: 12px;">Manage <code>~/.ssh/authorized_keys</code>.</div>
+        <form method="post" action="/settings/ssh">
+            <label>SSH authorized_keys</label>
+            <textarea name="ssh_keys" placeholder="ssh-ed25519 AAAAC3NzAIC3... user@example.com"
+                spellcheck="false">{{.SSHKeys}}</textarea>
+            <div style="display:flex; justify-content:flex-end; margin-top: 14px;">
+                <button class="btn primary" type="submit" name="section" value="ssh">Save</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2 style="margin:0 0 8px;">SSH keypair generation</h2>
+        <div class="muted" style="margin-bottom: 12px;">Generates a key under <code>~/.ssh/</code>.</div>
+        <form method="post" action="/settings/ssh/keygen">
+            <div class="row">
+                <div>
+                    <label>Key type</label>
+                    <select name="key_type">
+                        <option value="rsa" selected>rsa (4096)</option>
+                        <option value="ed25519">ed25519</option>
+                        <option value="ecdsa">ecdsa</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Filename</label>
+                    <input name="key_file" placeholder="id_rsa" />
+                </div>
+            </div>
+
+            <label>Comment (optional)</label>
+            <input name="key_comment" placeholder="{{.Username}}" />
+
+            <label>Passphrase (optional)</label>
+            <input type="password" name="key_passphrase" autocomplete="new-password" />
+
+            <div style="display:flex; justify-content:flex-end; margin-top: 14px;">
+                <button class="btn primary" type="submit">Generate</button>
+            </div>
+        </form>
+    </div>
+</div>
+{{end}}

@@ -7,7 +7,9 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -601,86 +603,22 @@ func (a *App) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Load configured Lumgr notice markdown (fallback to default if empty)
+	if md, err := a.cfg.GetLumgrWhatEdits(); err == nil && md != "" {
+		data.LumgrWhatEdits = md
+	} else {
+		data.LumgrWhatEdits = defaultNotice
+	}
+	data.LumgrWhatEditsHTML = RenderMarkdown(data.LumgrWhatEdits)
+
 	a.renderPage(w, "dashboard", data)
 }
 
 func (a *App) handleSettings(w http.ResponseWriter, r *http.Request) {
-	// No-op here; actual loading of lumgr settings happens later when building the view data
 	user := usernameFrom(r)
 	if r.Method == http.MethodGet || r.Method == http.MethodHead {
-		data := a.baseData(r)
-		if r.URL.Query().Get("pwok") == "1" {
-			data.Flash = "Password updated."
-			data.FlashKind = "ok"
-		}
-		if code := r.URL.Query().Get("pwerr"); code != "" {
-			data.FlashKind = "err"
-			switch code {
-			case "mismatch":
-				data.Flash = "Passwords do not match."
-			case "current":
-				data.Flash = "Current password is incorrect."
-			default:
-				data.Flash = "Password update failed. Check server logs for /etc/shadow update details."
-			}
-		}
-		if r.URL.Query().Get("umok") == "1" {
-			data.Flash = "Umask saved."
-			data.FlashKind = "ok"
-		}
-		if code := r.URL.Query().Get("umerr"); code != "" {
-			data.FlashKind = "err"
-			switch code {
-			case "invalid":
-				data.Flash = "Invalid umask. Use octal digits like 022."
-			default:
-				data.Flash = "Failed to save umask."
-			}
-		}
-		if r.URL.Query().Get("ok") == "1" {
-			data.Flash = "Saved."
-			data.FlashKind = "ok"
-		}
-		if msg := r.URL.Query().Get("flash"); msg != "" {
-			data.Flash = msg
-			data.FlashKind = "err"
-		}
-		st, _ := LoadUserSettings(user)
-		data.Term = st.Term
-		data.Redirect = st.Redirect
-		data.Shell = st.Shell
-		data.GitName = st.GitName
-		data.GitEmail = st.GitEmail
-		data.SSHKeys = st.SSHKeys
-		data.AvailableShells = LoadAvailableShells()
-		if um, err := LoadUserUmask(user); err == nil {
-			data.Umask = um
-		}
-		// Load current home dir perms
-		if e, err := lookupUser(user); err == nil {
-			data.HomePerms = getHomeDirPerms(e.Home)
-		}
-		// perms form helpers for user settings
-		data.PermFormAction = "/settings/chmod"
-		// Show special bits (first digit).
-		// Admins can edit all special bits in their own settings.
-		// Normal users can only toggle setgid (2000); setuid (4000) and sticky (1000) remain disabled.
-		data.PermIncludeSpecial = true
-		data.PermSpecialSetUIDEditable = data.Admin
-		data.PermSpecialSetGIDEditable = true
-		data.PermSpecialStickyEditable = data.Admin
-		data.PermUmaskFormAction = "/settings/umask"
-		data.PermUmaskValue = data.Umask
-		data.PermSubmitLabel = "Apply Recursive Chmod"
-
-		// Load configured Lumgr notice markdown (fallback to default if empty)
-		if md, err := a.cfg.GetLumgrWhatEdits(); err == nil && md != "" {
-			data.LumgrWhatEdits = md
-		} else {
-			data.LumgrWhatEdits = defaultNotice
-		}
-		data.LumgrWhatEditsHTML = RenderMarkdown(data.LumgrWhatEdits)
-
+		data := a.buildSettingsData(r)
+		a.applySettingsFlash(data, r.URL.Query())
 		a.renderPage(w, "settings", data)
 		return
 	}
@@ -688,38 +626,393 @@ func (a *App) handleSettings(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	_ = r.ParseForm()
-	st := UserSettings{
-		Term:     strings.TrimSpace(r.Form.Get("term")),
-		Redirect: strings.TrimSpace(r.Form.Get("redirect")),
-		Shell:    strings.TrimSpace(r.Form.Get("shell")),
-		GitName:  strings.TrimSpace(r.Form.Get("git_name")),
-		GitEmail: strings.TrimSpace(r.Form.Get("git_email")),
-		SSHKeys:  r.Form.Get("ssh_keys"),
-	}
-	if err := SaveUserSettings(user, st); err != nil {
-		data := a.baseData(r)
-		data.Flash = err.Error()
-		data.FlashKind = "err"
-		data.Term = st.Term
-		data.Redirect = st.Redirect
-		data.Shell = st.Shell
-		data.GitName = st.GitName
-		data.GitEmail = st.GitEmail
-		data.SSHKeys = st.SSHKeys
-		data.AvailableShells = LoadAvailableShells()
-		// inject Lumgr settings preview as well
-		if md, e := a.cfg.GetLumgrWhatEdits(); e == nil && md != "" {
-			data.LumgrWhatEdits = md
-		} else {
-			data.LumgrWhatEdits = defaultNotice
-		}
-		data.LumgrWhatEditsHTML = RenderMarkdown(data.LumgrWhatEdits)
-		a.renderPage(w, "settings", data)
+	a.handleSettingsSave(w, r, user, "settings", "/settings")
+}
+
+func (a *App) handleSettingsShell(w http.ResponseWriter, r *http.Request) {
+	user := usernameFrom(r)
+	if r.Method == http.MethodGet || r.Method == http.MethodHead {
+		data := a.buildSettingsData(r)
+		a.applySettingsFlash(data, r.URL.Query())
+		a.renderPage(w, "settings_shell", data)
 		return
 	}
-	logger.Info("User %s updated settings from %s (shell: %s, term: %s)", user, remoteIP(r), st.Shell, st.Term)
-	http.Redirect(w, r, "/settings?ok=1", http.StatusSeeOther)
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	a.handleSettingsSave(w, r, user, "settings_shell", "/settings/shell")
+}
+
+func (a *App) handleSettingsSSH(w http.ResponseWriter, r *http.Request) {
+	user := usernameFrom(r)
+	if r.Method == http.MethodGet || r.Method == http.MethodHead {
+		data := a.buildSettingsData(r)
+		a.applySettingsFlash(data, r.URL.Query())
+		a.renderPage(w, "settings_ssh", data)
+		return
+	}
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	a.handleSettingsSave(w, r, user, "settings_ssh", "/settings/ssh")
+}
+
+func (a *App) handleSettingsGit(w http.ResponseWriter, r *http.Request) {
+	user := usernameFrom(r)
+	if r.Method == http.MethodGet || r.Method == http.MethodHead {
+		data := a.buildSettingsData(r)
+		a.applySettingsFlash(data, r.URL.Query())
+		a.renderPage(w, "settings_git", data)
+		return
+	}
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	a.handleSettingsSave(w, r, user, "settings_git", "/settings/git")
+}
+
+func (a *App) handleSettingsFilesystem(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	user := usernameFrom(r)
+	data := a.buildSettingsData(r)
+	// Only filesystem-related flashes apply here.
+	if r.URL.Query().Get("umok") == "1" {
+		data.Flash = "Umask saved."
+		data.FlashKind = "ok"
+	}
+	if code := r.URL.Query().Get("umerr"); code != "" {
+		data.FlashKind = "err"
+		switch code {
+		case "invalid":
+			data.Flash = "Invalid umask. Use octal digits like 022."
+		default:
+			data.Flash = "Failed to save umask."
+		}
+	}
+	if r.URL.Query().Get("ok") == "1" {
+		data.Flash = "Saved."
+		data.FlashKind = "ok"
+	}
+	if msg := r.URL.Query().Get("flash"); msg != "" {
+		data.Flash = msg
+		data.FlashKind = "err"
+	}
+	// Ensure these helpers still point to the correct endpoints
+	data.PermFormAction = "/settings/chmod"
+	data.PermUmaskFormAction = "/settings/umask"
+	data.PermUmaskValue = data.Umask
+	data.PermSubmitLabel = "Apply Recursive Chmod"
+	_ = user
+	a.renderPage(w, "settings_filesystem", data)
+}
+
+func (a *App) handleSettingsSecurity(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	data := a.buildSettingsData(r)
+	if r.URL.Query().Get("pwok") == "1" {
+		data.Flash = "Password updated."
+		data.FlashKind = "ok"
+	}
+	if code := r.URL.Query().Get("pwerr"); code != "" {
+		data.FlashKind = "err"
+		switch code {
+		case "mismatch":
+			data.Flash = "Passwords do not match."
+		case "current":
+			data.Flash = "Current password is incorrect."
+		default:
+			data.Flash = "Password update failed. Check server logs for /etc/shadow update details."
+		}
+	}
+	a.renderPage(w, "settings_security", data)
+}
+
+func (a *App) buildSettingsData(r *http.Request) *ViewData {
+	user := usernameFrom(r)
+	data := a.baseData(r)
+	st, _ := LoadUserSettings(user)
+	data.Term = st.Term
+	data.Redirect = st.Redirect
+	data.Shell = st.Shell
+	data.GitName = st.GitName
+	data.GitEmail = st.GitEmail
+	data.GitSigningKey = st.GitSigningKey
+	data.SSHKeys = st.SSHKeys
+	data.AvailableShells = LoadAvailableShells()
+
+	if um, err := LoadUserUmask(user); err == nil {
+		data.Umask = um
+	}
+
+	if e, err := lookupUser(user); err == nil {
+		data.HomePerms = getHomeDirPerms(e.Home)
+		data.SSHPrivateKeys = listSSHPrivateKeys(e.Home)
+		data.GitSigningKey = toTildePath(e.Home, data.GitSigningKey)
+		data.GitSigningPub = loadSigningPubKey(e.Home, data.GitSigningKey)
+	}
+
+	// permission helpers (filesystem pages)
+	data.PermFormAction = "/settings/chmod"
+	data.PermIncludeSpecial = true
+	data.PermSpecialSetUIDEditable = data.Admin
+	data.PermSpecialSetGIDEditable = true
+	data.PermSpecialStickyEditable = data.Admin
+	data.PermUmaskFormAction = "/settings/umask"
+	data.PermUmaskValue = data.Umask
+	data.PermSubmitLabel = "Apply Recursive Chmod"
+
+	return data
+}
+
+func toTildePath(home, p string) string {
+	p = strings.TrimSpace(p)
+	if p == "" {
+		return ""
+	}
+	homeClean := filepath.Clean(home)
+	pp := filepath.Clean(p)
+	if pp == homeClean {
+		return "~"
+	}
+	if strings.HasPrefix(pp, homeClean+string(os.PathSeparator)) {
+		return "~" + string(os.PathSeparator) + strings.TrimPrefix(pp, homeClean+string(os.PathSeparator))
+	}
+	return p
+}
+
+func (a *App) applySettingsFlash(data *ViewData, q url.Values) {
+	if q.Get("ok") == "1" {
+		data.Flash = "Saved."
+		data.FlashKind = "ok"
+	}
+	if q.Get("sshkeyok") == "1" {
+		data.Flash = "SSH key generated."
+		data.FlashKind = "ok"
+	}
+	if msg := q.Get("flash"); msg != "" {
+		data.Flash = msg
+		data.FlashKind = "err"
+	}
+}
+
+func (a *App) handleSettingsSave(w http.ResponseWriter, r *http.Request, user, pageName, redirectBase string) {
+	_ = r.ParseForm()
+	section := strings.TrimSpace(r.Form.Get("section"))
+	// Default: if section isn't specified, treat as saving all fields present.
+	if section == "" {
+		section = "all"
+	}
+	cur, _ := LoadUserSettings(user)
+	st := cur
+
+	// Resolve home for path validation/expansion.
+	e, _ := lookupUser(user)
+
+	switch section {
+	case "shell":
+		st.Shell = strings.TrimSpace(r.Form.Get("shell"))
+		st.Term = strings.TrimSpace(r.Form.Get("term"))
+		st.Redirect = strings.TrimSpace(r.Form.Get("redirect"))
+	case "ssh":
+		st.SSHKeys = r.Form.Get("ssh_keys")
+	case "git":
+		st.GitName = strings.TrimSpace(r.Form.Get("git_name"))
+		st.GitEmail = strings.TrimSpace(r.Form.Get("git_email"))
+		selected := strings.TrimSpace(r.Form.Get("git_signing_key"))
+		other := strings.TrimSpace(r.Form.Get("git_signing_key_other"))
+		key := selected
+		if other != "" {
+			key = other
+		}
+		if e != nil {
+			abs, err := normalizeHomePath(e.Home, key)
+			if err != nil {
+				data := a.buildSettingsData(r)
+				data.Flash = err.Error()
+				data.FlashKind = "err"
+				a.renderPage(w, pageName, data)
+				return
+			}
+			st.GitSigningKey = abs
+		}
+	case "all":
+		st.Shell = strings.TrimSpace(r.Form.Get("shell"))
+		st.Term = strings.TrimSpace(r.Form.Get("term"))
+		st.Redirect = strings.TrimSpace(r.Form.Get("redirect"))
+		st.GitName = strings.TrimSpace(r.Form.Get("git_name"))
+		st.GitEmail = strings.TrimSpace(r.Form.Get("git_email"))
+		st.SSHKeys = r.Form.Get("ssh_keys")
+		selected := strings.TrimSpace(r.Form.Get("git_signing_key"))
+		other := strings.TrimSpace(r.Form.Get("git_signing_key_other"))
+		key := selected
+		if other != "" {
+			key = other
+		}
+		if e != nil {
+			abs, err := normalizeHomePath(e.Home, key)
+			if err != nil {
+				data := a.buildSettingsData(r)
+				data.Flash = err.Error()
+				data.FlashKind = "err"
+				a.renderPage(w, pageName, data)
+				return
+			}
+			st.GitSigningKey = abs
+		}
+	default:
+		data := a.buildSettingsData(r)
+		data.Flash = "Unknown settings section."
+		data.FlashKind = "err"
+		a.renderPage(w, pageName, data)
+		return
+	}
+
+	if err := SaveUserSettings(user, st); err != nil {
+		data := a.buildSettingsData(r)
+		data.Flash = err.Error()
+		data.FlashKind = "err"
+		a.renderPage(w, pageName, data)
+		return
+	}
+	logger.Info("User %s updated settings from %s (section: %s)", user, remoteIP(r), section)
+	http.Redirect(w, r, redirectBase+"?ok=1", http.StatusSeeOther)
+}
+
+func listSSHPrivateKeys(home string) []string {
+	sshDir := filepath.Join(home, ".ssh")
+	ents, err := os.ReadDir(sshDir)
+	if err != nil {
+		return nil
+	}
+	ignore := map[string]bool{
+		"authorized_keys": true,
+		"known_hosts":     true,
+		"known_hosts.old": true,
+		"config":          true,
+		".DS_Store":       true,
+	}
+	var keys []string
+	for _, ent := range ents {
+		if ent.IsDir() {
+			continue
+		}
+		name := ent.Name()
+		if ignore[name] {
+			continue
+		}
+		if strings.HasSuffix(name, ".pub") {
+			continue
+		}
+		keys = append(keys, "~/.ssh/"+name)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func normalizeHomePath(home, p string) (string, error) {
+	p = strings.TrimSpace(p)
+	if p == "" {
+		return "", nil
+	}
+	if strings.HasPrefix(p, "~"+string(os.PathSeparator)) {
+		p = filepath.Join(home, strings.TrimPrefix(p, "~"+string(os.PathSeparator)))
+	}
+	if !filepath.IsAbs(p) {
+		p = filepath.Join(home, p)
+	}
+	clean := filepath.Clean(p)
+	homeClean := filepath.Clean(home)
+	if clean != homeClean && !strings.HasPrefix(clean, homeClean+string(os.PathSeparator)) {
+		return "", fmt.Errorf("path must be under your home directory")
+	}
+	return clean, nil
+}
+
+func loadSigningPubKey(home, signingKey string) string {
+	if strings.TrimSpace(signingKey) == "" {
+		return ""
+	}
+	keyPath, err := normalizeHomePath(home, signingKey)
+	if err != nil {
+		return ""
+	}
+	pubPath := keyPath
+	if !strings.HasSuffix(pubPath, ".pub") {
+		pubPath = pubPath + ".pub"
+	}
+	b, err := os.ReadFile(pubPath)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
+}
+
+func (a *App) handleSettingsSSHKeygen(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	user := usernameFrom(r)
+	_ = r.ParseForm()
+	keyType := strings.TrimSpace(r.Form.Get("key_type"))
+	fileName := strings.TrimSpace(r.Form.Get("key_file"))
+	comment := strings.TrimSpace(r.Form.Get("key_comment"))
+	passphrase := r.Form.Get("key_passphrase")
+	if comment == "" {
+		comment = user
+	}
+	if keyType == "" {
+		keyType = "rsa"
+	}
+	if fileName == "" {
+		fileName = "id_" + keyType
+	}
+	validName := regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)
+	if !validName.MatchString(fileName) {
+		http.Redirect(w, r, "/settings/ssh?flash="+url.QueryEscape("Invalid key filename."), http.StatusSeeOther)
+		return
+	}
+	e, err := lookupUser(user)
+	if err != nil {
+		http.Redirect(w, r, "/settings/ssh?flash="+url.QueryEscape("User not found."), http.StatusSeeOther)
+		return
+	}
+	sshDir := filepath.Join(e.Home, ".ssh")
+	if err := os.MkdirAll(sshDir, 0700); err != nil {
+		http.Redirect(w, r, "/settings/ssh?flash="+url.QueryEscape("Failed to create ~/.ssh."), http.StatusSeeOther)
+		return
+	}
+	_ = os.Chown(sshDir, e.UID, e.GID)
+	keyPath := filepath.Join(sshDir, fileName)
+	if _, err := os.Stat(keyPath); err == nil {
+		http.Redirect(w, r, "/settings/ssh?flash="+url.QueryEscape("Key file already exists."), http.StatusSeeOther)
+		return
+	}
+
+	args := []string{"-t", keyType, "-f", keyPath, "-N", passphrase, "-C", comment}
+	if keyType == "rsa" {
+		args = append(args, "-b", "4096")
+	}
+	cmd := exec.Command("ssh-keygen", args...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		logger.Error("ssh-keygen failed for %s: %v (%s)", user, err, strings.TrimSpace(string(out)))
+		http.Redirect(w, r, "/settings/ssh?flash="+url.QueryEscape("ssh-keygen failed."), http.StatusSeeOther)
+		return
+	}
+	_ = os.Chown(keyPath, e.UID, e.GID)
+	_ = os.Chown(keyPath+".pub", e.UID, e.GID)
+	logger.Info("User %s generated ssh key (%s) from %s", user, keyType, remoteIP(r))
+	http.Redirect(w, r, "/settings/ssh?sshkeyok=1", http.StatusSeeOther)
 }
 
 func (a *App) handleSettingsPassword(w http.ResponseWriter, r *http.Request) {
@@ -735,30 +1028,30 @@ func (a *App) handleSettingsPassword(w http.ResponseWriter, r *http.Request) {
 	newPass := r.Form.Get("new_password")
 	newPass2 := r.Form.Get("new_password2")
 	if strings.TrimSpace(current) == "" || strings.TrimSpace(newPass) == "" {
-		http.Redirect(w, r, "/settings?pwerr=1", http.StatusSeeOther)
+		http.Redirect(w, r, "/settings/security?pwerr=1", http.StatusSeeOther)
 		return
 	}
 	if newPass != newPass2 {
-		http.Redirect(w, r, "/settings?pwerr=mismatch", http.StatusSeeOther)
+		http.Redirect(w, r, "/settings/security?pwerr=mismatch", http.StatusSeeOther)
 		return
 	}
 	if err := auth.VerifyPassword(user, current); err != nil {
 		logger.Warn("Password change failed (verify current) for %s from %s: %v", user, remoteIP(r), err)
-		http.Redirect(w, r, "/settings?pwerr=current", http.StatusSeeOther)
+		http.Redirect(w, r, "/settings/security?pwerr=current", http.StatusSeeOther)
 		return
 	}
 	if err := a.users.SetPassword(user, newPass); err != nil {
 		logger.Error("Password change failed (set) for %s: %v", user, err)
-		http.Redirect(w, r, "/settings?pwerr=1", http.StatusSeeOther)
+		http.Redirect(w, r, "/settings/security?pwerr=1", http.StatusSeeOther)
 		return
 	}
 	if err := auth.VerifyPassword(user, newPass); err != nil {
 		logger.Error("Password change verification failed for %s from %s: %v", user, remoteIP(r), err)
-		http.Redirect(w, r, "/settings?pwerr=1", http.StatusSeeOther)
+		http.Redirect(w, r, "/settings/security?pwerr=1", http.StatusSeeOther)
 		return
 	}
 	logger.Info("User %s changed password from %s", user, remoteIP(r))
-	http.Redirect(w, r, "/settings?pwok=1", http.StatusSeeOther)
+	http.Redirect(w, r, "/settings/security?pwok=1", http.StatusSeeOther)
 }
 
 func (a *App) handleSettingsChmod(w http.ResponseWriter, r *http.Request) {
@@ -824,7 +1117,7 @@ func (a *App) handleSettingsChmod(w http.ResponseWriter, r *http.Request) {
 	if err := a.users.RecursiveChmodHome(username, m, setuid, setgid, sticky); err != nil {
 		logger.Error("RecursiveChmodHome failed for %s: %v", username, err)
 		msg := url.QueryEscape(err.Error())
-		http.Redirect(w, r, "/settings?flash="+msg, http.StatusSeeOther)
+		http.Redirect(w, r, "/settings/filesystem?flash="+msg, http.StatusSeeOther)
 		return
 	}
 
@@ -842,7 +1135,7 @@ func (a *App) handleSettingsChmod(w http.ResponseWriter, r *http.Request) {
 	octalValue += int(m & 0777)
 
 	logger.Info("User %s updated own permissions from %s (mode: %04o)", username, remoteIP(r), octalValue)
-	http.Redirect(w, r, "/settings?ok=1", http.StatusSeeOther)
+	http.Redirect(w, r, "/settings/filesystem?ok=1", http.StatusSeeOther)
 }
 
 func (a *App) handleSettingsUmask(w http.ResponseWriter, r *http.Request) {
@@ -861,14 +1154,14 @@ func (a *App) handleSettingsUmask(w http.ResponseWriter, r *http.Request) {
 		logger.Warn("Failed to save umask for %s: %v", user, err)
 		// Distinguish invalid format
 		if _, e := NormalizeUmask(um); e != nil {
-			http.Redirect(w, r, "/settings?umerr=invalid", http.StatusSeeOther)
+			http.Redirect(w, r, "/settings/filesystem?umerr=invalid", http.StatusSeeOther)
 			return
 		}
-		http.Redirect(w, r, "/settings?umerr=1", http.StatusSeeOther)
+		http.Redirect(w, r, "/settings/filesystem?umerr=1", http.StatusSeeOther)
 		return
 	}
 	logger.Info("User %s updated umask to %q from %s", user, um, remoteIP(r))
-	http.Redirect(w, r, "/settings?umok=1", http.StatusSeeOther)
+	http.Redirect(w, r, "/settings/filesystem?umok=1", http.StatusSeeOther)
 }
 
 func (a *App) handleAdminUsers(w http.ResponseWriter, r *http.Request) {
