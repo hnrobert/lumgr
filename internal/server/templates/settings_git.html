@@ -36,9 +36,9 @@
                 <button class="btn small" type="button" data-copy-textarea="gitSigningPub"
                     style="width:84px; text-align:center;">Copy</button>
             </div>
-            <small class="muted" style="display:block; margin-top:6px;">Tip: enable SSH signing with
-                <code>git config --global gpg.format ssh</code> and set <code>user.signingkey</code> to your key
-                path.</small>
+            <small class="muted" style="display:block; margin-top:6px;">Tip: upload this public key to your Git
+                provider as an SSH <em>signing</em> key (e.g. GitHub: Settings → SSH and GPG keys → New SSH key → Key
+                type: Signing Key). This allows others (and the UI) to verify your signed commits.</small>
             {{end}}
 
             <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: 14px;">
