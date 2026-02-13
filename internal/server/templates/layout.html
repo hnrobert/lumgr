@@ -240,16 +240,34 @@
         /* Two-column masonry (JS-enhanced) */
         .grid.two.masonry {
             display: flex;
+            flex-wrap: wrap;
             gap: 16px;
             align-items: flex-start;
         }
 
         .grid.two.masonry>.masonryCol {
-            flex: 1;
+            flex: 1 1 calc(50% - 8px);
+            max-width: calc(50% - 8px);
             min-width: 0;
             display: flex;
             flex-direction: column;
             gap: 16px;
+        }
+
+        /* Full-width cards inside a two-column grid */
+        @media (min-width: 920px) {
+
+            .grid.two>.card.spanAll,
+            .grid.two>[data-span="all"].card {
+                grid-column: 1 / -1;
+            }
+        }
+
+        /* Full-width cards between masonry column pairs */
+        .grid.two.masonry>.masonrySpan {
+            flex: 0 0 100%;
+            max-width: 100%;
+            min-width: 0;
         }
 
         .muted {
@@ -492,6 +510,17 @@
             min-height: 1vh;
         }
 
+        /* Footer: keep desktop condensed, add an extra line break on narrow screens */
+        .foot br.footBrMobile {
+            display: none;
+        }
+
+        @media (max-width: 720px) {
+            .foot br.footBrMobile {
+                display: inline;
+            }
+        }
+
         /* Mobile: hide sidebar, show a top bar + full-screen overlay menu */
         #menuOpen {
             position: absolute;
@@ -675,8 +704,8 @@
     <div class="foot">
         Be careful: this service can modify your accounts directly.<br>
         <a href="https://github.com/hnrobert/lumgr">Open Source Project on GitHub</a>. © 2026 <a
-            href="https://github.com/hnrobert">Robert He</a>. Licensed under <a
-            href="https://www.apache.org/licenses/LICENSE-2.0">Apache License 2.0</a>.
+            href="https://github.com/hnrobert">Robert He</a>.<br class="footBrMobile">
+        Licensed under <a href="https://www.apache.org/licenses/LICENSE-2.0">Apache License 2.0</a>.
     </div>
     {{end}}
 
@@ -696,6 +725,9 @@
                 grid.classList.remove('masonry');
                 grid.innerHTML = '';
                 cards.forEach(c => grid.appendChild(c));
+
+                // Remove any masonry-only sizing class from span cards.
+                cards.forEach(c => c.classList && c.classList.remove('masonrySpan'));
             }
 
             function applyMasonry(grid) {
@@ -715,39 +747,57 @@
                 grid.classList.add('masonry');
                 grid.innerHTML = '';
 
-                const colA = document.createElement('div');
-                colA.className = 'masonryCol';
-                const colB = document.createElement('div');
-                colB.className = 'masonryCol';
+                function isSpanAll(card) {
+                    if (!card) return false;
+                    if (card.classList && card.classList.contains('spanAll')) return true;
+                    const span = card.getAttribute && card.getAttribute('data-span');
+                    return span === 'all';
+                }
 
-                grid.appendChild(colA);
-                grid.appendChild(colB);
+                let colA = null;
+                let colB = null;
+                let heights = [0, 0];
+                let tieFlip = 0;
+
+                function ensureCols() {
+                    if (colA && colB) return;
+                    colA = document.createElement('div');
+                    colA.className = 'masonryCol';
+                    colB = document.createElement('div');
+                    colB.className = 'masonryCol';
+                    grid.appendChild(colA);
+                    grid.appendChild(colB);
+                    heights = [0, 0];
+                    tieFlip = 0;
+                }
 
                 // Placement rule:
-                // Default: alternate sides.
-                // Exception: if next card height x < (heightB - heightA), keep placing on A.
-                let heights = [0, 0];
-                let lastCol = 0;
-
+                // - Between any full-width (span-all) cards, greedily balance total column heights.
+                // - A span-all card breaks the masonry into a new pair of columns.
                 cards.forEach((card, idx) => {
                     const x = cardHeights[idx] || 0;
-                    if (idx === 0) {
-                        colA.appendChild(card);
-                        heights[0] += x;
-                        lastCol = 0;
+
+                    if (isSpanAll(card)) {
+                        card.classList.add('masonrySpan');
+                        grid.appendChild(card);
+                        colA = null;
+                        colB = null;
+                        heights = [0, 0];
                         return;
                     }
 
-                    const other = 1 - lastCol;
-                    const diff = heights[other] - heights[lastCol];
-                    let target = other;
-                    if (diff > 0 && x < diff) {
-                        target = lastCol;
+                    ensureCols();
+
+                    let target = 0;
+                    if (heights[0] === heights[1]) {
+                        target = tieFlip % 2;
+                        tieFlip++;
+                    } else {
+                        target = heights[0] < heights[1] ? 0 : 1;
                     }
 
                     (target === 0 ? colA : colB).appendChild(card);
                     heights[target] += x;
-                    lastCol = target;
                 });
             }
 
