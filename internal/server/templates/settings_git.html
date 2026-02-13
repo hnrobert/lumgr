@@ -18,15 +18,17 @@
             </div>
 
             <label>Git SSH signing key (private key path)</label>
-            <select name="git_signing_key">
+            <select id="git_signing_key_select" name="git_signing_key" data-cur="{{.GitSigningKey}}">
                 <option value="">(none)</option>
                 {{range .SSHPrivateKeys}}
                 <option value="{{.}}" {{if eq . $.GitSigningKey}}selected{{end}}>{{.}}</option>
                 {{end}}
+                <option value="__other__">Other…</option>
             </select>
             <small class="muted" style="display:block; margin-top:4px;">Or enter another path under your home
                 directory:</small>
-            <input name="git_signing_key_other" placeholder="~/.ssh/id_ed25519" />
+            <input id="git_signing_key_other" name="git_signing_key_other" placeholder="~/.ssh/id_ed25519"
+                style="display:none;" />
 
             {{if .GitSigningPub}}
             <label style="margin-top: 12px;">Signing public key</label>
@@ -41,12 +43,30 @@
                 path.</small>
             {{end}}
 
-            <div style="display:flex; justify-content:flex-end; margin-top: 14px;">
+            <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: 14px;">
                 <button class="btn primary" type="submit" name="section" value="git">Save</button>
+                <button class="btn" type="submit" name="section" value="all">Save all</button>
             </div>
         </form>
     </div>
 </div>
+
+<script>
+    (function () {
+        const sel = document.getElementById('git_signing_key_select');
+        const other = document.getElementById('git_signing_key_other');
+        if (!sel || !other) return;
+        const cur = sel.getAttribute('data-cur') || '';
+        const hasMatch = !!sel.querySelector('option[value="' + CSS.escape(cur) + '"]');
+        const apply = () => { other.style.display = (sel.value === '__other__') ? 'block' : 'none'; };
+        sel.addEventListener('change', apply);
+        if (cur && !hasMatch) {
+            sel.value = '__other__';
+            other.value = cur;
+            apply();
+        }
+    })();
+</script>
 
 <script>
     async function copyText(text) {

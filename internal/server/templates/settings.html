@@ -15,7 +15,21 @@
             </select>
 
             <label>Preferred terminal type (TERM)</label>
-            <input name="term" placeholder="xterm-256color" value="{{.Term}}" />
+            <select id="term_preset" aria-label="TERM preset">
+                <option value="xterm-256color" {{if eq .Term "xterm-256color" }}selected{{end}}>xterm-256color</option>
+                <option value="xterm" {{if eq .Term "xterm" }}selected{{end}}>xterm</option>
+                <option value="screen-256color" {{if eq .Term "screen-256color" }}selected{{end}}>screen-256color
+                </option>
+                <option value="linux" {{if eq .Term "linux" }}selected{{end}}>linux</option>
+                <option value="vt100" {{if eq .Term "vt100" }}selected{{end}}>vt100</option>
+                <option value="other" {{if and (ne .Term "" ) (ne .Term "xterm-256color" ) (ne .Term "xterm" ) (ne
+                    .Term "screen-256color" ) (ne .Term "linux" ) (ne .Term "vt100" )}}selected{{end}}>Other…</option>
+            </select>
+            <input id="term_other" name="term_other" placeholder="custom TERM (e.g. rxvt-unicode)"
+                style="margin-top:8px; display:none;" value="{{if and (ne .Term "") (ne .Term " xterm-256color") (ne
+                .Term "xterm" ) (ne .Term "screen-256color" ) (ne .Term "linux" ) (ne .Term "vt100"
+                )}}{{.Term}}{{end}}" />
+            <input type="hidden" id="term_hidden" name="term" value="{{.Term}}" />
 
             <label>Login redirect directory (optional)</label>
             <input name="redirect" placeholder="/home/{{.Username}}/example-directory" value="{{.Redirect}}" />
@@ -54,15 +68,17 @@ ssh-ed25519 AAAAC3NzAIC3... user2@example.com" spellcheck="false">{{.SSHKeys}}</
             </div>
 
             <label>Git SSH signing key (private key path)</label>
-            <select name="git_signing_key">
+            <select id="git_signing_key_select" name="git_signing_key" data-cur="{{.GitSigningKey}}">
                 <option value="">(none)</option>
                 {{range .SSHPrivateKeys}}
                 <option value="{{.}}" {{if eq . $.GitSigningKey}}selected{{end}}>{{.}}</option>
                 {{end}}
+                <option value="__other__">Other…</option>
             </select>
             <small class="muted" style="display:block; margin-top:4px;">Or enter another path under your home
                 directory:</small>
-            <input name="git_signing_key_other" placeholder="~/.ssh/id_ed25519" />
+            <input id="git_signing_key_other" name="git_signing_key_other" placeholder="~/.ssh/id_ed25519"
+                style="display:none;" />
 
             {{if .GitSigningPub}}
             <label style="margin-top: 12px;">Signing public key</label>
@@ -82,13 +98,7 @@ ssh-ed25519 AAAAC3NzAIC3... user2@example.com" spellcheck="false">{{.SSHKeys}}</
             </div>
         </div>
 
-        <div class="card">
-            <h2 style="margin:0 0 8px;">Save All</h2>
-            <div class="muted" style="margin-bottom: 12px;">Saves Shell + SSH + Git in one submit.</div>
-            <div style="display:flex; justify-content:flex-end;">
-                <button class="btn primary" type="submit" name="section" value="all">Save all</button>
-            </div>
-        </div>
+
     </form>
 
     <div class="card">
@@ -218,5 +228,42 @@ ssh-ed25519 AAAAC3NzAIC3... user2@example.com" spellcheck="false">{{.SSHKeys}}</
         const ok = await copyText(el ? el.value : '');
         setCopyFeedback(btn, ok);
     });
+
+    // TERM preset + Other handling
+    (function () {
+        const preset = document.getElementById('term_preset');
+        const other = document.getElementById('term_other');
+        const hidden = document.getElementById('term_hidden');
+        if (preset && other && hidden) {
+            const apply = () => {
+                if (preset.value === 'other') {
+                    other.style.display = 'block';
+                    hidden.value = other.value || '';
+                } else {
+                    other.style.display = 'none';
+                    hidden.value = preset.value || '';
+                }
+            };
+            preset.addEventListener('change', apply);
+            other.addEventListener('input', () => { if (preset.value === 'other') hidden.value = other.value; });
+            apply();
+        }
+    })();
+
+    // Git signing key "Other" input show/hide + detect configured non-listed key
+    (function () {
+        const sel = document.getElementById('git_signing_key_select');
+        const other = document.getElementById('git_signing_key_other');
+        if (!sel || !other) return;
+        const cur = sel.getAttribute('data-cur') || '';
+        const hasMatch = !!sel.querySelector('option[value="' + CSS.escape(cur) + '"]');
+        const apply = () => { other.style.display = (sel.value === '__other__') ? 'block' : 'none'; };
+        sel.addEventListener('change', apply);
+        if (cur && !hasMatch) {
+            sel.value = '__other__';
+            other.value = cur;
+            apply();
+        }
+    })();
 </script>
 {{end}}

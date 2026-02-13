@@ -8,8 +8,9 @@
             <label>SSH authorized_keys</label>
             <textarea name="ssh_keys" placeholder="ssh-ed25519 AAAAC3NzAIC3... user@example.com"
                 spellcheck="false">{{.SSHKeys}}</textarea>
-            <div style="display:flex; justify-content:flex-end; margin-top: 14px;">
+            <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: 14px;">
                 <button class="btn primary" type="submit" name="section" value="ssh">Save</button>
+                <button class="btn" type="submit" name="section" value="all">Save all</button>
             </div>
         </form>
     </div>

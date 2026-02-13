@@ -675,11 +675,114 @@ func (a *App) handleSettingsGit(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleSettingsFilesystem(w http.ResponseWriter, r *http.Request) {
+	user := usernameFrom(r)
+	if r.Method == http.MethodPost {
+		_ = r.ParseForm()
+		action := r.Form.Get("action") // "chmod", "umask", "all"
+		var chmodErr error
+		var umaskErr error
+
+		if action == "chmod" || action == "all" {
+			ur := r.Form.Get("ur") == "1"
+			uw := r.Form.Get("uw") == "1"
+			ux := r.Form.Get("ux") == "1"
+
+			gr := r.Form.Get("gr") == "1"
+			gw := r.Form.Get("gw") == "1"
+			gx := r.Form.Get("gx") == "1"
+
+			or := r.Form.Get("or") == "1"
+			ow := r.Form.Get("ow") == "1"
+			ox := r.Form.Get("ox") == "1"
+
+			setuid := r.Form.Get("setuid") == "1"
+			setgid := r.Form.Get("setgid") == "1"
+			sticky := r.Form.Get("sticky") == "1"
+
+			var m os.FileMode
+			if ur {
+				m |= 0400
+			}
+			if uw {
+				m |= 0200
+			}
+			if ux {
+				m |= 0100
+			}
+			if gr {
+				m |= 0040
+			}
+			if gw {
+				m |= 0020
+			}
+			if gx {
+				m |= 0010
+			}
+			if or {
+				m |= 0004
+			}
+			if ow {
+				m |= 0002
+			}
+			if ox {
+				m |= 0001
+			}
+
+			admin := isAdminFrom(r)
+			if !admin {
+				// Non-admin: allow setgid only.
+				setuid = false
+				sticky = false
+			}
+
+			if err := a.users.RecursiveChmodHome(user, m, setuid, setgid, sticky); err != nil {
+				chmodErr = err
+				logger.Error("RecursiveChmodHome failed for %s: %v", user, err)
+			}
+		}
+
+		if action == "umask" || action == "all" {
+			um := strings.TrimSpace(r.Form.Get("umask"))
+			// Allow empty to clear
+			if strings.TrimSpace(um) == "" {
+				um = ""
+			}
+			if err := SaveUserUmask(user, um); err != nil {
+				umaskErr = err
+				logger.Warn("Failed to save umask for %s: %v", user, err)
+			}
+		}
+
+		// Redirect with appropriate status/query
+		if chmodErr != nil && umaskErr != nil {
+			msg := url.QueryEscape(chmodErr.Error() + "; " + umaskErr.Error())
+			http.Redirect(w, r, "/settings/filesystem?flash="+msg, http.StatusSeeOther)
+			return
+		}
+		if chmodErr != nil {
+			msg := url.QueryEscape(chmodErr.Error())
+			http.Redirect(w, r, "/settings/filesystem?flash="+msg, http.StatusSeeOther)
+			return
+		}
+		if umaskErr != nil {
+			// Distinguish invalid format
+			if _, e := NormalizeUmask(strings.TrimSpace(r.Form.Get("umask"))); e != nil {
+				http.Redirect(w, r, "/settings/filesystem?umerr=invalid", http.StatusSeeOther)
+				return
+			}
+			http.Redirect(w, r, "/settings/filesystem?umerr=1", http.StatusSeeOther)
+			return
+		}
+
+		// Success
+		http.Redirect(w, r, "/settings/filesystem?ok=1", http.StatusSeeOther)
+		return
+	}
+
 	if r.Method != http.MethodGet && r.Method != http.MethodHead {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	user := usernameFrom(r)
 	data := a.buildSettingsData(r)
 	// Only filesystem-related flashes apply here.
 	if r.URL.Query().Get("umok") == "1" {
@@ -845,28 +948,45 @@ func (a *App) handleSettingsSave(w http.ResponseWriter, r *http.Request, user, p
 			st.GitSigningKey = abs
 		}
 	case "all":
-		st.Shell = strings.TrimSpace(r.Form.Get("shell"))
-		st.Term = strings.TrimSpace(r.Form.Get("term"))
-		st.Redirect = strings.TrimSpace(r.Form.Get("redirect"))
-		st.GitName = strings.TrimSpace(r.Form.Get("git_name"))
-		st.GitEmail = strings.TrimSpace(r.Form.Get("git_email"))
-		st.SSHKeys = r.Form.Get("ssh_keys")
-		selected := strings.TrimSpace(r.Form.Get("git_signing_key"))
-		other := strings.TrimSpace(r.Form.Get("git_signing_key_other"))
-		key := selected
-		if other != "" {
-			key = other
+		// Only overwrite fields that were present in the submitted form.
+		has := func(k string) bool { _, ok := r.Form[k]; return ok }
+		if has("shell") {
+			st.Shell = strings.TrimSpace(r.Form.Get("shell"))
 		}
-		if e != nil {
-			abs, err := normalizeHomePath(e.Home, key)
-			if err != nil {
-				data := a.buildSettingsData(r)
-				data.Flash = err.Error()
-				data.FlashKind = "err"
-				a.renderPage(w, pageName, data)
-				return
+		if has("term") {
+			st.Term = strings.TrimSpace(r.Form.Get("term"))
+		}
+		if has("redirect") {
+			st.Redirect = strings.TrimSpace(r.Form.Get("redirect"))
+		}
+		if has("git_name") {
+			st.GitName = strings.TrimSpace(r.Form.Get("git_name"))
+		}
+		if has("git_email") {
+			st.GitEmail = strings.TrimSpace(r.Form.Get("git_email"))
+		}
+		if has("ssh_keys") {
+			st.SSHKeys = r.Form.Get("ssh_keys")
+		}
+		// Git signing key: update only if user submitted either the select or the other input.
+		if has("git_signing_key") || has("git_signing_key_other") {
+			selected := strings.TrimSpace(r.Form.Get("git_signing_key"))
+			other := strings.TrimSpace(r.Form.Get("git_signing_key_other"))
+			key := selected
+			if other != "" {
+				key = other
 			}
-			st.GitSigningKey = abs
+			if e != nil {
+				abs, err := normalizeHomePath(e.Home, key)
+				if err != nil {
+					data := a.buildSettingsData(r)
+					data.Flash = err.Error()
+					data.FlashKind = "err"
+					a.renderPage(w, pageName, data)
+					return
+				}
+				st.GitSigningKey = abs
+			}
 		}
 	default:
 		data := a.buildSettingsData(r)
