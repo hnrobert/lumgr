@@ -10,7 +10,6 @@
 
             <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: 14px;">
                 <button class="btn danger" type="submit" name="action" value="chmod">{{.PermSubmitLabel}}</button>
-                <button class="btn" type="submit" name="action" value="all">Save all</button>
             </div>
         </div>
 
@@ -22,6 +21,11 @@
                 <input name="umask" placeholder="022" value="{{.PermUmaskValue}}" style="width:80px;" />
                 <button class="btn primary small" type="submit" name="action" value="umask">Save</button>
             </div>
+        </div>
+
+        <div style="width:100%;">
+            <button class="btn" type="submit" name="action" value="all" style="width:100%; justify-content:center;">Save
+                all</button>
         </div>
     </form>
 </div>

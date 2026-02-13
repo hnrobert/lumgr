@@ -4,13 +4,12 @@
     <div class="card">
         <h2 style="margin:0 0 8px;">SSH authorized_keys</h2>
         <div class="muted" style="margin-bottom: 12px;">Manage <code>~/.ssh/authorized_keys</code>.</div>
-        <form method="post" action="/settings/ssh">
+        <form id="sshSettingsForm" method="post" action="/settings/ssh">
             <label>SSH authorized_keys</label>
             <textarea name="ssh_keys" placeholder="ssh-ed25519 AAAAC3NzAIC3... user@example.com"
                 spellcheck="false">{{.SSHKeys}}</textarea>
             <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: 14px;">
                 <button class="btn primary" type="submit" name="section" value="ssh">Save</button>
-                <button class="btn" type="submit" name="section" value="all">Save all</button>
             </div>
         </form>
     </div>
@@ -44,6 +43,11 @@
                 <button class="btn primary" type="submit">Generate</button>
             </div>
         </form>
+    </div>
+
+    <div style="width:100%;">
+        <button class="btn" type="submit" form="sshSettingsForm" name="section" value="all"
+            style="width:100%; justify-content:center;">Save all</button>
     </div>
 </div>
 {{end}}
