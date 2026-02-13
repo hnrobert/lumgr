@@ -168,7 +168,6 @@ func newApp() (*App, error) {
 		"login",
 		"register",
 		"dashboard",
-		"settings",
 		"settings_shell",
 		"settings_ssh",
 		"settings_git",

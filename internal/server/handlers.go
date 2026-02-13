@@ -615,18 +615,19 @@ func (a *App) handleDashboard(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleSettings(w http.ResponseWriter, r *http.Request) {
-	user := usernameFrom(r)
+	// Remove the old combined "all" settings page. GET redirects to the Shell page.
 	if r.Method == http.MethodGet || r.Method == http.MethodHead {
-		data := a.buildSettingsData(r)
-		a.applySettingsFlash(data, r.URL.Query())
-		a.renderPage(w, "settings", data)
+		http.Redirect(w, r, "/settings/shell", http.StatusSeeOther)
 		return
 	}
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	a.handleSettingsSave(w, r, user, "settings", "/settings")
+	// For compatibility accept POST to /settings and delegate to the saver.
+	user := usernameFrom(r)
+	// Use the shell page as redirect base for compatibility when section not provided.
+	a.handleSettingsSave(w, r, user, "settings_shell", "/settings/shell")
 }
 
 func (a *App) handleSettingsShell(w http.ResponseWriter, r *http.Request) {
