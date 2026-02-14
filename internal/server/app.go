@@ -153,7 +153,12 @@ func newApp() (*App, error) {
 	}
 
 	base := template.New("layout.html").Funcs(template.FuncMap{
-		"eq": func(a, b string) bool { return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1 },
+		// eq/startWith now trim inputs to tolerate accidental whitespace introduced by formatters
+		"eq": func(a, b string) bool {
+			a = strings.TrimSpace(a)
+			b = strings.TrimSpace(b)
+			return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
+		},
 		"contains": func(list []string, s string) bool {
 			for _, v := range list {
 				if v == s {
@@ -162,7 +167,8 @@ func newApp() (*App, error) {
 			}
 			return false
 		},
-		"startsWith": func(s, p string) bool { return strings.HasPrefix(s, p) },
+		"startsWith": func(s, p string) bool { return strings.HasPrefix(strings.TrimSpace(s), strings.TrimSpace(p)) },
+		"trim":       func(s string) string { return strings.TrimSpace(s) },
 		"RenderHTML": func(s string) template.HTML { return RenderMarkdown(s) },
 	})
 
