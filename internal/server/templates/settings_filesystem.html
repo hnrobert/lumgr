@@ -1,0 +1,34 @@
+{{define "title"}}File System Settings · lumgr{{end}}
+{{define "content"}}
+<div class="grid">
+    <form method="post" action="/settings/filesystem" style="display:flex; flex-direction:column; gap:16px;">
+        <div class="card">
+            <h2 style="margin:0 0 8px;">File Permissions</h2>
+            <div class="muted" style="margin-bottom: 12px;">Recursively apply chmod to your home (skips .ssh).</div>
+
+            {{template "perms_table" .}}
+
+            <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: 14px;">
+                <button class="btn danger" type="submit" name="action" value="chmod">{{.PermSubmitLabel}}</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 style="margin:0 0 8px;">Default umask</h2>
+            <div class="muted" style="margin-bottom: 12px;">Used when creating new files and directories.</div>
+
+            <div style="display:flex; gap:8px; align-items:center;">
+                <input name="umask" placeholder="022" value="{{.PermUmaskValue}}" style="width:80px;" />
+                <button class="btn primary small" type="submit" name="action" value="umask">Save</button>
+            </div>
+        </div>
+
+        {{if .ShowSaveAll}}
+        <div style="width:100%;">
+            <button class="btn" type="submit" name="action" value="all" style="width:100%; justify-content:center;">Save
+                all</button>
+        </div>
+        {{end}}
+    </form>
+</div>
+{{end}}

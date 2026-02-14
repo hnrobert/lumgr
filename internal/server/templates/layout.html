@@ -166,9 +166,11 @@
             gap: 10px;
             padding: 8px 10px;
             border-radius: 12px;
-            border: 1px solid rgba(122, 162, 255, .16);
-            background: rgba(18, 26, 51, .32);
-            font-weight: 700;
+            border: 1px solid rgba(122, 162, 255, .55);
+            /* stronger */
+            background: linear-gradient(180deg, rgba(122, 162, 255, 0.10), rgba(18, 26, 51, .28));
+            box-shadow: 0 12px 40px rgba(122, 162, 255, 0.06);
+            font-weight: 800;
             letter-spacing: .2px;
             user-select: none;
         }
@@ -207,6 +209,21 @@
             background: rgba(18, 26, 51, .30);
         }
 
+        /* Active nav item (subtle — use border only; no left accent) */
+        .nav a.active {
+            border-color: rgba(122, 162, 255, .28);
+            background: rgba(122, 162, 255, .03);
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        /* Active section header (Personal Settings / Admin) — no left accent, rely on border */
+        .nav .muted.activeSection {
+            color: var(--text);
+            font-weight: 600;
+            padding-left: 0;
+        }
+
         .nav .muted {
             font-size: 12px;
             margin: 6px 10px 0;
@@ -227,6 +244,11 @@
             align-items: start;
         }
 
+        /* Opt-in: make a two-card row share the same height (Dashboard, etc.) */
+        .grid.rowMatch {
+            align-items: stretch;
+        }
+
         .grid>* {
             min-width: 0;
         }
@@ -240,16 +262,34 @@
         /* Two-column masonry (JS-enhanced) */
         .grid.two.masonry {
             display: flex;
+            flex-wrap: wrap;
             gap: 16px;
             align-items: flex-start;
         }
 
         .grid.two.masonry>.masonryCol {
-            flex: 1;
+            flex: 1 1 calc(50% - 8px);
+            max-width: calc(50% - 8px);
             min-width: 0;
             display: flex;
             flex-direction: column;
             gap: 16px;
+        }
+
+        /* Full-width cards inside a two-column grid */
+        @media (min-width: 920px) {
+
+            .grid.two>.card.spanAll,
+            .grid.two>[data-span="all"].card {
+                grid-column: 1 / -1;
+            }
+        }
+
+        /* Full-width cards between masonry column pairs */
+        .grid.two.masonry>.masonrySpan {
+            flex: 0 0 100%;
+            max-width: 100%;
+            min-width: 0;
         }
 
         .muted {
@@ -283,6 +323,8 @@
             background: rgba(18, 26, 51, .9);
             color: var(--text);
             cursor: pointer;
+            white-space: nowrap;
+            /* prevent button text from breaking into multiple lines */
         }
 
         .btn:hover {
@@ -492,6 +534,17 @@
             min-height: 1vh;
         }
 
+        /* Footer: keep desktop condensed, add an extra line break on narrow screens */
+        .foot br.footBrMobile {
+            display: none;
+        }
+
+        @media (max-width: 720px) {
+            .foot br.footBrMobile {
+                display: inline;
+            }
+        }
+
         /* Mobile: hide sidebar, show a top bar + full-screen overlay menu */
         #menuOpen {
             position: absolute;
@@ -573,8 +626,7 @@
             Be careful: this service can modify your accounts directly.<br>
             <a href="https://github.com/hnrobert/lumgr">Open Source Project on GitHub</a>. © 2026 <a
                 href="https://github.com/hnrobert">Robert He</a>.<br>
-            Licensed under <a
-                href="https://www.apache.org/licenses/LICENSE-2.0">Apache License 2.0</a>.
+            Licensed under <a href="https://www.apache.org/licenses/LICENSE-2.0">Apache License 2.0</a>.
         </div>
     </div>
     {{else}}
@@ -586,7 +638,7 @@
                 title="Menu">
                 <span></span><span></span><span></span>
             </label>
-            <div class="mobileBrand"><a href="/">lumgr</a></div>
+            <div class="mobileBrand"><a href="/">Linux User Manager</a></div>
         </div>
         <div>
             {{if .Authed}}
@@ -604,17 +656,31 @@
             <nav class="nav">
                 {{if .Authed}}
                 <!-- <a href="/">Dashboard</a> -->
-                <a href="/settings">Personal settings</a>
+                <div class="muted {{if startsWith .CurrentPage " settings_"}}activeSection{{end}}">Personal Settings
+                </div>
+                <a class="{{if eq .CurrentPage " settings_shell"}}active{{end}}" href="/settings/shell" {{if eq
+                    .CurrentPage "settings_shell" }}aria-current="page" {{end}}>Shell</a>
+                <a class="{{if eq .CurrentPage " settings_ssh"}}active{{end}}" href="/settings/ssh" {{if eq
+                    .CurrentPage "settings_ssh" }}aria-current="page" {{end}}>SSH</a>
+                <a class="{{if eq .CurrentPage " settings_git"}}active{{end}}" href="/settings/git" {{if eq
+                    .CurrentPage "settings_git" }}aria-current="page" {{end}}>Git</a>
+                <a class="{{if eq .CurrentPage " settings_filesystem"}}active{{end}}" href="/settings/filesystem" {{if
+                    eq .CurrentPage "settings_filesystem" }}aria-current="page" {{end}}>File
+                    System</a>
+                <a class="{{if eq .CurrentPage " settings_security"}}active{{end}}" href="/settings/security" {{if eq
+                    .CurrentPage "settings_security" }}aria-current="page" {{end}}>Security</a>
                 {{if .Admin}}
-                <div class="muted">Admin</div>
-                <a href="/admin/users">Users</a>
-                <a href="/admin/groups">Groups</a>
-                <a href="/admin/invites">Invites</a>
-                <a href="/admin/lumgr_settings">Lumgr Settings</a>
+                <div class="muted {{if startsWith .CurrentPage " admin_"}}activeSection{{end}}">Admin</div>
+                <a class="{{if eq .CurrentPage " admin_users"}}active{{end}}" href="/admin/users">Users</a>
+                <a class="{{if eq .CurrentPage " admin_groups"}}active{{end}}" href="/admin/groups">Groups</a>
+                <a class="{{if eq .CurrentPage " admin_invites"}}active{{end}}" href="/admin/invites">Invites</a>
+                <a class="{{if eq .CurrentPage " admin_lumgr_settings"}}active{{end}}"
+                    href="/admin/lumgr_settings">Lumgr Settings</a>
                 {{end}}
                 {{else}}
-                <a href="/login">Login</a>
-                {{if eq .RegMode "closed"}}{{else}}<a href="/register">Register</a>{{end}}
+                <a class="{{if eq .CurrentPage " login"}}active{{end}}" href="/login">Login</a>
+                {{if eq .RegMode "closed"}}{{else}}<a class="{{if eq .CurrentPage " register"}}active{{end}}"
+                    href="/register">Register</a>{{end}}
                 {{end}}
             </nav>
         </aside>
@@ -646,18 +712,33 @@
             </div>
             <nav class="nav" style="margin-top:0;">
                 {{if .Authed}}
-                <a href="/">Dashboard</a>
-                <a href="/settings">Personal settings</a>
+                <a class="{{if eq .CurrentPage " dashboard"}}active{{end}}" href="/" {{if eq .CurrentPage "dashboard"
+                    }}aria-current="page" {{end}}>Dashboard</a>
+                <div class="muted {{if startsWith .CurrentPage " settings_"}}activeSection{{end}}">Personal Settings
+                </div>
+                <a class="{{if eq .CurrentPage " settings_shell"}}active{{end}}" href="/settings/shell" {{if eq
+                    .CurrentPage "settings_shell" }}aria-current="page" {{end}}>Shell</a>
+                <a class="{{if eq .CurrentPage " settings_ssh"}}active{{end}}" href="/settings/ssh" {{if eq
+                    .CurrentPage "settings_ssh" }}aria-current="page" {{end}}>SSH</a>
+                <a class="{{if eq .CurrentPage " settings_git"}}active{{end}}" href="/settings/git" {{if eq
+                    .CurrentPage "settings_git" }}aria-current="page" {{end}}>Git</a>
+                <a class="{{if eq .CurrentPage " settings_filesystem"}}active{{end}}" href="/settings/filesystem" {{if
+                    eq .CurrentPage "settings_filesystem" }}aria-current="page" {{end}}>File
+                    System</a>
+                <a class="{{if eq .CurrentPage " settings_security"}}active{{end}}" href="/settings/security" {{if eq
+                    .CurrentPage "settings_security" }}aria-current="page" {{end}}>Security</a>
                 {{if .Admin}}
-                <div class="muted">Admin</div>
-                <a href="/admin/users">Users</a>
-                <a href="/admin/groups">Groups</a>
-                <a href="/admin/invites">Invites</a>
-                <a href="/admin/lumgr_settings">Lumgr Settings</a>
+                <div class="muted {{if startsWith .CurrentPage " admin_"}}activeSection{{end}}">Admin</div>
+                <a class="{{if eq .CurrentPage " admin_users"}}active{{end}}" href="/admin/users">Users</a>
+                <a class="{{if eq .CurrentPage " admin_groups"}}active{{end}}" href="/admin/groups">Groups</a>
+                <a class="{{if eq .CurrentPage " admin_invites"}}active{{end}}" href="/admin/invites">Invites</a>
+                <a class="{{if eq .CurrentPage " admin_lumgr_settings"}}active{{end}}"
+                    href="/admin/lumgr_settings">Lumgr Settings</a>
                 {{end}}
                 {{else}}
-                <a href="/login">Login</a>
-                {{if eq .RegMode "closed"}}{{else}}<a href="/register">Register</a>{{end}}
+                <a class="{{if eq .CurrentPage " login"}}active{{end}}" href="/login">Login</a>
+                {{if eq .RegMode "closed"}}{{else}}<a class="{{if eq .CurrentPage " register"}}active{{end}}"
+                    href="/register">Register</a>{{end}}
                 {{end}}
             </nav>
         </div>
@@ -666,7 +747,7 @@
     <div class="foot">
         Be careful: this service can modify your accounts directly.<br>
         <a href="https://github.com/hnrobert/lumgr">Open Source Project on GitHub</a>. © 2026 <a
-            href="https://github.com/hnrobert">Robert He</a>.<br>
+            href="https://github.com/hnrobert">Robert He</a>.<br class="footBrMobile">
         Licensed under <a href="https://www.apache.org/licenses/LICENSE-2.0">Apache License 2.0</a>.
     </div>
     {{end}}
@@ -687,6 +768,9 @@
                 grid.classList.remove('masonry');
                 grid.innerHTML = '';
                 cards.forEach(c => grid.appendChild(c));
+
+                // Remove any masonry-only sizing class from span cards.
+                cards.forEach(c => c.classList && c.classList.remove('masonrySpan'));
             }
 
             function applyMasonry(grid) {
@@ -696,6 +780,7 @@
 
                 // Restore to the original structure to measure heights accurately.
                 unwrap(grid);
+                if (grid.classList && grid.classList.contains('rowMatch')) return;
                 if (window.innerWidth < BREAKPOINT) return;
 
                 const cards = grid.__masonryCards.filter(el => el && el.classList && el.classList.contains('card'));
@@ -706,39 +791,71 @@
                 grid.classList.add('masonry');
                 grid.innerHTML = '';
 
-                const colA = document.createElement('div');
-                colA.className = 'masonryCol';
-                const colB = document.createElement('div');
-                colB.className = 'masonryCol';
+                function isSpanAll(card) {
+                    if (!card) return false;
+                    if (card.classList && card.classList.contains('spanAll')) return true;
+                    const span = card.getAttribute && card.getAttribute('data-span');
+                    if (span === 'all') return true;
 
-                grid.appendChild(colA);
-                grid.appendChild(colB);
+                    // Auto-detect common full-width pattern when authors use CSS grid spans.
+                    // This lets pages keep using `style="grid-column: 1 / -1"` without also adding data-span.
+                    try {
+                        const inline = (card.style && card.style.gridColumn) ? String(card.style.gridColumn) : '';
+                        if (inline.includes('-1')) return true;
+                        const cs = window.getComputedStyle ? window.getComputedStyle(card) : null;
+                        const end = cs ? (cs.gridColumnEnd || cs.getPropertyValue('grid-column-end')) : '';
+                        if (String(end).trim() === '-1') return true;
+                    } catch (_) {
+                        // ignore
+                    }
+
+                    return false;
+                }
+
+                let colA = null;
+                let colB = null;
+                let heights = [0, 0];
+                let tieFlip = 0;
+
+                function ensureCols() {
+                    if (colA && colB) return;
+                    colA = document.createElement('div');
+                    colA.className = 'masonryCol';
+                    colB = document.createElement('div');
+                    colB.className = 'masonryCol';
+                    grid.appendChild(colA);
+                    grid.appendChild(colB);
+                    heights = [0, 0];
+                    tieFlip = 0;
+                }
 
                 // Placement rule:
-                // Default: alternate sides.
-                // Exception: if next card height x < (heightB - heightA), keep placing on A.
-                let heights = [0, 0];
-                let lastCol = 0;
-
+                // - Between any full-width (span-all) cards, greedily balance total column heights.
+                // - A span-all card breaks the masonry into a new pair of columns.
                 cards.forEach((card, idx) => {
                     const x = cardHeights[idx] || 0;
-                    if (idx === 0) {
-                        colA.appendChild(card);
-                        heights[0] += x;
-                        lastCol = 0;
+
+                    if (isSpanAll(card)) {
+                        card.classList.add('masonrySpan');
+                        grid.appendChild(card);
+                        colA = null;
+                        colB = null;
+                        heights = [0, 0];
                         return;
                     }
 
-                    const other = 1 - lastCol;
-                    const diff = heights[other] - heights[lastCol];
-                    let target = other;
-                    if (diff > 0 && x < diff) {
-                        target = lastCol;
+                    ensureCols();
+
+                    let target = 0;
+                    if (heights[0] === heights[1]) {
+                        target = tieFlip % 2;
+                        tieFlip++;
+                    } else {
+                        target = heights[0] < heights[1] ? 0 : 1;
                     }
 
                     (target === 0 ? colA : colB).appendChild(card);
                     heights[target] += x;
-                    lastCol = target;
                 });
             }
 

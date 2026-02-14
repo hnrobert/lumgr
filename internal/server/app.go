@@ -7,6 +7,8 @@ import (
 	"html/template"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/hnrobert/lumgr/internal/auth"
@@ -28,13 +30,17 @@ type App struct {
 }
 
 type ViewData struct {
-	Authed    bool
-	Username  string
-	Admin     bool
-	HideNav   bool
-	RegMode   string
-	Flash     string
-	FlashKind string // ok|err|""
+	Authed      bool
+	Username    string
+	Admin       bool
+	HideNav     bool
+	RegMode     string
+	Flash       string
+	FlashKind   string // ok|err|""
+	CurrentPage string // template sets the logical current page for nav highlighting
+
+	// show/hide helpers
+	ShowSaveAll bool // true when page should display a global "Save all" action
 
 	// settings
 	Term            string
@@ -42,6 +48,9 @@ type ViewData struct {
 	Shell           string
 	GitName         string
 	GitEmail        string
+	GitSigningKey   string
+	GitSigningPub   string
+	SSHPrivateKeys  []string
 	SSHKeys         string
 	AvailableShells []string
 	Umask           string
@@ -148,7 +157,12 @@ func newApp() (*App, error) {
 	}
 
 	base := template.New("layout.html").Funcs(template.FuncMap{
-		"eq": func(a, b string) bool { return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1 },
+		// eq/startWith now trim inputs to tolerate accidental whitespace introduced by formatters
+		"eq": func(a, b string) bool {
+			a = strings.TrimSpace(a)
+			b = strings.TrimSpace(b)
+			return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
+		},
 		"contains": func(list []string, s string) bool {
 			for _, v := range list {
 				if v == s {
@@ -157,11 +171,26 @@ func newApp() (*App, error) {
 			}
 			return false
 		},
-		"RenderHTML": func(s string) template.HTML { return RenderMarkdown(s) },
+		"startsWith": func(s, p string) bool { return strings.HasPrefix(strings.TrimSpace(s), strings.TrimSpace(p)) },
+		"trim":       func(s string) string { return strings.TrimSpace(s) }, "base": func(p string) string { return filepath.Base(strings.TrimSpace(p)) }, "RenderHTML": func(s string) template.HTML { return RenderMarkdown(s) },
 	})
 
 	pages := map[string]*template.Template{}
-	for _, page := range []string{"login", "register", "dashboard", "settings", "admin_users", "admin_groups", "admin_invites", "admin_user_edit", "admin_lumgr_settings"} {
+	for _, page := range []string{
+		"login",
+		"register",
+		"dashboard",
+		"settings_shell",
+		"settings_ssh",
+		"settings_git",
+		"settings_filesystem",
+		"settings_security",
+		"admin_users",
+		"admin_groups",
+		"admin_invites",
+		"admin_user_edit",
+		"admin_lumgr_settings",
+	} {
 		t, err := base.Clone()
 		if err != nil {
 			return nil, err
@@ -200,6 +229,15 @@ func (a *App) routes() http.Handler {
 
 	mux.HandleFunc("/", a.requireAuth(a.handleDashboard))
 	mux.HandleFunc("/settings", a.requireAuth(a.handleSettings))
+	mux.HandleFunc("/settings/shell", a.requireAuth(a.handleSettingsShell))
+	mux.HandleFunc("/settings/ssh", a.requireAuth(a.handleSettingsSSH))
+	mux.HandleFunc("/settings/ssh/keygen", a.requireAuth(a.handleSettingsSSHKeygen))
+	mux.HandleFunc("/settings/ssh/key/delete", a.requireAuth(a.handleSettingsSSHKeyDelete))
+	mux.HandleFunc("/settings/ssh/key/passphrase", a.requireAuth(a.handleSettingsSSHKeyPassphrase))
+	mux.HandleFunc("/settings/ssh/key/export", a.requireAuth(a.handleSettingsSSHKeyExport))
+	mux.HandleFunc("/settings/git", a.requireAuth(a.handleSettingsGit))
+	mux.HandleFunc("/settings/filesystem", a.requireAuth(a.handleSettingsFilesystem))
+	mux.HandleFunc("/settings/security", a.requireAuth(a.handleSettingsSecurity))
 	mux.HandleFunc("/settings/password", a.requireAuth(a.handleSettingsPassword))
 	mux.HandleFunc("/settings/umask", a.requireAuth(a.handleSettingsUmask))
 	mux.HandleFunc("/settings/chmod", a.requireAuth(a.handleSettingsChmod))

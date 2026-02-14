@@ -1,0 +1,127 @@
+{{define "title"}}Git Settings · lumgr{{end}}
+{{define "content"}}
+<div class="grid">
+    <div class="card">
+        <h2 style="margin:0 0 8px;">Git</h2>
+        <div class="muted" style="margin-bottom: 12px;">Config stored in <code>~/.gitconfig</code>.</div>
+
+        <form id="gitSettingsForm" method="post" action="/settings/git">
+            <div class="row">
+                <div>
+                    <label>Git user.name</label>
+                    <input name="git_name" placeholder="Your Git Name" value="{{.GitName}}" />
+                </div>
+                <div>
+                    <label>Git user.email</label>
+                    <input name="git_email" placeholder="name@example.com" value="{{.GitEmail}}" />
+                </div>
+            </div>
+
+            <label>Git SSH signing key (private key path)</label>
+            <select id="git_signing_key_select" name="git_signing_key" data-cur="{{.GitSigningKey}}">
+                <option value="">(none)</option>
+                {{range .SSHPrivateKeys}}
+                <option value="{{.}}" {{if eq . $.GitSigningKey}}selected{{end}}>{{.}}</option>
+                {{end}}
+                <option value="__other__">Other…</option>
+            </select>
+            <input id="git_signing_key_other" name="git_signing_key_other" placeholder="~/.ssh/id_ed25519"
+                style="margin-top:8px; display:none;" />
+
+            {{if .GitSigningPub}}
+            <label style="margin-top: 12px;">Signing public key</label>
+            <div style="display:flex; gap:8px; align-items:flex-start;">
+                <textarea id="gitSigningPub" readonly spellcheck="false"
+                    style="min-height:72px;">{{.GitSigningPub}}</textarea>
+                <button class="btn small" type="button" data-copy-textarea="gitSigningPub"
+                    style="width:84px; justify-content:center; text-align:center;">Copy</button>
+            </div>
+            <small class="muted" style="display:block; margin-top:6px;">Tip: upload this public key to your Git
+                provider as an SSH <em>signing</em> key (e.g. GitHub: Settings → SSH and GPG keys → New SSH key → Key
+                type: Signing Key). This allows others (and the UI) to verify your signed commits.</small>
+            {{end}}
+
+            <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: 14px;">
+                <button class="btn primary" type="submit" name="section" value="git">Save</button>
+            </div>
+        </form>
+    </div>
+
+    {{if .ShowSaveAll}}
+    <div style="width:100%;">
+        <button class="btn" type="submit" form="gitSettingsForm" name="section" value="all"
+            style="width:100%; justify-content:center;">Save all</button>
+    </div>
+    {{end}}
+</div>
+
+<script>
+    (function () {
+        const sel = document.getElementById('git_signing_key_select');
+        const other = document.getElementById('git_signing_key_other');
+        if (!sel || !other) return;
+        const cur = sel.getAttribute('data-cur') || '';
+        const hasMatch = !!sel.querySelector('option[value="' + CSS.escape(cur) + '"]');
+        const apply = () => { other.style.display = (sel.value === '__other__') ? 'block' : 'none'; };
+        sel.addEventListener('change', apply);
+        if (cur && !hasMatch) {
+            sel.value = '__other__';
+            other.value = cur;
+            apply();
+        }
+    })();
+</script>
+
+<script>
+    async function copyText(text) {
+        if (!text) return false;
+        const value = text.trim();
+        try {
+            await navigator.clipboard.writeText(value);
+            return true;
+        } catch (e) {
+            try {
+                const el = document.createElement('textarea');
+                el.value = value;
+                el.setAttribute('readonly', '');
+                el.style.position = 'absolute';
+                el.style.left = '-9999px';
+                document.body.appendChild(el);
+                el.select();
+                const ok = document.execCommand('copy');
+                document.body.removeChild(el);
+                return !!ok;
+            } catch (e2) {
+                return false;
+            }
+        }
+    }
+
+    function setCopyFeedback(btn, ok) {
+        if (!btn) return;
+        const original = btn.getAttribute('data-copy-label') || btn.textContent;
+        if (!btn.getAttribute('data-copy-label')) {
+            btn.setAttribute('data-copy-label', original);
+        }
+        if (btn._copyFeedbackTimer) {
+            clearTimeout(btn._copyFeedbackTimer);
+        }
+        btn.textContent = ok ? 'Copied!' : 'Failed';
+        btn.disabled = true;
+        btn._copyFeedbackTimer = setTimeout(() => {
+            btn.textContent = btn.getAttribute('data-copy-label') || 'Copy';
+            btn.disabled = false;
+            btn._copyFeedbackTimer = null;
+        }, 1200);
+    }
+
+    document.addEventListener('click', async (ev) => {
+        const btn = ev.target && ev.target.closest && ev.target.closest('[data-copy-textarea]');
+        if (!btn) return;
+        const id = btn.getAttribute('data-copy-textarea');
+        const el = document.getElementById(id);
+        const ok = await copyText(el ? el.value : '');
+        setCopyFeedback(btn, ok);
+    });
+</script>
+{{end}}

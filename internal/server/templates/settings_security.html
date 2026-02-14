@@ -1,0 +1,30 @@
+{{define "title"}}Security Settings · lumgr{{end}}
+{{define "content"}}
+<div class="grid">
+    <div class="card">
+        <h2 style="margin:0 0 8px;">Change password</h2>
+        <div class="muted" style="margin-bottom: 12px;">Update your host Linux account password.</div>
+        <form id="securitySettingsForm" method="post" action="/settings/password">
+            <label>Current password</label>
+            <input type="password" name="current_password" autocomplete="current-password" required />
+
+            <label>New password</label>
+            <input type="password" name="new_password" autocomplete="new-password" required />
+
+            <label>Confirm new password</label>
+            <input type="password" name="new_password2" autocomplete="new-password" required />
+
+            <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: 14px;">
+                <button class="btn primary" type="submit">Update password</button>
+            </div>
+        </form>
+    </div>
+
+    {{if .ShowSaveAll}}
+    <div style="width:100%;">
+        <button class="btn" type="submit" form="securitySettingsForm" name="section" value="all"
+            style="width:100%; justify-content:center;">Save all</button>
+    </div>
+    {{end}}
+</div>
+{{end}}

@@ -3,18 +3,20 @@
 <div class="card">
     <h2 style="margin:0 0 8px;">Lumgr Settings</h2>
     <div class="muted" style="margin-bottom:12px;">Configure the notice shown to users on the Settings page. You can
-        write any message in Markdown
-        <form method="post" action="/admin/lumgr_settings">
-            <label>Notice (Markdown)</label>
-            <textarea name="user_notice" spellcheck="false">{{.LumgrWhatEdits}}</textarea>
-            <div style="display:flex; justify-content:space-between; margin-top: 12px;">
-                <div class="muted" style="font-size: 13px;">Preview:</div>
-                <button class="btn primary" type="submit">Save</button>
-            </div>
-        </form>
+        write any message in Markdown.</div>
 
-        <div style="margin-top: 14px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+    <form method="post" action="/admin/lumgr_settings">
+        <label>Notice (Markdown)</label>
+        <textarea name="user_notice" spellcheck="false">{{.LumgrWhatEdits}}</textarea>
+
+        <div class="muted" style="font-size: 13px; margin-top: 12px;">Preview:</div>
+        <div style="margin-top: 8px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px;">
             <div style="line-height:1.4;">{{RenderHTML .LumgrWhatEdits}}</div>
         </div>
-    </div>
-    {{end}}
+
+        <div style="display:flex; justify-content:flex-end; margin-top: 12px;">
+            <button class="btn primary" type="submit">Save</button>
+        </div>
+    </form>
+</div>
+{{end}}
