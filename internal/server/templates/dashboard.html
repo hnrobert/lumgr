@@ -42,7 +42,6 @@
             <a class="btn" href="/settings/git" style="text-decoration:none;">Git settings</a>
             <a class="btn" href="/settings/filesystem" style="text-decoration:none;">File system</a>
             <a class="btn" href="/settings/security" style="text-decoration:none;">Security / Password</a>
-            <a class="btn" href="/settings" style="text-decoration:none;">All settings</a>
 
             {{if .Admin}}
             <a class="btn" href="/admin/users" style="text-decoration:none;">Manage users</a>
@@ -52,12 +51,6 @@
             {{end}}
         </div>
 
-        <div class="muted" style="margin-top:12px; font-size:13px; line-height:1.4;">
-            <strong style="color:var(--accent);">注意权限管理</strong> — changes to users, groups or file permissions
-            affect system accounts. Proceed with caution and double-check targets before applying changes.
-            <span style="display:block; margin-top:6px;"><a href="/settings/filesystem">Manage file permissions</a> ·
-                <a href="/admin/users">User management</a></span>
-        </div>
     </div>
 
     <div class="card">
