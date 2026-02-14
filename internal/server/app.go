@@ -38,6 +38,9 @@ type ViewData struct {
 	FlashKind   string // ok|err|""
 	CurrentPage string // template sets the logical current page for nav highlighting
 
+	// show/hide helpers
+	ShowSaveAll bool // true when page should display a global "Save all" action
+
 	// settings
 	Term            string
 	Redirect        string

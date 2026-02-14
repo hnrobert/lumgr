@@ -5,7 +5,7 @@
         <h2 style="margin:0 0 8px;">Git</h2>
         <div class="muted" style="margin-bottom: 12px;">Config stored in <code>~/.gitconfig</code>.</div>
 
-        <form method="post" action="/settings/git">
+        <form id="gitSettingsForm" method="post" action="/settings/git">
             <div class="row">
                 <div>
                     <label>Git user.name</label>
@@ -46,6 +46,13 @@
             </div>
         </form>
     </div>
+
+    {{if .ShowSaveAll}}
+    <div style="width:100%;">
+        <button class="btn" type="submit" form="gitSettingsForm" name="section" value="all"
+            style="width:100%; justify-content:center;">Save all</button>
+    </div>
+    {{end}}
 </div>
 
 <script>

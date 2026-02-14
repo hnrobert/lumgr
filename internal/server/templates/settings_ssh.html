@@ -45,9 +45,11 @@
         </form>
     </div>
 
+    {{if .ShowSaveAll}}
     <div style="width:100%;">
         <button class="btn" type="submit" form="sshSettingsForm" name="section" value="all"
             style="width:100%; justify-content:center;">Save all</button>
     </div>
+    {{end}}
 </div>
 {{end}}

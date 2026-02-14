@@ -4,7 +4,7 @@
     <div class="card">
         <h2 style="margin:0 0 8px;">Shell</h2>
         <div class="muted">These settings are stored in your home directory.</div>
-        <form method="post" action="/settings/shell">
+        <form id="shellSettingsForm" method="post" action="/settings/shell">
             <label>Default Shell</label>
             <select name="shell">
                 {{range .AvailableShells}}
@@ -37,6 +37,13 @@
             </div>
         </form>
     </div>
+
+    {{if .ShowSaveAll}}
+    <div style="width:100%;">
+        <button class="btn" type="submit" form="shellSettingsForm" name="section" value="all"
+            style="width:100%; justify-content:center;">Save all</button>
+    </div>
+    {{end}}
 </div>
 
 <script>

@@ -634,6 +634,8 @@ func (a *App) handleSettingsShell(w http.ResponseWriter, r *http.Request) {
 	user := usernameFrom(r)
 	if r.Method == http.MethodGet || r.Method == http.MethodHead {
 		data := a.buildSettingsData(r)
+		// single modify card only -> do not show global Save all
+		data.ShowSaveAll = false
 		a.applySettingsFlash(data, r.URL.Query())
 		a.renderPage(w, "settings_shell", data)
 		return
@@ -649,6 +651,8 @@ func (a *App) handleSettingsSSH(w http.ResponseWriter, r *http.Request) {
 	user := usernameFrom(r)
 	if r.Method == http.MethodGet || r.Method == http.MethodHead {
 		data := a.buildSettingsData(r)
+		// Page contains a key generation card (creates) — do not show global "Save all"
+		data.ShowSaveAll = false
 		a.applySettingsFlash(data, r.URL.Query())
 		a.renderPage(w, "settings_ssh", data)
 		return
@@ -664,6 +668,8 @@ func (a *App) handleSettingsGit(w http.ResponseWriter, r *http.Request) {
 	user := usernameFrom(r)
 	if r.Method == http.MethodGet || r.Method == http.MethodHead {
 		data := a.buildSettingsData(r)
+		// single modify card only -> do not show global Save all
+		data.ShowSaveAll = false
 		a.applySettingsFlash(data, r.URL.Query())
 		a.renderPage(w, "settings_git", data)
 		return
@@ -785,6 +791,8 @@ func (a *App) handleSettingsFilesystem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data := a.buildSettingsData(r)
+	// This page contains multiple modify-only cards -> enable global "Save all"
+	data.ShowSaveAll = true
 	// Only filesystem-related flashes apply here.
 	if r.URL.Query().Get("umok") == "1" {
 		data.Flash = "Umask saved."
@@ -822,6 +830,8 @@ func (a *App) handleSettingsSecurity(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data := a.buildSettingsData(r)
+	// single modify card only -> do not show global Save all
+	data.ShowSaveAll = false
 	if r.URL.Query().Get("pwok") == "1" {
 		data.Flash = "Password updated."
 		data.FlashKind = "ok"
