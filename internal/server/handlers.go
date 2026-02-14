@@ -1146,6 +1146,116 @@ func (a *App) handleSettingsSSHKeygen(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/settings/ssh?sshkeyok=1", http.StatusSeeOther)
 }
 
+// POST /settings/ssh/key/delete
+func (a *App) handleSettingsSSHKeyDelete(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	user := usernameFrom(r)
+	_ = r.ParseForm()
+	key := strings.TrimSpace(r.Form.Get("key"))
+	if key == "" {
+		http.Redirect(w, r, "/settings/ssh?flash="+url.QueryEscape("missing key"), http.StatusSeeOther)
+		return
+	}
+	e, err := lookupUser(user)
+	if err != nil {
+		http.Redirect(w, r, "/settings/ssh?flash="+url.QueryEscape("user lookup failed"), http.StatusSeeOther)
+		return
+	}
+	kp, err := normalizeHomePath(e.Home, key)
+	if err != nil {
+		http.Redirect(w, r, "/settings/ssh?flash="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	// remove private and public
+	_ = os.Remove(kp)
+	_ = os.Remove(kp + ".pub")
+	logger.Info("User %s deleted SSH key %s", user, kp)
+	http.Redirect(w, r, "/settings/ssh?ok=1", http.StatusSeeOther)
+}
+
+// POST /settings/ssh/key/passphrase
+func (a *App) handleSettingsSSHKeyPassphrase(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	user := usernameFrom(r)
+	_ = r.ParseForm()
+	key := strings.TrimSpace(r.Form.Get("key"))
+	oldp := r.Form.Get("old_passphrase")
+	newp := r.Form.Get("new_passphrase")
+	newp2 := r.Form.Get("new_passphrase2")
+	if key == "" {
+		http.Redirect(w, r, "/settings/ssh?flash="+url.QueryEscape("missing key"), http.StatusSeeOther)
+		return
+	}
+	if newp != newp2 {
+		http.Redirect(w, r, "/settings/ssh?flash="+url.QueryEscape("new passphrases do not match"), http.StatusSeeOther)
+		return
+	}
+	e, err := lookupUser(user)
+	if err != nil {
+		http.Redirect(w, r, "/settings/ssh?flash="+url.QueryEscape("user lookup failed"), http.StatusSeeOther)
+		return
+	}
+	kp, err := normalizeHomePath(e.Home, key)
+	if err != nil {
+		http.Redirect(w, r, "/settings/ssh?flash="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	// ssh-keygen -p -f <file> -P <old> -N <new>
+	cmd := exec.Command("ssh-keygen", "-p", "-f", kp, "-P", oldp, "-N", newp)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		logger.Warn("ssh-keygen -p failed for %s: %v (%s)", user, err, strings.TrimSpace(string(out)))
+		http.Redirect(w, r, "/settings/ssh?flash="+url.QueryEscape("failed to change passphrase"), http.StatusSeeOther)
+		return
+	}
+	// ensure permissions
+	_ = os.Chmod(kp, 0600)
+	logger.Info("User %s changed passphrase for %s", user, kp)
+	http.Redirect(w, r, "/settings/ssh?ok=1", http.StatusSeeOther)
+}
+
+// GET /settings/ssh/key/export?key=~/.ssh/id_rsa
+func (a *App) handleSettingsSSHKeyExport(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	user := usernameFrom(r)
+	key := strings.TrimSpace(r.URL.Query().Get("key"))
+	if key == "" {
+		http.Redirect(w, r, "/settings/ssh?flash="+url.QueryEscape("missing key"), http.StatusSeeOther)
+		return
+	}
+	e, err := lookupUser(user)
+	if err != nil {
+		http.Redirect(w, r, "/settings/ssh?flash="+url.QueryEscape("user lookup failed"), http.StatusSeeOther)
+		return
+	}
+	kp, err := normalizeHomePath(e.Home, key)
+	if err != nil {
+		http.Redirect(w, r, "/settings/ssh?flash="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	cmd := exec.Command("ssh-keygen", "-y", "-f", kp)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		logger.Warn("ssh-keygen -y failed for %s: %v (%s)", user, err, strings.TrimSpace(string(out)))
+		http.Redirect(w, r, "/settings/ssh?flash="+url.QueryEscape("failed to export public key"), http.StatusSeeOther)
+		return
+	}
+	pub := strings.TrimSpace(string(out))
+	fn := filepath.Base(kp) + ".pub"
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("Content-Disposition", "attachment; filename=\""+fn+"\"")
+	_, _ = w.Write([]byte(pub + "\n"))
+}
+
 func (a *App) handleSettingsPassword(w http.ResponseWriter, r *http.Request) {
 	// Ensure LumgrWhatEdits is present for settings page GETs in case of redirects
 	_ = a.cfg // referenced to ensure cfg is available

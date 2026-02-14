@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -171,8 +172,7 @@ func newApp() (*App, error) {
 			return false
 		},
 		"startsWith": func(s, p string) bool { return strings.HasPrefix(strings.TrimSpace(s), strings.TrimSpace(p)) },
-		"trim":       func(s string) string { return strings.TrimSpace(s) },
-		"RenderHTML": func(s string) template.HTML { return RenderMarkdown(s) },
+		"trim":       func(s string) string { return strings.TrimSpace(s) }, "base": func(p string) string { return filepath.Base(strings.TrimSpace(p)) }, "RenderHTML": func(s string) template.HTML { return RenderMarkdown(s) },
 	})
 
 	pages := map[string]*template.Template{}
@@ -232,6 +232,9 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("/settings/shell", a.requireAuth(a.handleSettingsShell))
 	mux.HandleFunc("/settings/ssh", a.requireAuth(a.handleSettingsSSH))
 	mux.HandleFunc("/settings/ssh/keygen", a.requireAuth(a.handleSettingsSSHKeygen))
+	mux.HandleFunc("/settings/ssh/key/delete", a.requireAuth(a.handleSettingsSSHKeyDelete))
+	mux.HandleFunc("/settings/ssh/key/passphrase", a.requireAuth(a.handleSettingsSSHKeyPassphrase))
+	mux.HandleFunc("/settings/ssh/key/export", a.requireAuth(a.handleSettingsSSHKeyExport))
 	mux.HandleFunc("/settings/git", a.requireAuth(a.handleSettingsGit))
 	mux.HandleFunc("/settings/filesystem", a.requireAuth(a.handleSettingsFilesystem))
 	mux.HandleFunc("/settings/security", a.requireAuth(a.handleSettingsSecurity))
