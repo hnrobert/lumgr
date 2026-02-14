@@ -14,15 +14,17 @@ A modern, containerized web-based user management interface for Linux systems. M
 ## Features
 
 ### User Management
+
 - **Create & Delete Users** - Full user lifecycle management with automatic home directory creation
 - **Password Management** - Secure password changes with shadow file integration
 - **Group Assignment** - Add/remove users from groups including sudo/wheel for admin privileges
 - **Shell Configuration** - Select from available shells detected from `/etc/shells`
-- **SSH Key Management** - Configure `~/.ssh/authorized_keys` directly from the web UI
-- **Git Configuration** - Set user.name and user.email in `~/.gitconfig`
+- **SSH Key Management** - Generate SSH key pairs, change key passphrases, export public keys, and manage `~/.ssh/authorized_keys` directly from the web UI
+- **Git Configuration** - Set user.name, user.email, and signing key in `~/.gitconfig`
 - **Ubuntu Desktop Support** - Automatically adds necessary groups for desktop login on Ubuntu systems
 
 ### Advanced Features
+
 - **Recursive Permission Management** - Apply chmod recursively to home directories with granular control
 - **Special Permission Bits** - Configure SetUID (4000), SetGID (2000), and Sticky bit (1000)
 - **File Permission Display** - Real-time octal notation display (e.g., 2770, 0755)
@@ -31,11 +33,13 @@ A modern, containerized web-based user management interface for Linux systems. M
 - **User Settings Portal** - Non-admin users can manage their own settings
 
 ### System Information
+
 - **Dashboard Stats** - Storage usage, user counts, system information
 - **OS Detection** - Display hostname, OS name, and version from `/etc/os-release`
 - **Admin/Regular User Views** - Contextual interfaces based on privilege level
 
 ### Technical Features
+
 - **`.lumgrc` Architecture** - Separate lumgr config from user shell configs
 - **Automatic Shell Integration** - Sources `.lumgrc` in `.bashrc`/`.zshrc` for TERM and redirect settings
 - **System Group Filtering** - Collapse system users (UID < 1000) and groups for cleaner views
@@ -71,13 +75,13 @@ services:
     restart: always
 ```
 
-2. **Start the service:**
+1. **Start the service:**
 
 ```bash
 docker compose up -d
 ```
 
-3. **Access the web UI:**
+1. **Access the web UI:**
 
 Open `http://your-server:14392` in your browser and log in with an existing Linux user account that has sudo privileges.
 
@@ -107,6 +111,7 @@ make build
 ### Data Directory
 
 The `lumgr_data` directory contains:
+
 - `config.json` - Registration mode and default groups
 - `invites.json` - Invitation codes and usage tracking
 
@@ -129,12 +134,14 @@ Configure in the web UI under Admin settings:
 ## User Interface
 
 ### Dashboard
+
 - Storage usage for current user's home directory
 - System statistics (total users, admin count) for administrators
 - Host information (hostname, OS, version)
 - Quick actions for settings and user management
 
 ### User Management (Admin)
+
 - List all users with collapsible system users (UID < 1000)
 - Create new users with custom UID, home directory, shell, and groups
 - Edit existing users: password, groups, shell selection
@@ -142,42 +149,50 @@ Configure in the web UI under Admin settings:
 - Delete users with optional home directory removal
 
 ### Group Management (Admin)
+
 - View all groups with collapsible system groups (GID < 1000)
 - Add/remove users from groups
 - Support for privileged groups (sudo, docker, wheel)
 
 ### Registration Portal (Admin)
+
 - Generate invite codes with expiration, usage limits, and group assignments
 - Toggle between invite-based and open registration
 - Configure default groups for open registration
 
 ### Settings (All Users)
+
 - Change default shell from available options
 - Configure TERM environment variable
 - Set login redirect directory
-- Manage Git user.name and user.email
-- Configure SSH authorized_keys
+- Manage Git user.name, user.email, and signing key
+- Configure SSH authorized_keys and manage SSH key pairs
+- Set umask for new files
+- Change account password
 
 ## Technical Architecture
 
 ### Backend
-- **Language:** Go 1.24+
+
+- **Language:** Go 1.22+
 - **Framework:** Standard library `net/http`
 - **Authentication:** JWT tokens with HTTP-only cookies
-- **User Management:** Direct manipulation of `/etc/passwd`, `/etc/shadow`, `/etc/group` via shadow-utils binaries
+- **User Management:** Direct parsing and writing of `/etc/passwd`, `/etc/shadow`, `/etc/group` files
 
 ### Frontend
+
 - **Templates:** Go HTML templates with embedded CSS
 - **Styling:** Custom CSS with dark theme
 - **Responsive:** Mobile-friendly with adaptive layouts
 
 ### Key Components
 
-```
+```bash
 cmd/lumgrd/main.go          # Entry point, sets lumgr_data permissions
 internal/
   ├── auth/                 # JWT & password verification
   ├── config/               # Configuration storage
+  ├── hostfs/               # Host filesystem access abstraction
   ├── invite/               # Invitation system
   ├── logger/               # Logging utilities
   ├── server/               # HTTP handlers & routing
