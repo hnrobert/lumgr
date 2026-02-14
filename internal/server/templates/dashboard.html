@@ -32,13 +32,34 @@
 <div class="grid two rowMatch" style="margin-bottom: 16px;">
     <div class="card">
         <h2 style="margin:0 0 8px;">Quick Actions</h2>
-        <div class="muted" style="margin-bottom: 14px;">Signed in as <code>{{.Username}}</code>{{if .Admin}}
+        <div class="muted" style="margin-bottom: 8px;">Signed in as <code>{{.Username}}</code>{{if .Admin}}
             (admin){{end}}.</div>
-        <div style="display: flex; flex-direction: column; gap: 10px;">
-            <a class="btn" href="/settings" style="text-decoration: none;">Manage my settings</a>
-            {{if .Admin}}<a class="btn" href="/admin/users" style="text-decoration: none;">Manage users</a>{{end}}
+
+        <div
+            style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:10px; margin-top:8px;">
+            <a class="btn" href="/settings/shell" style="text-decoration:none;">Shell settings</a>
+            <a class="btn" href="/settings/ssh" style="text-decoration:none;">SSH keys &amp; keygen</a>
+            <a class="btn" href="/settings/git" style="text-decoration:none;">Git settings</a>
+            <a class="btn" href="/settings/filesystem" style="text-decoration:none;">File system</a>
+            <a class="btn" href="/settings/security" style="text-decoration:none;">Security / Password</a>
+            <a class="btn" href="/settings" style="text-decoration:none;">All settings</a>
+
+            {{if .Admin}}
+            <a class="btn" href="/admin/users" style="text-decoration:none;">Manage users</a>
+            <a class="btn" href="/admin/groups" style="text-decoration:none;">Manage groups</a>
+            <a class="btn" href="/admin/invites" style="text-decoration:none;">Manage invites</a>
+            <a class="btn" href="/admin/lumgr_settings" style="text-decoration:none;">Lumgr settings</a>
+            {{end}}
+        </div>
+
+        <div class="muted" style="margin-top:12px; font-size:13px; line-height:1.4;">
+            <strong style="color:var(--accent);">注意权限管理</strong> — changes to users, groups or file permissions
+            affect system accounts. Proceed with caution and double-check targets before applying changes.
+            <span style="display:block; margin-top:6px;"><a href="/settings/filesystem">Manage file permissions</a> ·
+                <a href="/admin/users">User management</a></span>
         </div>
     </div>
+
     <div class="card">
         <h2 style="margin:0 0 8px;">Notice</h2>
         <div class="muted" style="line-height:1.55;">{{.LumgrWhatEditsHTML}}</div>
