@@ -209,11 +209,44 @@
 
         /* Active nav item */
         .nav a.active {
-            border-color: rgba(122, 162, 255, .45);
-            background: linear-gradient(180deg, rgba(122, 162, 255, 0.06), rgba(122, 162, 255, 0.02));
+            position: relative;
+            border-color: rgba(122, 162, 255, .55);
+            background: linear-gradient(180deg, rgba(122, 162, 255, 0.08), rgba(122, 162, 255, 0.03));
             box-shadow: inset 0 0 0 1px rgba(122, 162, 255, 0.06);
             color: var(--text);
             font-weight: 600;
+        }
+
+        /* left accent for clearer active state */
+        .nav a.active::before {
+            content: "";
+            position: absolute;
+            left: 8px;
+            top: 8px;
+            bottom: 8px;
+            width: 4px;
+            border-radius: 3px;
+            background: var(--accent);
+            box-shadow: 0 6px 18px rgba(122, 162, 255, 0.08);
+        }
+
+        /* Active section header (e.g. Personal Settings / Admin) */
+        .nav .muted.activeSection {
+            position: relative;
+            color: var(--text);
+            font-weight: 600;
+            padding-left: 12px;
+        }
+
+        .nav .muted.activeSection::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 6px;
+            bottom: 6px;
+            width: 3px;
+            background: var(--accent);
+            border-radius: 3px;
         }
 
         .nav .muted {
@@ -646,7 +679,8 @@
             <nav class="nav">
                 {{if .Authed}}
                 <!-- <a href="/">Dashboard</a> -->
-                <div class="muted">Personal Settings</div>
+                <div class="muted {{if startsWith .CurrentPage " settings_"}}activeSection{{end}}">Personal Settings
+                </div>
                 <a class="{{if eq .CurrentPage " settings_shell"}}active{{end}}" href="/settings/shell">Shell</a>
                 <a class="{{if eq .CurrentPage " settings_ssh"}}active{{end}}" href="/settings/ssh">SSH</a>
                 <a class="{{if eq .CurrentPage " settings_git"}}active{{end}}" href="/settings/git">Git</a>
@@ -655,7 +689,7 @@
                 <a class="{{if eq .CurrentPage " settings_security"}}active{{end}}"
                     href="/settings/security">Security</a>
                 {{if .Admin}}
-                <div class="muted">Admin</div>
+                <div class="muted {{if startsWith .CurrentPage " admin_"}}activeSection{{end}}">Admin</div>
                 <a class="{{if eq .CurrentPage " admin_users"}}active{{end}}" href="/admin/users">Users</a>
                 <a class="{{if eq .CurrentPage " admin_groups"}}active{{end}}" href="/admin/groups">Groups</a>
                 <a class="{{if eq .CurrentPage " admin_invites"}}active{{end}}" href="/admin/invites">Invites</a>
@@ -698,7 +732,8 @@
             <nav class="nav" style="margin-top:0;">
                 {{if .Authed}}
                 <a class="{{if eq .CurrentPage " dashboard"}}active{{end}}" href="/">Dashboard</a>
-                <div class="muted">Personal Settings</div>
+                <div class="muted {{if startsWith .CurrentPage " settings_"}}activeSection{{end}}">Personal Settings
+                </div>
                 <a class="{{if eq .CurrentPage " settings_shell"}}active{{end}}" href="/settings/shell">Shell</a>
                 <a class="{{if eq .CurrentPage " settings_ssh"}}active{{end}}" href="/settings/ssh">SSH</a>
                 <a class="{{if eq .CurrentPage " settings_git"}}active{{end}}" href="/settings/git">Git</a>
@@ -707,7 +742,7 @@
                 <a class="{{if eq .CurrentPage " settings_security"}}active{{end}}"
                     href="/settings/security">Security</a>
                 {{if .Admin}}
-                <div class="muted">Admin</div>
+                <div class="muted {{if startsWith .CurrentPage " admin_"}}activeSection{{end}}">Admin</div>
                 <a class="{{if eq .CurrentPage " admin_users"}}active{{end}}" href="/admin/users">Users</a>
                 <a class="{{if eq .CurrentPage " admin_groups"}}active{{end}}" href="/admin/groups">Groups</a>
                 <a class="{{if eq .CurrentPage " admin_invites"}}active{{end}}" href="/admin/invites">Invites</a>

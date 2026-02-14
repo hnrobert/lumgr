@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/hnrobert/lumgr/internal/auth"
@@ -161,6 +162,7 @@ func newApp() (*App, error) {
 			}
 			return false
 		},
+		"startsWith": func(s, p string) bool { return strings.HasPrefix(s, p) },
 		"RenderHTML": func(s string) template.HTML { return RenderMarkdown(s) },
 	})
 
