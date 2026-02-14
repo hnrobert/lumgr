@@ -28,13 +28,14 @@ type App struct {
 }
 
 type ViewData struct {
-	Authed    bool
-	Username  string
-	Admin     bool
-	HideNav   bool
-	RegMode   string
-	Flash     string
-	FlashKind string // ok|err|""
+	Authed      bool
+	Username    string
+	Admin       bool
+	HideNav     bool
+	RegMode     string
+	Flash       string
+	FlashKind   string // ok|err|""
+	CurrentPage string // template sets the logical current page for nav highlighting
 
 	// settings
 	Term            string

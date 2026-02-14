@@ -207,6 +207,15 @@
             background: rgba(18, 26, 51, .30);
         }
 
+        /* Active nav item */
+        .nav a.active {
+            border-color: rgba(122, 162, 255, .45);
+            background: linear-gradient(180deg, rgba(122, 162, 255, 0.06), rgba(122, 162, 255, 0.02));
+            box-shadow: inset 0 0 0 1px rgba(122, 162, 255, 0.06);
+            color: var(--text);
+            font-weight: 600;
+        }
+
         .nav .muted {
             font-size: 12px;
             margin: 6px 10px 0;
@@ -638,21 +647,25 @@
                 {{if .Authed}}
                 <!-- <a href="/">Dashboard</a> -->
                 <div class="muted">Personal Settings</div>
-                <a href="/settings/shell">Shell</a>
-                <a href="/settings/ssh">SSH</a>
-                <a href="/settings/git">Git</a>
-                <a href="/settings/filesystem">File System</a>
-                <a href="/settings/security">Security</a>
+                <a class="{{if eq .CurrentPage " settings_shell"}}active{{end}}" href="/settings/shell">Shell</a>
+                <a class="{{if eq .CurrentPage " settings_ssh"}}active{{end}}" href="/settings/ssh">SSH</a>
+                <a class="{{if eq .CurrentPage " settings_git"}}active{{end}}" href="/settings/git">Git</a>
+                <a class="{{if eq .CurrentPage " settings_filesystem"}}active{{end}}" href="/settings/filesystem">File
+                    System</a>
+                <a class="{{if eq .CurrentPage " settings_security"}}active{{end}}"
+                    href="/settings/security">Security</a>
                 {{if .Admin}}
                 <div class="muted">Admin</div>
-                <a href="/admin/users">Users</a>
-                <a href="/admin/groups">Groups</a>
-                <a href="/admin/invites">Invites</a>
-                <a href="/admin/lumgr_settings">Lumgr Settings</a>
+                <a class="{{if eq .CurrentPage " admin_users"}}active{{end}}" href="/admin/users">Users</a>
+                <a class="{{if eq .CurrentPage " admin_groups"}}active{{end}}" href="/admin/groups">Groups</a>
+                <a class="{{if eq .CurrentPage " admin_invites"}}active{{end}}" href="/admin/invites">Invites</a>
+                <a class="{{if eq .CurrentPage " admin_lumgr_settings"}}active{{end}}"
+                    href="/admin/lumgr_settings">Lumgr Settings</a>
                 {{end}}
                 {{else}}
-                <a href="/login">Login</a>
-                {{if eq .RegMode "closed"}}{{else}}<a href="/register">Register</a>{{end}}
+                <a class="{{if eq .CurrentPage " login"}}active{{end}}" href="/login">Login</a>
+                {{if eq .RegMode "closed"}}{{else}}<a class="{{if eq .CurrentPage " register"}}active{{end}}"
+                    href="/register">Register</a>{{end}}
                 {{end}}
             </nav>
         </aside>
@@ -684,23 +697,27 @@
             </div>
             <nav class="nav" style="margin-top:0;">
                 {{if .Authed}}
-                <a href="/">Dashboard</a>
+                <a class="{{if eq .CurrentPage " dashboard"}}active{{end}}" href="/">Dashboard</a>
                 <div class="muted">Personal Settings</div>
-                <a href="/settings/shell">Shell</a>
-                <a href="/settings/ssh">SSH</a>
-                <a href="/settings/git">Git</a>
-                <a href="/settings/filesystem">File System</a>
-                <a href="/settings/security">Security</a>
+                <a class="{{if eq .CurrentPage " settings_shell"}}active{{end}}" href="/settings/shell">Shell</a>
+                <a class="{{if eq .CurrentPage " settings_ssh"}}active{{end}}" href="/settings/ssh">SSH</a>
+                <a class="{{if eq .CurrentPage " settings_git"}}active{{end}}" href="/settings/git">Git</a>
+                <a class="{{if eq .CurrentPage " settings_filesystem"}}active{{end}}" href="/settings/filesystem">File
+                    System</a>
+                <a class="{{if eq .CurrentPage " settings_security"}}active{{end}}"
+                    href="/settings/security">Security</a>
                 {{if .Admin}}
                 <div class="muted">Admin</div>
-                <a href="/admin/users">Users</a>
-                <a href="/admin/groups">Groups</a>
-                <a href="/admin/invites">Invites</a>
-                <a href="/admin/lumgr_settings">Lumgr Settings</a>
+                <a class="{{if eq .CurrentPage " admin_users"}}active{{end}}" href="/admin/users">Users</a>
+                <a class="{{if eq .CurrentPage " admin_groups"}}active{{end}}" href="/admin/groups">Groups</a>
+                <a class="{{if eq .CurrentPage " admin_invites"}}active{{end}}" href="/admin/invites">Invites</a>
+                <a class="{{if eq .CurrentPage " admin_lumgr_settings"}}active{{end}}"
+                    href="/admin/lumgr_settings">Lumgr Settings</a>
                 {{end}}
                 {{else}}
-                <a href="/login">Login</a>
-                {{if eq .RegMode "closed"}}{{else}}<a href="/register">Register</a>{{end}}
+                <a class="{{if eq .CurrentPage " login"}}active{{end}}" href="/login">Login</a>
+                {{if eq .RegMode "closed"}}{{else}}<a class="{{if eq .CurrentPage " register"}}active{{end}}"
+                    href="/register">Register</a>{{end}}
                 {{end}}
             </nav>
         </div>

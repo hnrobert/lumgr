@@ -1953,6 +1953,10 @@ func (a *App) baseData(r *http.Request) *ViewData {
 
 func (a *App) renderPage(w http.ResponseWriter, page string, data *ViewData) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	// annotate current page for template-driven nav highlighting
+	if data != nil {
+		data.CurrentPage = page
+	}
 	t := a.pages[page]
 	if t == nil {
 		http.Error(w, "template not found", http.StatusInternalServerError)
