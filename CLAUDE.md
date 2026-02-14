@@ -6,9 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `lumgr` is a containerized Linux User Manager - a web-based interface for managing users, groups, permissions, and SSH keys on Linux systems. It runs as a Docker container with direct access to host system files (`/etc/passwd`, `/etc/shadow`, `/etc/group`, `/home`).
 
-- **Language**: Go 1.22+
+- **Language**: Go 1.22+ (go.mod specifies 1.22)
 - **Framework**: Standard library `net/http` (no external web framework)
 - **Default Port**: 14392
+- **Key Dependencies**: `github.com/golang-jwt/jwt/v5`, `github.com/GehirnInc/crypt` (SHA-512 passwords), `github.com/creack/pty` (terminal handling)
 
 ## Build and Run Commands
 
@@ -59,12 +60,13 @@ internal/
 1. **Host Filesystem Access via `internal/hostfs/`**
    - All host file access goes through `hostfs.Path()` and `hostfs.Abs()`
    - `HostRoot = "/"` - host files are bind-mounted to standard paths in container
-   - Atomic writes via `hostfs.WriteFileAtomic()` to prevent corruption
+   - Atomic writes via `hostfs.WriteFileAtomic()` - uses temp file + rename, with fallback to in-place rewrite for bind-mounted files (handles EBUSY/EXDEV/EPERM errors)
 
 2. **User Management via `internal/usermgr/`**
    - `Manager` struct handles user/group CRUD operations
    - Parses/writes `/etc/passwd`, `/etc/shadow`, `/etc/group` directly
    - Admin determination: membership in `sudo` or `wheel` group
+   - Note: `internal/usercmd/` is a separate package that also handles user operations with its own `Runner` struct; both are used by the server layer for different purposes
 
 3. **Server Layer in `internal/server/`**
    - `App` struct in `app.go` holds application state (templates, stores, JWT secret)
@@ -111,9 +113,9 @@ This tool directly modifies critical system files. Key points:
 
 Configured via `internal/config/store.go`:
 
-- **Admin Only**: Only admins can create users
-- **Open**: Anyone can register; configurable default groups
-- **Invite**: Registration requires valid invite code with expiration/usage limits
+- **closed** (default): Only admins can create users (referred to as "Admin Only" in UI)
+- **open**: Anyone can register; configurable default groups
+- **invite**: Registration requires valid invite code with expiration/usage limits
 
 ## Template System
 
