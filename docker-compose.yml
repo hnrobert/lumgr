@@ -18,4 +18,5 @@ services:
       - /etc/shells:/etc/shells:ro # Available shells
       - /etc/os-release:/etc/os-release:ro # OS info
       - /etc/hostname:/etc/hostname:ro # Hostname
+      - /proc:/proc:ro # Required for resmon (system resource monitor) - read-only host /proc
     restart: always

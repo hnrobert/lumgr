@@ -50,6 +50,7 @@ internal/
   ├── invite/               # Invitation system with expiration and usage limits
   ├── logger/               # Structured logging
   ├── server/               # HTTP layer: handlers, middleware, templates
+  ├── resmon/               # System resource collector + history store (reads /proc)
   ├── usercmd/              # Wrapper for shell commands (useradd, usermod, etc.)
   ├── usermgr/              # Core business logic: passwd/shadow/group parsers
   └── hostfs/               # Host filesystem access abstraction
@@ -82,6 +83,7 @@ internal/
 5. **Data Persistence**
    - `lumgr_data/config.json` - Registration mode and default groups
    - `lumgr_data/invites.json` - Invitation codes
+   - `lumgr_data/resmon_history.json` - Persisted resmon history when resource monitoring is enabled
    - Settings per user in `lumgr_data/settings/<username>.json`
 
 ## Important Constants and Thresholds

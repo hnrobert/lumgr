@@ -30,6 +30,7 @@
         "lumgrd",
         "netdev",
         "plugdev",
+        "proc",
         "pwerr",
         "pwok",
         "rerr",
