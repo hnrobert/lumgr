@@ -29,6 +29,47 @@
 </div>
 {{end}}
 
+{{if .CurrentMetrics}}
+<div class="card" style="margin-bottom: 16px;">
+    <h2 style="margin:0 0 8px;">System Resources</h2>
+    <div class="grid two" style="margin-top: 12px;">
+        <div>
+            <div class="muted">CPU usage</div>
+            <div style="font-size:22px; font-weight:600; margin-top:4px;">{{printf "%.1f" .CurrentMetrics.CPUUsage}}%
+            </div>
+        </div>
+        <div>
+            <div class="muted">Memory</div>
+            <div style="font-size:22px; font-weight:600; margin-top:4px;">{{bytes .CurrentMetrics.MemUsed}} / {{bytes
+                .CurrentMetrics.MemTotal}}</div>
+        </div>
+        <div>
+            <div class="muted">Disk IO (cumulative)</div>
+            <div style="font-size:14px; margin-top:4px;">R: {{bytes .CurrentMetrics.DiskReadBytes}} · W: {{bytes
+                .CurrentMetrics.DiskWriteBytes}}</div>
+        </div>
+        <div>
+            <div class="muted">Network (cumulative)</div>
+            <div style="font-size:14px; margin-top:4px;">RX: {{bytes .CurrentMetrics.NetworkRxBytes}} · TX: {{bytes
+                .CurrentMetrics.NetworkTxBytes}}</div>
+        </div>
+    </div>
+    {{if .CurrentMetrics.Filesystems}}
+    <div style="margin-top:12px;">
+        <div class="muted" style="margin-bottom:6px;">Filesystems</div>
+        <div style="display:flex; flex-direction:column; gap:6px;">
+            {{range .CurrentMetrics.Filesystems}}
+            <div style="display:flex; justify-content:space-between; gap:8px; font-size:13px;">
+                <span><code>{{.MountPoint}}</code></span>
+                <span>{{printf "%.1f" .UsePercent}}% ({{bytes .Used}} / {{bytes .Total}})</span>
+            </div>
+            {{end}}
+        </div>
+    </div>
+    {{end}}
+</div>
+{{end}}
+
 <div class="grid two rowMatch" style="margin-bottom: 16px;">
     <div class="card">
         <h2 style="margin:0 0 8px;">Quick Actions</h2>

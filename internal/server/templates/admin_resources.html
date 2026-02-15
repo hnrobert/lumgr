@@ -1,0 +1,175 @@
+{{define "title"}}Resource Monitor · lumgr{{end}}
+{{define "content"}}
+<div class="grid" style="gap:16px;">
+    <div class="card">
+        <h2 style="margin:0 0 8px;">Resource Monitor Configuration</h2>
+        <form method="post" action="/admin/resources/config">
+            <div class="row">
+                <div>
+                    <label>Collect interval (seconds)</label>
+                    <input type="number" min="5" name="interval_seconds" value="{{.ResmonConfig.IntervalSeconds}}" />
+                </div>
+                <div>
+                    <label>Retention (days)</label>
+                    <input type="number" min="1" max="365" name="retention_days"
+                        value="{{.ResmonConfig.RetentionDays}}" />
+                </div>
+            </div>
+
+            <div class="row" style="margin-top:8px;">
+                <label><input type="checkbox" name="enabled" value="1" {{if .ResmonConfig.Enabled}}checked{{end}}
+                        style="width:auto; margin-right:6px;" />Enabled</label>
+                <label><input type="checkbox" name="collect_cpu" value="1" {{if .ResmonConfig.CollectCPU}}checked{{end}}
+                        style="width:auto; margin-right:6px;" />CPU</label>
+                <label><input type="checkbox" name="collect_memory" value="1" {{if
+                        .ResmonConfig.CollectMemory}}checked{{end}}
+                        style="width:auto; margin-right:6px;" />Memory</label>
+                <label><input type="checkbox" name="collect_disk_io" value="1" {{if
+                        .ResmonConfig.CollectDiskIO}}checked{{end}} style="width:auto; margin-right:6px;" />Disk
+                    IO</label>
+                <label><input type="checkbox" name="collect_filesystem" value="1" {{if
+                        .ResmonConfig.CollectFilesystem}}checked{{end}}
+                        style="width:auto; margin-right:6px;" />Filesystem</label>
+                <label><input type="checkbox" name="collect_network" value="1" {{if
+                        .ResmonConfig.CollectNetwork}}checked{{end}}
+                        style="width:auto; margin-right:6px;" />Network</label>
+                <label><input type="checkbox" name="collect_user_stats" value="1" {{if
+                        .ResmonConfig.CollectUserStats}}checked{{end}} style="width:auto; margin-right:6px;" />User
+                    stats</label>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; margin-top:12px;">
+                <button class="btn primary" type="submit">Save configuration</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="grid two">
+        <div class="card">
+            <h3 style="margin:0 0 8px;">Current CPU & Memory</h3>
+            {{if .CurrentMetrics}}
+            <div class="muted">CPU usage: <strong>{{printf "%.1f" .CurrentMetrics.CPUUsage}}%</strong></div>
+            <div class="muted" style="margin-top:4px;">Memory usage: <strong>{{bytes .CurrentMetrics.MemUsed}}</strong>
+                / {{bytes .CurrentMetrics.MemTotal}}</div>
+            {{else}}
+            <div class="muted">No current metrics yet.</div>
+            {{end}}
+        </div>
+        <div class="card">
+            <h3 style="margin:0 0 8px;">Current Disk & Network</h3>
+            {{if .CurrentMetrics}}
+            <div class="muted">Disk read/write: <strong>{{bytes .CurrentMetrics.DiskReadBytes}}</strong> /
+                <strong>{{bytes .CurrentMetrics.DiskWriteBytes}}</strong>
+            </div>
+            <div class="muted" style="margin-top:4px;">Network rx/tx: <strong>{{bytes
+                    .CurrentMetrics.NetworkRxBytes}}</strong> / <strong>{{bytes
+                    .CurrentMetrics.NetworkTxBytes}}</strong></div>
+            {{else}}
+            <div class="muted">No current metrics yet.</div>
+            {{end}}
+        </div>
+    </div>
+
+    <div class="card">
+        <h2 style="margin:0 0 8px;">History</h2>
+        <form method="get" action="/admin/resources"
+            style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:10px;">
+            <div>
+                <label>Window (hours)</label>
+                <input type="number" name="hours" value="24" min="1" max="720" style="width:120px;" />
+            </div>
+            <div>
+                <label>User filter</label>
+                <select name="user" style="min-width:180px;">
+                    <option value="">(all users)</option>
+                    {{range .ResmonUsers}}
+                    <option value="{{.}}" {{if eq $.ResmonSelectedUser .}}selected{{end}}>{{.}}</option>
+                    {{end}}
+                </select>
+            </div>
+            <button class="btn" type="submit">Apply</button>
+        </form>
+
+        {{if .ResmonHistory}}
+        <canvas id="cpuMemChart" height="120"></canvas>
+        <div style="height:12px"></div>
+        <canvas id="ioChart" height="120"></canvas>
+        <div style="height:12px"></div>
+        <canvas id="userChart" height="120"></canvas>
+        {{else}}
+        <div class="muted">No history samples yet. Wait for at least one collection interval.</div>
+        {{end}}
+    </div>
+</div>
+
+{{if .ResmonHistory}}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script id="resmonHistoryData" type="application/json">{{toJSON .ResmonHistory}}</script>
+<script id="resmonLatestUsersData" type="application/json">{{toJSON .ResmonLatestUsers}}</script>
+<script>
+    const history = JSON.parse(document.getElementById('resmonHistoryData')?.textContent || '[]');
+    const latestUsers = JSON.parse(document.getElementById('resmonLatestUsersData')?.textContent || '[]');
+
+    const labels = history.map((s) => {
+        const d = new Date(s.timestamp);
+        if (Number.isNaN(d.getTime())) return "";
+        return d.toLocaleTimeString();
+    });
+    const cpuUsage = history.map((s) => Number((s.metrics && s.metrics.cpu_usage) || 0));
+    const memUsed = history.map((s) => Number((s.metrics && s.metrics.mem_used) || 0));
+    const memTotal = history.map((s) => Number((s.metrics && s.metrics.mem_total) || 0));
+    const memPct = memUsed.map((v, i) => {
+        const t = memTotal[i] || 0;
+        if (!t) return 0;
+        return (v / t) * 100;
+    });
+    const diskR = history.map((s) => Number((s.metrics && s.metrics.disk_read_bytes) || 0));
+    const diskW = history.map((s) => Number((s.metrics && s.metrics.disk_write_bytes) || 0));
+    const netRx = history.map((s) => Number((s.metrics && s.metrics.network_rx_bytes) || 0));
+    const netTx = history.map((s) => Number((s.metrics && s.metrics.network_tx_bytes) || 0));
+    const delta = (arr) => arr.map((v, i) => i === 0 ? 0 : Math.max(0, v - (arr[i - 1] || 0)));
+    const diskRDelta = delta(diskR);
+    const diskWDelta = delta(diskW);
+    const netRxDelta = delta(netRx);
+    const netTxDelta = delta(netTx);
+
+    const userLabels = latestUsers.map((u) => String(u.username || ""));
+    const userCpu = latestUsers.map((u) => Number(u.cpu_percent || 0));
+
+    new Chart(document.getElementById('cpuMemChart'), {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [
+                { label: 'CPU %', data: cpuUsage, borderColor: '#7aa2ff', backgroundColor: 'rgba(122,162,255,0.15)' },
+                { label: 'Mem %', data: memPct, borderColor: '#3ddc97', backgroundColor: 'rgba(61,220,151,0.15)' }
+            ]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+
+    new Chart(document.getElementById('ioChart'), {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [
+                { label: 'Disk Read Bytes', data: diskRDelta, borderColor: '#f2c879' },
+                { label: 'Disk Write Bytes', data: diskWDelta, borderColor: '#ff8f8f' },
+                { label: 'Net Rx Bytes', data: netRxDelta, borderColor: '#86d6ff' },
+                { label: 'Net Tx Bytes', data: netTxDelta, borderColor: '#c48fff' }
+            ]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+
+    new Chart(document.getElementById('userChart'), {
+        type: 'bar',
+        data: {
+            labels: userLabels,
+            datasets: [{ label: 'User CPU share %', data: userCpu, backgroundColor: 'rgba(122,162,255,0.4)' }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+</script>
+{{end}}
+{{end}}

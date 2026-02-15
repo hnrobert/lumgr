@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/hnrobert/lumgr/internal/resmon"
 )
 
 type RegistrationMode string
@@ -24,7 +26,8 @@ type Config struct {
 	RegistrationMode RegistrationMode `json:"registration_mode"`
 	DefaultGroups    []string         `json:"default_groups"`
 	// LumgrWhatEdits stores the markdown shown on the Personal Settings page
-	LumgrWhatEdits string `json:"lumgr_user_notice,omitempty"`
+	LumgrWhatEdits string        `json:"lumgr_user_notice,omitempty"`
+	ResmonConfig   resmon.Config `json:"resmon_config"`
 }
 
 type Store struct {
@@ -67,7 +70,21 @@ func (s *Store) Get() (Config, error) {
 	if cfg.RegistrationMode == "" {
 		cfg.RegistrationMode = defaultRegistration
 	}
+	if cfg.ResmonConfig.IsZero() {
+		cfg.ResmonConfig = resmon.DefaultConfig()
+	} else {
+		cfg.ResmonConfig = cfg.ResmonConfig.WithDefaults()
+	}
 	return cfg, nil
+}
+
+func (s *Store) SetResmonConfig(rc resmon.Config) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	cfg, _ := s.getLocked()
+	cfg.ResmonConfig = rc.WithDefaults()
+	cfg.UpdatedAt = time.Now().UTC()
+	return s.saveLocked(cfg)
 }
 
 func (s *Store) SetRegistrationMode(mode RegistrationMode) error {
@@ -129,6 +146,11 @@ func (s *Store) getLocked() (Config, error) {
 	}
 	if cfg.RegistrationMode == "" {
 		cfg.RegistrationMode = defaultRegistration
+	}
+	if cfg.ResmonConfig.IsZero() {
+		cfg.ResmonConfig = resmon.DefaultConfig()
+	} else {
+		cfg.ResmonConfig = cfg.ResmonConfig.WithDefaults()
 	}
 	return cfg, nil
 }

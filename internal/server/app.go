@@ -4,6 +4,8 @@ import (
 	"crypto/subtle"
 	"embed"
 	"encoding/base64"
+	"encoding/json"
+	"fmt"
 	"html/template"
 	"net/http"
 	"os"
@@ -14,6 +16,7 @@ import (
 	"github.com/hnrobert/lumgr/internal/auth"
 	"github.com/hnrobert/lumgr/internal/config"
 	"github.com/hnrobert/lumgr/internal/invite"
+	"github.com/hnrobert/lumgr/internal/resmon"
 	"github.com/hnrobert/lumgr/internal/usercmd"
 )
 
@@ -27,6 +30,8 @@ type App struct {
 	users      *usercmd.Runner
 	invites    *invite.Store
 	cfg        *config.Store
+	resmon     *resmon.Store
+	collector  *resmon.Collector
 }
 
 type ViewData struct {
@@ -98,6 +103,14 @@ type ViewData struct {
 	// registration settings
 	DefaultGroups       []string
 	UbuntuDesktopGroups []string
+
+	// resource monitor
+	CurrentMetrics     *resmon.Metrics
+	ResmonHistory      []resmon.Sample
+	ResmonConfig       resmon.Config
+	ResmonUsers        []string
+	ResmonSelectedUser string
+	ResmonLatestUsers  []resmon.UserResource
 }
 
 type GroupRow struct {
@@ -172,7 +185,28 @@ func newApp() (*App, error) {
 			return false
 		},
 		"startsWith": func(s, p string) bool { return strings.HasPrefix(strings.TrimSpace(s), strings.TrimSpace(p)) },
-		"trim":       func(s string) string { return strings.TrimSpace(s) }, "base": func(p string) string { return filepath.Base(strings.TrimSpace(p)) }, "RenderHTML": func(s string) template.HTML { return RenderMarkdown(s) },
+		"trim":       func(s string) string { return strings.TrimSpace(s) },
+		"base":       func(p string) string { return filepath.Base(strings.TrimSpace(p)) },
+		"RenderHTML": func(s string) template.HTML { return RenderMarkdown(s) },
+		"toJSON": func(v any) template.JS {
+			b, err := json.Marshal(v)
+			if err != nil {
+				return template.JS("null")
+			}
+			return template.JS(b)
+		},
+		"bytes": func(v uint64) string {
+			const unit = 1024
+			if v < unit {
+				return fmt.Sprintf("%d B", v)
+			}
+			div, exp := uint64(unit), 0
+			for n := v / unit; n >= unit; n /= unit {
+				div *= unit
+				exp++
+			}
+			return fmt.Sprintf("%.1f %ciB", float64(v)/float64(div), "KMGTPE"[exp])
+		},
 	})
 
 	pages := map[string]*template.Template{}
@@ -190,6 +224,7 @@ func newApp() (*App, error) {
 		"admin_invites",
 		"admin_user_edit",
 		"admin_lumgr_settings",
+		"admin_resources",
 	} {
 		t, err := base.Clone()
 		if err != nil {
@@ -209,14 +244,23 @@ func newApp() (*App, error) {
 	cfgStore := config.NewStore(config.DefaultPath())
 	_ = cfgStore.Ensure()
 
-	return &App{
+	rmStore := resmon.NewStore(resmon.DefaultPath())
+	_ = rmStore.Ensure()
+	_ = rmStore.Load()
+	rmCollector := resmon.NewCollector("/proc")
+
+	app := &App{
 		secret:     secretRaw,
 		cookieName: auth.DefaultCookieName,
 		pages:      pages,
 		users:      usercmd.New(),
 		invites:    invStore,
 		cfg:        cfgStore,
-	}, nil
+		resmon:     rmStore,
+		collector:  rmCollector,
+	}
+	app.startResmonLoop()
+	return app, nil
 }
 
 func (a *App) routes() http.Handler {
@@ -259,6 +303,8 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("/admin/invites/delete", a.requireAdmin(a.handleAdminInvitesDelete))
 	mux.HandleFunc("/admin/settings/registration", a.requireAdmin(a.handleAdminRegistrationMode))
 	mux.HandleFunc("/admin/lumgr_settings", a.requireAdmin(a.handleAdminLumgrSettings))
+	mux.HandleFunc("/admin/resources", a.requireAdmin(a.handleAdminResources))
+	mux.HandleFunc("/admin/resources/config", a.requireAdmin(a.handleAdminResourcesConfig))
 
 	// Static assets
 	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("/usr/local/share/lumgrd/assets/"))))
@@ -268,6 +314,7 @@ func (a *App) routes() http.Handler {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("{\"ok\":true}\n"))
 	})
+	mux.HandleFunc("/api/resmon/current", a.requireAdmin(a.handleAPIResmonCurrent))
 
 	return a.withAuthContext(mux)
 }
@@ -294,4 +341,32 @@ func (a *App) clearCookie(w http.ResponseWriter) {
 		Secure:   false,
 		MaxAge:   -1,
 	})
+}
+
+func (a *App) startResmonLoop() {
+	if a == nil || a.collector == nil || a.resmon == nil || a.cfg == nil {
+		return
+	}
+	go func() {
+		for {
+			cfg, err := a.cfg.Get()
+			if err != nil {
+				time.Sleep(30 * time.Second)
+				continue
+			}
+			rc := cfg.ResmonConfig.WithDefaults()
+			interval := time.Duration(rc.IntervalSeconds) * time.Second
+			if interval < 5*time.Second {
+				interval = 5 * time.Second
+			}
+			if rc.Enabled {
+				m, us, err := a.collector.Collect(rc)
+				if err == nil {
+					_ = a.resmon.Append(resmon.Sample{Timestamp: time.Now().UTC(), Metrics: m, UserStats: us}, rc.RetentionDays)
+				}
+				_ = a.resmon.Prune(rc.RetentionDays)
+			}
+			time.Sleep(interval)
+		}
+	}()
 }

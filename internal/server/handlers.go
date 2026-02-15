@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -19,6 +20,7 @@ import (
 	"github.com/hnrobert/lumgr/internal/config"
 	"github.com/hnrobert/lumgr/internal/invite"
 	"github.com/hnrobert/lumgr/internal/logger"
+	"github.com/hnrobert/lumgr/internal/resmon"
 	"github.com/hnrobert/lumgr/internal/usermgr"
 )
 
@@ -570,6 +572,17 @@ func humanInviteError(err error) string {
 func (a *App) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	data := a.baseData(r)
 	username := usernameFrom(r)
+
+	if a.resmon != nil {
+		if last := a.resmon.Latest(); last != nil {
+			m := last.Metrics
+			data.CurrentMetrics = &m
+		} else if a.collector != nil && data.ResmonConfig.Enabled {
+			if m, _, err := a.collector.Collect(data.ResmonConfig); err == nil {
+				data.CurrentMetrics = &m
+			}
+		}
+	}
 
 	// Get OS information
 	osInfo := parseOSRelease()
@@ -1771,6 +1784,127 @@ func (a *App) handleAdminLumgrSettings(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/admin/lumgr_settings?ok=1", http.StatusSeeOther)
 }
 
+func (a *App) handleAdminResources(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	data := a.baseData(r)
+	if r.URL.Query().Get("ok") == "1" {
+		data.Flash = "Saved."
+		data.FlashKind = "ok"
+	}
+	selectedUser := strings.TrimSpace(r.URL.Query().Get("user"))
+	data.ResmonSelectedUser = selectedUser
+
+	hours := 24
+	if hs := strings.TrimSpace(r.URL.Query().Get("hours")); hs != "" {
+		if v, err := strconv.Atoi(hs); err == nil && v > 0 && v <= 24*30 {
+			hours = v
+		}
+	}
+
+	since := time.Now().UTC().Add(-time.Duration(hours) * time.Hour)
+	if a.resmon != nil {
+		if last := a.resmon.Latest(); last != nil {
+			m := last.Metrics
+			data.CurrentMetrics = &m
+			data.ResmonLatestUsers = last.UserStats
+		}
+		history := a.resmon.List(since)
+		usersSet := map[string]bool{}
+		filtered := make([]resmon.Sample, 0, len(history))
+		for _, sm := range history {
+			if len(sm.UserStats) > 0 {
+				for _, u := range sm.UserStats {
+					usersSet[u.Username] = true
+				}
+			}
+			if selectedUser == "" {
+				filtered = append(filtered, sm)
+				continue
+			}
+			s2 := sm
+			s2.UserStats = nil
+			for _, u := range sm.UserStats {
+				if u.Username == selectedUser {
+					s2.UserStats = append(s2.UserStats, u)
+				}
+			}
+			if len(s2.UserStats) > 0 {
+				filtered = append(filtered, s2)
+			}
+		}
+		data.ResmonHistory = filtered
+		if len(filtered) > 0 {
+			data.ResmonLatestUsers = filtered[len(filtered)-1].UserStats
+		}
+		for u := range usersSet {
+			data.ResmonUsers = append(data.ResmonUsers, u)
+		}
+		sort.Strings(data.ResmonUsers)
+	}
+
+	a.renderPage(w, "admin_resources", data)
+}
+
+func (a *App) handleAdminResourcesConfig(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	_ = r.ParseForm()
+
+	cfg, err := a.cfg.Get()
+	if err != nil {
+		http.Redirect(w, r, "/admin/resources?err=1", http.StatusSeeOther)
+		return
+	}
+	rc := cfg.ResmonConfig.WithDefaults()
+
+	rc.Enabled = r.Form.Get("enabled") == "1"
+	rc.CollectCPU = r.Form.Get("collect_cpu") == "1"
+	rc.CollectMemory = r.Form.Get("collect_memory") == "1"
+	rc.CollectDiskIO = r.Form.Get("collect_disk_io") == "1"
+	rc.CollectFilesystem = r.Form.Get("collect_filesystem") == "1"
+	rc.CollectNetwork = r.Form.Get("collect_network") == "1"
+	rc.CollectUserStats = r.Form.Get("collect_user_stats") == "1"
+
+	if v, err := strconv.Atoi(strings.TrimSpace(r.Form.Get("interval_seconds"))); err == nil && v > 0 {
+		rc.IntervalSeconds = v
+	}
+	if v, err := strconv.Atoi(strings.TrimSpace(r.Form.Get("retention_days"))); err == nil && v > 0 {
+		rc.RetentionDays = v
+	}
+
+	rc = rc.WithDefaults()
+	if err := a.cfg.SetResmonConfig(rc); err != nil {
+		http.Redirect(w, r, "/admin/resources?err=1", http.StatusSeeOther)
+		return
+	}
+	logger.Info("Admin %s updated resmon config", usernameFrom(r))
+	http.Redirect(w, r, "/admin/resources?ok=1", http.StatusSeeOther)
+}
+
+func (a *App) handleAPIResmonCurrent(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if a.resmon == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = w.Write([]byte("{\"ok\":false,\"error\":\"resmon not available\"}\n"))
+		return
+	}
+	last := a.resmon.Latest()
+	if last == nil {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	_ = json.NewEncoder(w).Encode(last)
+}
+
 func (a *App) handleAdminUserUmask(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -2048,7 +2182,7 @@ func (a *App) baseData(r *http.Request) *ViewData {
 	user := usernameFrom(r)
 	admin := isAdminFrom(r)
 	cfg, _ := a.cfg.Get()
-	data := &ViewData{Authed: user != "", Username: user, Admin: admin, RegMode: string(cfg.RegistrationMode)}
+	data := &ViewData{Authed: user != "", Username: user, Admin: admin, RegMode: string(cfg.RegistrationMode), ResmonConfig: cfg.ResmonConfig.WithDefaults()}
 	if r.URL.Query().Get("ok") == "1" {
 		data.Flash = "Saved."
 		data.FlashKind = "ok"
