@@ -50,19 +50,6 @@
                     .CurrentMetrics}}{{bytes .CurrentMetrics.MemUsed}}{{else}}0 B{{end}}</strong>
                 / <span id="admin-resmon-mem-total">{{if .CurrentMetrics}}{{bytes .CurrentMetrics.MemTotal}}{{else}}0
                     B{{end}}</span></div>
-            <div style="height:8px"></div>
-            <div style="display:flex; gap:12px; align-items:flex-start;">
-                <div style="flex:1; min-width:280px;">
-                    <div style="font-weight:600; margin-bottom:6px;">Top users — CPU</div>
-                    <div style="height:120px; min-height:120px; position:relative;"><canvas
-                            id="adminUserCpuBar"></canvas></div>
-                </div>
-                <div style="flex:1; min-width:280px;">
-                    <div style="font-weight:600; margin-bottom:6px;">Top users — Memory</div>
-                    <div style="height:120px; min-height:120px; position:relative;"><canvas
-                            id="adminUserMemBar"></canvas></div>
-                </div>
-            </div>
         </div>
         <div class="card">
             <h3 style="margin:0 0 8px;">Current Disk & Network</h3>
@@ -94,7 +81,12 @@
         <div style="height:260px; min-height:260px; max-height:260px; position:relative;">
             <canvas id="cpuChart"></canvas>
         </div>
+        <div style="height:12px"></div>
+        <div style="height:260px; min-height:260px; max-height:260px; position:relative;">
+            <canvas id="memChart"></canvas>
+        </div>
 
+        <div style="height:12px"></div>
         <div style="height:260px; min-height:260px; max-height:260px; position:relative;">
             <canvas id="diskIoChart"></canvas>
         </div>
@@ -111,7 +103,6 @@
 {{if .ResmonHistory}}
 <script src="/assets/vendor/chart.min.js"></script>
 <script id="resmonHistoryData" type="application/json">{{toJSON .ResmonHistory}}</script>
-<script id="resmonLatestUsersData" type="application/json">{{toJSON .ResmonLatestUsers}}</script>
 <script>
     if (window.__lumgrAdminResmonChartsInit) {
         // prevent duplicate chart/timer setup on accidental duplicate script execution
@@ -119,7 +110,6 @@
         window.__lumgrAdminResmonChartsInit = true;
 
         const history = JSON.parse(document.getElementById('resmonHistoryData')?.textContent || '[]');
-        const latestUsers = JSON.parse(document.getElementById('resmonLatestUsersData')?.textContent || '[]');
         const formatBytes = (v) => {
             v = Number(v) || 0;
             const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
@@ -128,6 +118,7 @@
             if (i === 0) return Math.round(v) + ' B';
             return v.toFixed(1) + ' ' + units[i];
         };
+        const userColors = ['#f97316', '#22c55e', '#06b6d4', '#a855f7', '#eab308', '#ef4444', '#14b8a6', '#6366f1', '#84cc16', '#ec4899'];
 
         const labels = history.map((s) => {
             const d = new Date(s.timestamp);
@@ -146,19 +137,77 @@
         const netRx = history.map((s) => Number((s.metrics && s.metrics.network_rx_bytes) || 0));
         const netTx = history.map((s) => Number((s.metrics && s.metrics.network_tx_bytes) || 0));
 
+        const userIndexByNameBySample = history.map((s) => {
+            const users = Array.isArray(s.user_stats) ? s.user_stats : [];
+            const idx = {};
+            for (let i = 0; i < users.length; i++) {
+                const name = String(users[i].username || '');
+                if (name && idx[name] === undefined) idx[name] = i;
+            }
+            return { users, idx };
+        });
+        const userSet = new Set();
+        userIndexByNameBySample.forEach((entry) => {
+            Object.keys(entry.idx).forEach((name) => userSet.add(name));
+        });
+        const userNames = Array.from(userSet).sort((a, b) => {
+            const last = userIndexByNameBySample[userIndexByNameBySample.length - 1];
+            const av = (last && last.idx[a] !== undefined) ? Number(last.users[last.idx[a]].cpu_percent || 0) : 0;
+            const bv = (last && last.idx[b] !== undefined) ? Number(last.users[last.idx[b]].cpu_percent || 0) : 0;
+            return bv - av;
+        });
+
+        const userCpuDatasets = userNames.map((name, i) => ({
+            label: `CPU · ${name}`,
+            data: userIndexByNameBySample.map((entry) => {
+                if (entry.idx[name] === undefined) return 0;
+                return Number(entry.users[entry.idx[name]].cpu_percent || 0);
+            }),
+            borderColor: userColors[i % userColors.length],
+            backgroundColor: 'transparent',
+            borderWidth: 1.5,
+            pointRadius: 0,
+            tension: 0.2,
+        }));
+
+        const userMemDatasets = userNames.map((name, i) => ({
+            label: `Mem · ${name}`,
+            data: userIndexByNameBySample.map((entry) => {
+                if (entry.idx[name] === undefined) return 0;
+                return Number(entry.users[entry.idx[name]].memory_bytes || 0);
+            }),
+            borderColor: userColors[i % userColors.length],
+            backgroundColor: 'transparent',
+            borderWidth: 1.5,
+            pointRadius: 0,
+            tension: 0.2,
+        }));
+
         new Chart(document.getElementById('cpuChart'), {
             type: 'line',
             data: {
                 labels,
                 datasets: [
-                    { label: 'CPU %', data: cpuUsage, borderColor: '#7aa2ff', backgroundColor: 'rgba(122,162,255,0.15)' }
+                    {
+                        label: 'CPU Total %',
+                        data: cpuUsage,
+                        borderColor: '#7aa2ff',
+                        backgroundColor: 'rgba(122,162,255,0.15)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.2,
+                    },
+                    ...userCpuDatasets,
                 ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 animation: false,
-                scales: { y: { min: 0, max: 100 } }
+                scales: { y: { min: 0, max: 100 } },
+                plugins: {
+                    legend: { display: true }
+                }
             }
         });
 
@@ -167,7 +216,16 @@
             data: {
                 labels,
                 datasets: [
-                    { label: 'Mem Used', data: memUsed, borderColor: '#3ddc97', backgroundColor: 'rgba(61,220,151,0.15)' }
+                    {
+                        label: 'Mem Total Used',
+                        data: memUsed,
+                        borderColor: '#3ddc97',
+                        backgroundColor: 'rgba(61,220,151,0.15)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.2,
+                    },
+                    ...userMemDatasets,
                 ]
             },
             options: {
@@ -184,13 +242,14 @@
                     }
                 },
                 plugins: {
+                    legend: { display: true },
                     tooltip: {
                         callbacks: {
                             label: function (ctx) {
                                 const used = Number(ctx.parsed.y || 0);
                                 const total = Number(memTotal[ctx.dataIndex] || 0);
                                 const pct = total > 0 ? (used / total) * 100 : 0;
-                                return 'Mem Used: ' + formatBytes(used) + ' (' + pct.toFixed(1) + '%)';
+                                return `${ctx.dataset.label}: ${formatBytes(used)} (${pct.toFixed(1)}%)`;
                             }
                         }
                     }
@@ -220,23 +279,6 @@
                 ]
             },
             options: { responsive: true, maintainAspectRatio: false, animation: false }
-        });
-
-        // render per-user bars inside Current CPU & Memory cards
-        const userLabels = latestUsers.map((u) => String(u.username || ""));
-        const userCpu = latestUsers.map((u) => Number(u.cpu_percent || u.CPU || 0));
-        const userMem = latestUsers.map((u) => Number(u.memory_bytes || u.MemoryBytes || 0));
-
-        new Chart(document.getElementById('adminUserCpuBar'), {
-            type: 'bar',
-            data: { labels: userLabels, datasets: [{ label: 'CPU %', data: userCpu, backgroundColor: 'rgba(122,162,255,0.8)' }] },
-            options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { display: false } }, scales: { y: { min: 0, max: 100 } } }
-        });
-
-        new Chart(document.getElementById('adminUserMemBar'), {
-            type: 'bar',
-            data: { labels: userLabels, datasets: [{ label: 'Memory', data: userMem, backgroundColor: 'rgba(61,220,151,0.8)' }] },
-            options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { callback: function (v) { return formatBytes(v); } } } } }
         });
     }
 </script>
