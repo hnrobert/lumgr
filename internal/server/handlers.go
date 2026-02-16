@@ -1998,7 +1998,8 @@ func (a *App) handleAPIResmonCurrent(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("{\"ok\":false,\"error\":\"resmon not available\"}\n"))
 		return
 	}
-	last := a.resmon.Latest()
+	historyLast := a.resmon.Latest()
+	last := historyLast
 	realtime := a.getRealtimeSamples()
 	includeWindow := r.URL.Query().Get("full") == "1"
 	if last == nil && len(realtime) == 0 {
@@ -2014,10 +2015,12 @@ func (a *App) handleAPIResmonCurrent(w http.ResponseWriter, r *http.Request) {
 	}
 	resp := struct {
 		Sample        *resmon.Sample  `json:"sample"`
+		HistorySample *resmon.Sample  `json:"history_sample,omitempty"`
 		Realtime      []resmon.Sample `json:"realtime_samples,omitempty"`
 		RealtimeRange int             `json:"realtime_window_seconds"`
 	}{
 		Sample:        last,
+		HistorySample: historyLast,
 		Realtime:      realtime,
 		RealtimeRange: 30,
 	}

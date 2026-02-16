@@ -552,6 +552,7 @@
         if (!res.ok) return;
         const payload = await res.json();
         const sm = payload.sample || payload;
+        const historySm = payload.history_sample || payload.HistorySample || null;
         const m = sm.metrics || sm.Metrics || {};
 
         setText('admin-resmon-cpu', (Number(m.cpu_usage ?? m.CPUUsage ?? 0)).toFixed(1));
@@ -563,8 +564,8 @@
         setText('admin-resmon-net-tx', formatBytes(m.network_tx_bytes ?? m.NetworkTxBytes ?? 0));
 
         const endMode = window.__lumgrAdminResmonEndMode || (document.querySelector('input[name="end_mode"]:checked')?.value || 'datetime');
-        if (endMode === 'now' && typeof window.__lumgrAdminResmonAppendSample === 'function') {
-          window.__lumgrAdminResmonAppendSample(sm);
+        if (endMode === 'now' && historySm && typeof window.__lumgrAdminResmonAppendSample === 'function') {
+          window.__lumgrAdminResmonAppendSample(historySm);
         }
       } catch (e) {
         // silent
