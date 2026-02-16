@@ -36,6 +36,15 @@ A modern, containerized web-based user management interface for Linux systems. M
 
 - **Dashboard Stats** - Storage usage, user counts, system information
 - **OS Detection** - Display hostname, OS name, and version from `/etc/os-release`
+
+### System Resource Monitor (resmon)
+
+`resmon` is an optional subsystem that samples host resource usage (CPU, memory, disk I/O, filesystems, network and per-user aggregates) and persists rolling history in `lumgr_data/resmon_history/` as daily files (for example `2026-02-16.json`). To enable full host-level monitoring when running in a container, bind-mount the host `/proc` into `/host/proc` (read‑only). The service automatically prefers `/host/proc` and falls back to `/proc` when `/host/proc` is not present.
+
+- Configure sampling interval, retention days, and which metrics to collect from the Admin → Resources page.
+- Current metrics are shown on the Dashboard and historical charts are available to administrators under Admin → Resources.
+- Historical data path: `lumgr_data/resmon_history/` (date-partitioned files, only present when resmon is enabled).
+
 - **Admin/Regular User Views** - Contextual interfaces based on privilege level
 
 ### Technical Features
@@ -72,6 +81,7 @@ services:
       - /etc/shells:/etc/shells:ro # Available shells
       - /etc/os-release:/etc/os-release:ro # OS info
       - /etc/hostname:/etc/hostname:ro # Hostname
+      - /proc:/host/proc:ro # Required for resmon (system resource monitor)
     restart: always
 ```
 
@@ -114,6 +124,7 @@ The `lumgr_data` directory contains:
 
 - `config.json` - Registration mode and default groups
 - `invites.json` - Invitation codes and usage tracking
+- `resmon_history/` - Persisted system resource history directory with daily files (`YYYY-MM-DD.json`, created when resmon is enabled)
 
 ### Registration Modes
 

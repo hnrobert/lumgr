@@ -1,124 +1,123 @@
 {{define "title"}}SSH Settings · lumgr{{end}}
 {{define "content"}}
 <div class="grid">
-    <div class="card">
-        <h2 style="margin:0 0 8px;">SSH authorized_keys</h2>
-        <div class="muted" style="margin-bottom: 12px;">Manage <code>~/.ssh/authorized_keys</code>.</div>
-        <form id="sshSettingsForm" method="post" action="/settings/ssh">
-            <label>SSH authorized_keys</label>
-            <textarea name="ssh_keys" placeholder="ssh-ed25519 AAAAC3NzAIC3... user@example.com"
-                spellcheck="false">{{.SSHKeys}}</textarea>
-            <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: 14px;">
-                <button class="btn primary" type="submit" name="section" value="ssh">Save</button>
-            </div>
-        </form>
-    </div>
+  <div class="card">
+    <h2 style="margin:0 0 8px;">SSH authorized_keys</h2>
+    <div class="muted" style="margin-bottom: 12px;">Manage <code>~/.ssh/authorized_keys</code>.</div>
+    <form id="sshSettingsForm" method="post" action="/settings/ssh">
+      <label>SSH authorized_keys</label>
+      <textarea name="ssh_keys" placeholder="ssh-ed25519 AAAAC3NzAIC3... user@example.com"
+        spellcheck="false">{{.SSHKeys}}</textarea>
+      <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: 14px;">
+        <button class="btn primary" type="submit" name="section" value="ssh">Save</button>
+      </div>
+    </form>
+  </div>
 
-    <div class="card">
-        <h2 style="margin:0 0 8px;">SSH keypair generation</h2>
-        <div class="muted" style="margin-bottom: 12px;">Generates a key under <code>~/.ssh/</code>.</div>
-        <form method="post" action="/settings/ssh/keygen">
-            <div class="row">
-                <div>
-                    <label>Key type</label>
-                    <select name="key_type">
-                        <option value="rsa" selected>rsa (4096)</option>
-                        <option value="ed25519">ed25519</option>
-                        <option value="ecdsa">ecdsa</option>
-                    </select>
-                </div>
-                <div>
-                    <label>Filename</label>
-                    <input name="key_file" placeholder="id_rsa" />
-                </div>
-            </div>
-
-            <label>Comment (optional)</label>
-            <input name="key_comment" placeholder="{{.Username}}" />
-
-            <label>Passphrase (optional)</label>
-            <input type="password" name="key_passphrase" autocomplete="new-password" />
-
-            <div style="display:flex; justify-content:flex-end; margin-top: 14px;">
-                <button class="btn primary" type="submit">Generate</button>
-            </div>
-        </form>
-    </div>
-
-    <div class="card">
-        <h2 style="margin:0 0 8px;">Manage private keys</h2>
-        <div class="muted" style="margin-bottom:12px;">Change passphrase, export public key, or delete existing private
-            keys under <code>~/.ssh/</code>.</div>
-        {{if .SSHPrivateKeys}}
-        <div style="display:flex; flex-direction:column; gap:12px;">
-            {{range $i, $k := .SSHPrivateKeys}}
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
-                <div style="display:flex; flex-direction:column;">
-                    <div><code>{{base $k}}</code></div>
-                    <div class="muted" style="font-size:12px;">{{$k}}</div>
-                </div>
-                <div style="display:flex; gap:8px; align-items:center;">
-                    <form method="get" action="/settings/ssh/key/export" style="display:inline; margin:0;">
-                        <input type="hidden" name="key" value="{{$k}}" />
-                        <button class="btn small" type="submit">Export pub</button>
-                    </form>
-
-                    <button class="btn small" type="button" data-toggle-pass="pass-{{$i}}">Change passphrase</button>
-
-                    <form method="post" action="/settings/ssh/key/delete" style="display:inline; margin:0;"
-                        onsubmit="return confirm('Delete this private key and its public key?');">
-                        <input type="hidden" name="key" value="{{$k}}" />
-                        <button class="btn small" type="submit">Delete</button>
-                    </form>
-                </div>
-            </div>
-
-            <form id="pass-{{$i}}" method="post" action="/settings/ssh/key/passphrase"
-                style="display:none; margin-top:6px;">
-                <input type="hidden" name="key" value="{{$k}}" />
-                <div class="row">
-                    <div>
-                        <label>Current passphrase (leave blank if none)</label>
-                        <input type="password" name="old_passphrase" autocomplete="current-password" />
-                    </div>
-                    <div>
-                        <label>New passphrase (leave empty to remove)</label>
-                        <input type="password" name="new_passphrase" autocomplete="new-password" />
-                    </div>
-                </div>
-                <label>Confirm new passphrase</label>
-                <input type="password" name="new_passphrase2" autocomplete="new-password" />
-                <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:8px;">
-                    <button class="btn" type="button" data-toggle-pass="pass-{{$i}}">Cancel</button>
-                    <button class="btn primary small" type="submit">Change</button>
-                </div>
-            </form>
-            {{end}}
+  <div class="card">
+    <h2 style="margin:0 0 8px;">SSH keypair generation</h2>
+    <div class="muted" style="margin-bottom: 12px;">Generates a key under <code>~/.ssh/</code>.</div>
+    <form method="post" action="/settings/ssh/keygen">
+      <div class="row">
+        <div>
+          <label>Key type</label>
+          <select name="key_type">
+            <option value="rsa" selected>rsa (4096)</option>
+            <option value="ed25519">ed25519</option>
+            <option value="ecdsa">ecdsa</option>
+          </select>
         </div>
-        {{else}}
-        <div class="muted">No private keys found under <code>~/.ssh/</code>.</div>
-        {{end}}
-    </div>
+        <div>
+          <label>Filename</label>
+          <input name="key_file" placeholder="id_rsa" />
+        </div>
+      </div>
 
-    {{if .ShowSaveAll}}
-    <div style="width:100%;">
-        <button class="btn" type="submit" form="sshSettingsForm" name="section" value="all"
-            style="width:100%; justify-content:center;">Save all</button>
+      <label>Comment (optional)</label>
+      <input name="key_comment" placeholder="{{.Username}}" />
+
+      <label>Passphrase (optional)</label>
+      <input type="password" name="key_passphrase" autocomplete="new-password" />
+
+      <div style="display:flex; justify-content:flex-end; margin-top: 14px;">
+        <button class="btn primary" type="submit">Generate</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2 style="margin:0 0 8px;">Manage private keys</h2>
+    <div class="muted" style="margin-bottom:12px;">Change passphrase, export public key, or delete existing private
+      keys under <code>~/.ssh/</code>.</div>
+    {{if .SSHPrivateKeys}}
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      {{range $i, $k := .SSHPrivateKeys}}
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+        <div style="display:flex; flex-direction:column;">
+          <div><code>{{base $k}}</code></div>
+          <div class="muted" style="font-size:12px;">{{$k}}</div>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <form method="get" action="/settings/ssh/key/export" style="display:inline; margin:0;">
+            <input type="hidden" name="key" value="{{$k}}" />
+            <button class="btn small" type="submit">Export pub</button>
+          </form>
+
+          <button class="btn small" type="button" data-toggle-pass="pass-{{$i}}">Change passphrase</button>
+
+          <form method="post" action="/settings/ssh/key/delete" style="display:inline; margin:0;"
+            onsubmit="return confirm('Delete this private key and its public key?');">
+            <input type="hidden" name="key" value="{{$k}}" />
+            <button class="btn small" type="submit">Delete</button>
+          </form>
+        </div>
+      </div>
+
+      <form id="pass-{{$i}}" method="post" action="/settings/ssh/key/passphrase" style="display:none; margin-top:6px;">
+        <input type="hidden" name="key" value="{{$k}}" />
+        <div class="row">
+          <div>
+            <label>Current passphrase (leave blank if none)</label>
+            <input type="password" name="old_passphrase" autocomplete="current-password" />
+          </div>
+          <div>
+            <label>New passphrase (leave empty to remove)</label>
+            <input type="password" name="new_passphrase" autocomplete="new-password" />
+          </div>
+        </div>
+        <label>Confirm new passphrase</label>
+        <input type="password" name="new_passphrase2" autocomplete="new-password" />
+        <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:8px;">
+          <button class="btn" type="button" data-toggle-pass="pass-{{$i}}">Cancel</button>
+          <button class="btn primary small" type="submit">Change</button>
+        </div>
+      </form>
+      {{end}}
     </div>
+    {{else}}
+    <div class="muted">No private keys found under <code>~/.ssh/</code>.</div>
     {{end}}
+  </div>
+
+  {{if .ShowSaveAll}}
+  <div style="width:100%;">
+    <button class="btn" type="submit" form="sshSettingsForm" name="section" value="all"
+      style="width:100%; justify-content:center;">Save all</button>
+  </div>
+  {{end}}
 </div>
 
 <script>
-    document.addEventListener('click', function (ev) {
-        const btn = ev.target && ev.target.closest && ev.target.closest('[data-toggle-pass]');
-        if (!btn) return;
-        const id = btn.getAttribute('data-toggle-pass');
-        const el = document.getElementById(id);
-        if (!el) return;
-        el.style.display = (el.style.display === 'none' || el.style.display === '') ? 'block' : 'none';
-        // scroll into view when showing
-        if (el.style.display === 'block') el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    });
+  document.addEventListener('click', function (ev) {
+    const btn = ev.target && ev.target.closest && ev.target.closest('[data-toggle-pass]');
+    if (!btn) return;
+    const id = btn.getAttribute('data-toggle-pass');
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.display = (el.style.display === 'none' || el.style.display === '') ? 'block' : 'none';
+    // scroll into view when showing
+    if (el.style.display === 'block') el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
 </script>
 
 {{end}}

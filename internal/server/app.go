@@ -4,16 +4,21 @@ import (
 	"crypto/subtle"
 	"embed"
 	"encoding/base64"
+	"encoding/json"
+	"fmt"
 	"html/template"
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/hnrobert/lumgr/internal/auth"
 	"github.com/hnrobert/lumgr/internal/config"
 	"github.com/hnrobert/lumgr/internal/invite"
+	"github.com/hnrobert/lumgr/internal/resmon"
 	"github.com/hnrobert/lumgr/internal/usercmd"
 )
 
@@ -27,6 +32,11 @@ type App struct {
 	users      *usercmd.Runner
 	invites    *invite.Store
 	cfg        *config.Store
+	resmon     *resmon.Store
+	collector  *resmon.Collector
+
+	realtimeMu      sync.RWMutex
+	realtimeSamples []resmon.Sample
 }
 
 type ViewData struct {
@@ -98,6 +108,18 @@ type ViewData struct {
 	// registration settings
 	DefaultGroups       []string
 	UbuntuDesktopGroups []string
+
+	// resource monitor
+	CurrentMetrics     *resmon.Metrics
+	ResmonHistory      []resmon.Sample
+	ResmonConfig       resmon.Config
+	ResmonUsers        []string
+	ResmonSelectedUser string
+	ResmonLatestUsers  []resmon.UserResource
+	ResmonHours        int
+	ResmonStartAt      string
+	ResmonEndAt        string
+	ResmonEndMode      string
 }
 
 type GroupRow struct {
@@ -172,7 +194,28 @@ func newApp() (*App, error) {
 			return false
 		},
 		"startsWith": func(s, p string) bool { return strings.HasPrefix(strings.TrimSpace(s), strings.TrimSpace(p)) },
-		"trim":       func(s string) string { return strings.TrimSpace(s) }, "base": func(p string) string { return filepath.Base(strings.TrimSpace(p)) }, "RenderHTML": func(s string) template.HTML { return RenderMarkdown(s) },
+		"trim":       func(s string) string { return strings.TrimSpace(s) },
+		"base":       func(p string) string { return filepath.Base(strings.TrimSpace(p)) },
+		"RenderHTML": func(s string) template.HTML { return RenderMarkdown(s) },
+		"toJSON": func(v any) template.JS {
+			b, err := json.Marshal(v)
+			if err != nil {
+				return template.JS("null")
+			}
+			return template.JS(b)
+		},
+		"bytes": func(v uint64) string {
+			const unit = 1024
+			if v < unit {
+				return fmt.Sprintf("%d B", v)
+			}
+			div, exp := uint64(unit), 0
+			for n := v / unit; n >= unit; n /= unit {
+				div *= unit
+				exp++
+			}
+			return fmt.Sprintf("%.1f %ciB", float64(v)/float64(div), "KMGTPE"[exp])
+		},
 	})
 
 	pages := map[string]*template.Template{}
@@ -190,6 +233,7 @@ func newApp() (*App, error) {
 		"admin_invites",
 		"admin_user_edit",
 		"admin_lumgr_settings",
+		"admin_resources",
 	} {
 		t, err := base.Clone()
 		if err != nil {
@@ -209,14 +253,27 @@ func newApp() (*App, error) {
 	cfgStore := config.NewStore(config.DefaultPath())
 	_ = cfgStore.Ensure()
 
-	return &App{
+	rmStore := resmon.NewStore(resmon.DefaultPath())
+	_ = rmStore.Ensure()
+	_ = rmStore.Load()
+	procRoot := "/proc"
+	if st, err := os.Stat("/host/proc"); err == nil && st.IsDir() {
+		procRoot = "/host/proc"
+	}
+	rmCollector := resmon.NewCollector(procRoot)
+
+	app := &App{
 		secret:     secretRaw,
 		cookieName: auth.DefaultCookieName,
 		pages:      pages,
 		users:      usercmd.New(),
 		invites:    invStore,
 		cfg:        cfgStore,
-	}, nil
+		resmon:     rmStore,
+		collector:  rmCollector,
+	}
+	app.startResmonLoop()
+	return app, nil
 }
 
 func (a *App) routes() http.Handler {
@@ -259,6 +316,8 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("/admin/invites/delete", a.requireAdmin(a.handleAdminInvitesDelete))
 	mux.HandleFunc("/admin/settings/registration", a.requireAdmin(a.handleAdminRegistrationMode))
 	mux.HandleFunc("/admin/lumgr_settings", a.requireAdmin(a.handleAdminLumgrSettings))
+	mux.HandleFunc("/admin/resources", a.requireAdmin(a.handleAdminResources))
+	mux.HandleFunc("/admin/resources/config", a.requireAdmin(a.handleAdminResourcesConfig))
 
 	// Static assets
 	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("/usr/local/share/lumgrd/assets/"))))
@@ -268,6 +327,7 @@ func (a *App) routes() http.Handler {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("{\"ok\":true}\n"))
 	})
+	mux.HandleFunc("/api/resmon/current", a.requireAdmin(a.handleAPIResmonCurrent))
 
 	return a.withAuthContext(mux)
 }
@@ -294,4 +354,158 @@ func (a *App) clearCookie(w http.ResponseWriter) {
 		Secure:   false,
 		MaxAge:   -1,
 	})
+}
+
+func (a *App) startResmonLoop() {
+	if a == nil || a.collector == nil || a.resmon == nil || a.cfg == nil {
+		return
+	}
+	go func() {
+		lastPersistAt := time.Time{}
+		for {
+			cfg, err := a.cfg.Get()
+			if err != nil {
+				time.Sleep(1 * time.Second)
+				continue
+			}
+			rc := cfg.ResmonConfig.WithDefaults()
+			persistInterval := time.Duration(rc.IntervalSeconds) * time.Second
+			if persistInterval < 1*time.Second {
+				persistInterval = 1 * time.Second
+			}
+			if rc.Enabled {
+				m, us, err := a.collector.Collect(rc)
+				if err == nil {
+					now := time.Now().UTC()
+					sm := resmon.Sample{Timestamp: now, Metrics: m, UserStats: us}
+					a.appendRealtimeSample(sm)
+					if lastPersistAt.IsZero() || now.Sub(lastPersistAt) >= persistInterval {
+						agg := aggregateResmonWindow(a.getRealtimeSamples())
+						_ = a.resmon.Append(agg, rc.RetentionDays)
+						lastPersistAt = now
+					}
+				}
+				_ = a.resmon.Prune(rc.RetentionDays)
+			} else {
+				a.clearRealtimeSamples()
+			}
+			time.Sleep(1 * time.Second)
+		}
+	}()
+}
+
+func (a *App) appendRealtimeSample(sm resmon.Sample) {
+	a.realtimeMu.Lock()
+	defer a.realtimeMu.Unlock()
+	a.realtimeSamples = append(a.realtimeSamples, sm)
+	if len(a.realtimeSamples) > 30 {
+		a.realtimeSamples = a.realtimeSamples[len(a.realtimeSamples)-30:]
+	}
+}
+
+func (a *App) clearRealtimeSamples() {
+	a.realtimeMu.Lock()
+	defer a.realtimeMu.Unlock()
+	a.realtimeSamples = nil
+}
+
+func (a *App) getRealtimeSamples() []resmon.Sample {
+	a.realtimeMu.RLock()
+	defer a.realtimeMu.RUnlock()
+	if len(a.realtimeSamples) == 0 {
+		return nil
+	}
+	out := make([]resmon.Sample, len(a.realtimeSamples))
+	copy(out, a.realtimeSamples)
+	return out
+}
+
+func aggregateResmonWindow(samples []resmon.Sample) resmon.Sample {
+	if len(samples) == 0 {
+		now := time.Now().UTC()
+		return resmon.Sample{Timestamp: now, Metrics: resmon.Metrics{Timestamp: now}}
+	}
+	var cpuUser, cpuSystem, cpuIdle, cpuUsage float64
+	var memTotalSum, memUsedSum, memAvailSum uint64
+	var diskReadSum, diskWriteSum, netRxSum, netTxSum uint64
+	latest := samples[len(samples)-1]
+
+	type userAgg struct {
+		count  int
+		cpuSum float64
+		memSum uint64
+	}
+	userMap := map[string]*userAgg{}
+
+	for _, sm := range samples {
+		m := sm.Metrics
+		cpuUser += m.CPUUser
+		cpuSystem += m.CPUSystem
+		cpuIdle += m.CPUIdle
+		cpuUsage += m.CPUUsage
+		memTotalSum += m.MemTotal
+		memUsedSum += m.MemUsed
+		memAvailSum += m.MemAvailable
+		diskReadSum += m.DiskReadBytes
+		diskWriteSum += m.DiskWriteBytes
+		netRxSum += m.NetworkRxBytes
+		netTxSum += m.NetworkTxBytes
+
+		for _, u := range sm.UserStats {
+			ua := userMap[u.Username]
+			if ua == nil {
+				ua = &userAgg{}
+				userMap[u.Username] = ua
+			}
+			ua.count++
+			ua.cpuSum += u.CPU
+			ua.memSum += u.MemoryBytes
+		}
+	}
+
+	n := float64(len(samples))
+	ts := latest.Timestamp
+	if ts.IsZero() {
+		ts = time.Now().UTC()
+	}
+	out := resmon.Sample{
+		Timestamp: ts,
+		Metrics: resmon.Metrics{
+			Timestamp:      ts,
+			CPUUser:        cpuUser / n,
+			CPUSystem:      cpuSystem / n,
+			CPUIdle:        cpuIdle / n,
+			CPUUsage:       cpuUsage / n,
+			MemTotal:       uint64(float64(memTotalSum) / n),
+			MemUsed:        uint64(float64(memUsedSum) / n),
+			MemAvailable:   uint64(float64(memAvailSum) / n),
+			DiskReadBytes:  diskReadSum,
+			DiskWriteBytes: diskWriteSum,
+			NetworkRxBytes: netRxSum,
+			NetworkTxBytes: netTxSum,
+		},
+	}
+
+	users := make([]resmon.UserResource, 0, len(userMap))
+	for name, ua := range userMap {
+		if ua.count <= 0 {
+			continue
+		}
+		users = append(users, resmon.UserResource{
+			Username:    name,
+			CPU:         ua.cpuSum / float64(ua.count),
+			MemoryBytes: uint64(float64(ua.memSum) / float64(ua.count)),
+		})
+	}
+	sort.Slice(users, func(i, j int) bool {
+		if users[i].CPU == users[j].CPU {
+			return users[i].MemoryBytes > users[j].MemoryBytes
+		}
+		return users[i].CPU > users[j].CPU
+	})
+	if len(users) > 20 {
+		users = users[:20]
+	}
+	out.UserStats = users
+	return out
 }

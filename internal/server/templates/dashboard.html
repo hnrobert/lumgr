@@ -3,91 +3,376 @@
 
 {{if .OSPrettyName}}
 <div class="card" style="margin-bottom: 16px;">
-    <h2 style="margin:0 0 8px;">Host Information</h2>
-    <div style="margin-top: 14px;">
-        <div style="padding: 16px; background: var(--bg-darker); border-radius: 8px; border: 1px solid var(--border);">
-            <div style="display: grid; gap: 12px;">
-                {{if .Hostname}}
-                <div>
-                    <div class="muted" style="font-size: 13px; margin-bottom: 4px;">Hostname</div>
-                    <div style="font-size: 16px; font-weight: 500;">{{.Hostname}}</div>
-                </div>
-                {{end}}
-                <div>
-                    <div class="muted" style="font-size: 13px; margin-bottom: 4px;">Operating System</div>
-                    <div style="font-size: 16px; font-weight: 500;">{{.OSPrettyName}}</div>
-                </div>
-                {{if .OSVersion}}
-                <div>
-                    <div class="muted" style="font-size: 13px; margin-bottom: 4px;">Version</div>
-                    <div style="font-size: 16px;">{{.OSVersion}}</div>
-                </div>
-                {{end}}
-            </div>
+  <h2 style="margin:0 0 8px;">Host Information</h2>
+  <div style="margin-top: 14px;">
+    <div
+      style="padding: 16px; background: var(--bg-darker); border-radius: 8px; border: 1px solid var(--border); padding-top: 0;">
+      <div style="display: grid; gap: 12px;">
+        {{if .Hostname}}
+        <div>
+          <div class="muted" style="font-size: 13px; margin-bottom: 4px;">Hostname</div>
+          <div style="font-size: 16px; font-weight: 500;">{{.Hostname}}</div>
         </div>
+        {{end}}
+        <div>
+          <div class="muted" style="font-size: 13px; margin-bottom: 4px;">Operating System</div>
+          <div style="font-size: 16px; font-weight: 500;">{{.OSPrettyName}}</div>
+        </div>
+        {{if .OSVersion}}
+        <div>
+          <div class="muted" style="font-size: 13px; margin-bottom: 4px;">Version</div>
+          <div style="font-size: 16px;">{{.OSVersion}}</div>
+        </div>
+        {{end}}
+      </div>
     </div>
+  </div>
 </div>
 {{end}}
 
+<div class="card" style="margin-bottom: 16px;">
+  <h2 style="margin:0 0 8px;">System Resources</h2>
+  <div class="grid two" style="margin-top: 12px;">
+    <div>
+      <div class="muted">CPU usage</div>
+      <div style="font-size:22px; font-weight:600; margin-top:4px;"><span id="resmon-cpu-usage">{{if
+          .CurrentMetrics}}{{printf "%.1f" .CurrentMetrics.CPUUsage}}{{else}}0.0{{end}}</span>%</div>
+    </div>
+    <div>
+      <div class="muted">Memory</div>
+      <div style="font-size:22px; font-weight:600; margin-top:4px;"><span id="resmon-mem-used">{{if
+          .CurrentMetrics}}{{bytes .CurrentMetrics.MemUsed}}{{else}}0 B{{end}}</span> / <span id="resmon-mem-total">{{if
+          .CurrentMetrics}}{{bytes .CurrentMetrics.MemTotal}}{{else}}0
+          B{{end}}</span></div>
+    </div>
+    <div>
+      <div class="muted">Disk IO (realtime)</div>
+      <div style="font-size:14px; margin-top:4px;">R: <span id="resmon-disk-r">{{if .CurrentMetrics}}{{bytes
+          .CurrentMetrics.DiskReadBytes}}{{else}}0 B{{end}}</span> · W: <span id="resmon-disk-w">{{if
+          .CurrentMetrics}}{{bytes .CurrentMetrics.DiskWriteBytes}}{{else}}0 B{{end}}</span></div>
+    </div>
+    <div>
+      <div class="muted">Network (realtime)</div>
+      <div style="font-size:14px; margin-top:4px;">RX: <span id="resmon-net-rx">{{if .CurrentMetrics}}{{bytes
+          .CurrentMetrics.NetworkRxBytes}}{{else}}0 B{{end}}</span> · TX: <span id="resmon-net-tx">{{if
+          .CurrentMetrics}}{{bytes .CurrentMetrics.NetworkTxBytes}}{{else}}0 B{{end}}</span></div>
+    </div>
+  </div>
+  {{if .Admin}}
+  <div class="grid two" style="margin-top: 12px;">
+    <div>
+      <div class="muted" style="margin-bottom:6px;">Realtime CPU %</div>
+      <div style="height:220px; min-height:220px; max-height:220px; position:relative;">
+        <canvas id="resmonDashCpuChart"></canvas>
+      </div>
+    </div>
+    <div>
+      <div class="muted" style="margin-bottom:6px;">Realtime Memory %</div>
+      <div style="height:220px; min-height:220px; max-height:220px; position:relative;">
+        <canvas id="resmonDashMemChart"></canvas>
+      </div>
+    </div>
+    <div>
+      <div class="muted" style="margin-bottom:6px;">Disk IO Bytes</div>
+      <div style="height:220px; min-height:220px; max-height:220px; position:relative;">
+        <canvas id="resmonDashDiskIoChart"></canvas>
+      </div>
+    </div>
+    <div>
+      <div class="muted" style="margin-bottom:6px;">Network IO Bytes</div>
+      <div style="height:220px; min-height:220px; max-height:220px; position:relative;">
+        <canvas id="resmonDashNetIoChart"></canvas>
+      </div>
+    </div>
+  </div>
+  {{end}}
+</div>
+
 <div class="grid two rowMatch" style="margin-bottom: 16px;">
-    <div class="card">
-        <h2 style="margin:0 0 8px;">Quick Actions</h2>
-        <div class="muted" style="margin-bottom: 8px;">Signed in as <code>{{.Username}}</code>{{if .Admin}}
-            (admin){{end}}.</div>
+  <div class="card">
+    <h2 style="margin:0 0 8px;">Quick Actions</h2>
+    <div class="muted" style="margin-bottom: 8px;">Signed in as <code>{{.Username}}</code>{{if .Admin}}
+      (admin){{end}}.</div>
 
-        <div
-            style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:10px; margin-top:8px;">
-            <a class="btn" href="/settings/shell" style="text-decoration:none;">Shell settings</a>
-            <a class="btn" href="/settings/ssh" style="text-decoration:none;">SSH keys &amp; keygen</a>
-            <a class="btn" href="/settings/git" style="text-decoration:none;">Git settings</a>
-            <a class="btn" href="/settings/filesystem" style="text-decoration:none;">File system</a>
-            <a class="btn" href="/settings/security" style="text-decoration:none;">Security / Password</a>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:10px; margin-top:8px;">
+      <a class="btn" href="/settings/shell" style="text-decoration:none;">Shell settings</a>
+      <a class="btn" href="/settings/ssh" style="text-decoration:none;">SSH keys &amp; keygen</a>
+      <a class="btn" href="/settings/git" style="text-decoration:none;">Git settings</a>
+      <a class="btn" href="/settings/filesystem" style="text-decoration:none;">File system</a>
+      <a class="btn" href="/settings/security" style="text-decoration:none;">Security / Password</a>
 
-            {{if .Admin}}
-            <a class="btn" href="/admin/users" style="text-decoration:none;">Manage users</a>
-            <a class="btn" href="/admin/groups" style="text-decoration:none;">Manage groups</a>
-            <a class="btn" href="/admin/invites" style="text-decoration:none;">Manage invites</a>
-            <a class="btn" href="/admin/lumgr_settings" style="text-decoration:none;">Lumgr settings</a>
-            {{end}}
-        </div>
-
+      {{if .Admin}}
+      <a class="btn" href="/admin/users" style="text-decoration:none;">Manage users</a>
+      <a class="btn" href="/admin/groups" style="text-decoration:none;">Manage groups</a>
+      <a class="btn" href="/admin/invites" style="text-decoration:none;">Manage invites</a>
+      <a class="btn" href="/admin/lumgr_settings" style="text-decoration:none;">Lumgr settings</a>
+      {{end}}
     </div>
 
-    <div class="card">
-        <h2 style="margin:0 0 8px;">Notice</h2>
-        <div class="muted" style="line-height:1.55;">{{.LumgrWhatEditsHTML}}</div>
-    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin:0 0 8px;">Notice</h2>
+    <div class="muted" style="line-height:1.55;">{{.LumgrWhatEditsHTML}}</div>
+  </div>
 </div>
 
 {{if .Admin}}
 <div class="card" style="margin-bottom: 16px;">
-    <h2 style="margin:0 0 8px;">System Statistics</h2>
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 14px;">
-        <div
-            style="padding: 20px; background: rgba(122, 162, 255, .08); border-radius: 10px; border: 1px solid rgba(122, 162, 255, .15);">
-            <div class="muted" style="font-size: 14px; margin-bottom: 8px;">Total Users</div>
-            <div style="font-size: 32px; font-weight: 600;">{{.TotalUsers}}</div>
-        </div>
-        <div
-            style="padding: 20px; background: rgba(61, 220, 151, .08); border-radius: 10px; border: 1px solid rgba(61, 220, 151, .15);">
-            <div class="muted" style="font-size: 14px; margin-bottom: 8px;">Administrators</div>
-            <div style="font-size: 32px; font-weight: 600;">{{.AdminUsers}}</div>
-        </div>
+  <h2 style="margin:0 0 8px;">System Statistics</h2>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 14px;">
+    <div
+      style="padding: 20px; background: rgba(122, 162, 255, .08); border-radius: 10px; border: 1px solid rgba(122, 162, 255, .15);">
+      <div class="muted" style="font-size: 14px; margin-bottom: 8px;">Total Users</div>
+      <div style="font-size: 32px; font-weight: 600;">{{.TotalUsers}}</div>
     </div>
+    <div
+      style="padding: 20px; background: rgba(61, 220, 151, .08); border-radius: 10px; border: 1px solid rgba(61, 220, 151, .15);">
+      <div class="muted" style="font-size: 14px; margin-bottom: 8px;">Administrators</div>
+      <div style="font-size: 32px; font-weight: 600;">{{.AdminUsers}}</div>
+    </div>
+  </div>
 </div>
 {{end}}
 
 {{if .HomeSize}}
 <div class="card">
-    <h2 style="margin:0 0 8px;">Storage Usage</h2>
-    <div style="display: flex; align-items: center; gap: 20px; margin-top: 14px;">
-        <div style="flex: 1;">
-            <div class="muted" style="font-size: 14px; margin-bottom: 8px;">Home directory: <code>{{.Username}}</code>
-            </div>
-            <div style="font-size: 32px; font-weight: 600; color: var(--accent);">{{.HomeSize}}</div>
-        </div>
+  <h2 style="margin:0 0 8px;">Storage Usage</h2>
+  <div style="display: flex; align-items: center; gap: 20px; margin-top: 14px;">
+    <div style="flex: 1;">
+      <div class="muted" style="font-size: 14px; margin-bottom: 8px;">Home directory: <code>{{.Username}}</code>
+      </div>
+      <div style="font-size: 32px; font-weight: 600; color: var(--accent);">{{.HomeSize}}</div>
     </div>
+  </div>
 </div>
+{{end}}
+
+{{if .Admin}}
+<script src="/assets/vendor/chart.min.js"></script>
+<script id="resmonDashboardConfig" type="application/json">{{toJSON .ResmonConfig}}</script>
+<script id="resmonDashboardSeed" type="application/json">{{toJSON .CurrentMetrics}}</script>
+<script>
+  (function () {
+    if (window.__lumgrDashResmonInit) return;
+    window.__lumgrDashResmonInit = true;
+
+    const seed = JSON.parse(document.getElementById('resmonDashboardSeed')?.textContent || '{}');
+    const pollInterval = 1000;
+    const formatBytes = (v) => {
+      v = Number(v) || 0;
+      const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
+      let i = 0;
+      while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+      if (i === 0) return Math.round(v) + ' B';
+      return v.toFixed(1) + ' ' + units[i];
+    };
+    const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+    const labels = [];
+    const cpuSeries = [];
+    const memSeries = [];
+    const memTotalSeries = [];
+    const diskReadSeries = [];
+    const diskWriteSeries = [];
+    const netRxSeries = [];
+    const netTxSeries = [];
+    const maxPoints = 30;
+
+    let cpuChart = null;
+    let memChart = null;
+    let diskIoChart = null;
+    let netIoChart = null;
+    let timerId = null;
+    let bootstrappedWindow = false;
+
+    function pushSeries(arr, value) {
+      arr.push(value);
+      if (arr.length > maxPoints) arr.shift();
+    }
+
+    function rebuildSeriesFromSamples(samples) {
+      labels.length = 0;
+      cpuSeries.length = 0;
+      memSeries.length = 0;
+      memTotalSeries.length = 0;
+      diskReadSeries.length = 0;
+      diskWriteSeries.length = 0;
+      netRxSeries.length = 0;
+      netTxSeries.length = 0;
+      for (let i = 0; i < samples.length; i++) {
+        const s = samples[i] || {};
+        const m = s.metrics || s.Metrics || {};
+        const ts = new Date(s.timestamp || s.Timestamp || Date.now());
+        updateCharts(ts, m);
+      }
+    }
+
+    function updateCharts(now, m) {
+      const label = now.toLocaleTimeString();
+      pushSeries(labels, label);
+      pushSeries(cpuSeries, Number(m.cpu_usage ?? m.CPUUsage ?? 0));
+      const memUsed = Number(m.mem_used ?? m.MemUsed ?? 0);
+      const memTotal = Number(m.mem_total ?? m.MemTotal ?? 0);
+      pushSeries(memSeries, memUsed);
+      pushSeries(memTotalSeries, memTotal);
+
+      pushSeries(diskReadSeries, Number(m.disk_read_bytes ?? m.DiskReadBytes ?? 0));
+      pushSeries(diskWriteSeries, Number(m.disk_write_bytes ?? m.DiskWriteBytes ?? 0));
+      pushSeries(netRxSeries, Number(m.network_rx_bytes ?? m.NetworkRxBytes ?? 0));
+      pushSeries(netTxSeries, Number(m.network_tx_bytes ?? m.NetworkTxBytes ?? 0));
+
+      if (cpuChart) cpuChart.update('none');
+      if (memChart) {
+        const maxMem = Math.max(1, ...memTotalSeries);
+        memChart.options.scales.y.max = maxMem;
+        memChart.update('none');
+      }
+      if (diskIoChart) diskIoChart.update('none');
+      if (netIoChart) netIoChart.update('none');
+    }
+
+    function ensureCharts() {
+      if (typeof Chart === 'undefined') return;
+      if (!cpuChart) {
+        const canvas = document.getElementById('resmonDashCpuChart');
+        if (canvas) {
+          cpuChart = new Chart(canvas, {
+            type: 'line',
+            data: {
+              labels,
+              datasets: [
+                { label: 'CPU %', data: cpuSeries, borderColor: '#7aa2ff', backgroundColor: 'rgba(122,162,255,0.15)', tension: 0.25 }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              animation: false,
+              scales: { y: { min: 0, max: 100 } }
+            }
+          });
+        }
+      }
+      if (!memChart) {
+        const canvas = document.getElementById('resmonDashMemChart');
+        if (canvas) {
+          memChart = new Chart(canvas, {
+            type: 'line',
+            data: {
+              labels,
+              datasets: [
+                { label: 'Mem Used', data: memSeries, borderColor: '#3ddc97', backgroundColor: 'rgba(61,220,151,0.15)', tension: 0.25 }
+              ]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              animation: false,
+              scales: {
+                y: {
+                  min: 0,
+                  max: Math.max(1, ...memTotalSeries),
+                  ticks: {
+                    callback: function (value) { return formatBytes(value); }
+                  }
+                }
+              },
+              plugins: {
+                tooltip: {
+                  callbacks: {
+                    label: function (ctx) {
+                      const used = Number(ctx.parsed.y || 0);
+                      const total = Number(memTotalSeries[ctx.dataIndex] || 0);
+                      const pct = total > 0 ? (used / total) * 100 : 0;
+                      return 'Mem Used: ' + formatBytes(used) + ' (' + pct.toFixed(1) + '%)';
+                    }
+                  }
+                }
+              }
+            }
+          });
+        }
+      }
+      if (!diskIoChart) {
+        const canvas = document.getElementById('resmonDashDiskIoChart');
+        if (canvas) {
+          diskIoChart = new Chart(canvas, {
+            type: 'line',
+            data: {
+              labels,
+              datasets: [
+                { label: 'Disk R', data: diskReadSeries, borderColor: '#f2c879', tension: 0.25 },
+                { label: 'Disk W', data: diskWriteSeries, borderColor: '#ff8f8f', tension: 0.25 }
+              ]
+            },
+            options: { responsive: true, maintainAspectRatio: false, animation: false }
+          });
+        }
+      }
+      if (!netIoChart) {
+        const canvas = document.getElementById('resmonDashNetIoChart');
+        if (canvas) {
+          netIoChart = new Chart(canvas, {
+            type: 'line',
+            data: {
+              labels,
+              datasets: [
+                { label: 'Net RX', data: netRxSeries, borderColor: '#86d6ff', tension: 0.25 },
+                { label: 'Net TX', data: netTxSeries, borderColor: '#c48fff', tension: 0.25 }
+              ]
+            },
+            options: { responsive: true, maintainAspectRatio: false, animation: false }
+          });
+        }
+      }
+    }
+
+    function renderMetric(m, appendPoint) {
+      setText('resmon-cpu-usage', (Number(m.cpu_usage ?? m.CPUUsage ?? 0)).toFixed(1));
+      setText('resmon-mem-used', formatBytes(m.mem_used ?? m.MemUsed ?? 0));
+      setText('resmon-mem-total', formatBytes(m.mem_total ?? m.MemTotal ?? 0));
+      setText('resmon-disk-r', formatBytes(m.disk_read_bytes ?? m.DiskReadBytes ?? 0));
+      setText('resmon-disk-w', formatBytes(m.disk_write_bytes ?? m.DiskWriteBytes ?? 0));
+      setText('resmon-net-rx', formatBytes(m.network_rx_bytes ?? m.NetworkRxBytes ?? 0));
+      setText('resmon-net-tx', formatBytes(m.network_tx_bytes ?? m.NetworkTxBytes ?? 0));
+
+      ensureCharts();
+      if (appendPoint) {
+        updateCharts(new Date(), m);
+      }
+    }
+
+    async function fetchCurrent(includeWindow) {
+      try {
+        const url = includeWindow ? '/api/resmon/current?full=1' : '/api/resmon/current';
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) return;
+        const payload = await res.json();
+        const samples = Array.isArray(payload.realtime_samples) ? payload.realtime_samples : [];
+        if (includeWindow && samples.length > 0) {
+          rebuildSeriesFromSamples(samples.slice(-maxPoints));
+          bootstrappedWindow = true;
+        }
+        const sm = payload.sample || payload;
+        const m = sm.metrics || sm.Metrics || {};
+        renderMetric(m, !bootstrappedWindow || !includeWindow);
+
+      } catch (err) {
+        // silent
+      }
+    }
+
+    if (seed) {
+      renderMetric(seed, true);
+    }
+    fetchCurrent(true);
+    timerId = setInterval(function () { fetchCurrent(false); }, pollInterval);
+    window.addEventListener('beforeunload', function () {
+      if (timerId) clearInterval(timerId);
+      window.__lumgrDashResmonInit = false;
+    });
+  })();
+</script>
 {{end}}
 
 {{end}}

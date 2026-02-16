@@ -1,120 +1,120 @@
 {{define "title"}}Admin · Edit User · lumgr{{end}}
 {{define "content"}}
 <div class="grid two">
-    <div class="card">
-        <h2 style="margin:0 0 8px;">Edit Groups: {{.EditUser.Name}}</h2>
-        <div class="muted" style="margin-bottom: 12px;">Manage group memberships.</div>
+  <div class="card">
+    <h2 style="margin:0 0 8px;">Edit Groups: {{.EditUser.Name}}</h2>
+    <div class="muted" style="margin-bottom: 12px;">Manage group memberships.</div>
 
 
-        <form method="post" action="/admin/users/update_groups">
-            <input type="hidden" name="username" value="{{.EditUser.Name}}" />
+    <form method="post" action="/admin/users/update_groups">
+      <input type="hidden" name="username" value="{{.EditUser.Name}}" />
 
-            <div style="margin-bottom: 16px;">
-                <label>Groups (<span class="muted" data-groups-selected-count>0</span>
-                    <span class="muted">selected</span>)</label>
-                <div class="muted" style="margin-bottom: 8px; font-size: 13px;">
-                    Select the groups this user should belong to.
-                </div>
+      <div style="margin-bottom: 16px;">
+        <label>Groups (<span class="muted" data-groups-selected-count>0</span>
+          <span class="muted">selected</span>)</label>
+        <div class="muted" style="margin-bottom: 8px; font-size: 13px;">
+          Select the groups this user should belong to.
+        </div>
 
-                <div data-groups-container
-                    style="display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px;">
-                    {{range .FeaturedGroups}}
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <input type="checkbox" id="g_{{.}}" name="groups" value="{{.}}"
-                            style="width: 16px; height: 16px; flex: 0 0 16px; margin: 0;" {{if (contains
-                            $.EditUser.Groups .)}}checked{{end}} />
-                        <label for="g_{{.}}" style="display:inline; margin-top: 6px;">{{.}}</label>
-                    </div>
-                    {{end}}
+        <div data-groups-container
+          style="display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto; padding: 10px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+          {{range .FeaturedGroups}}
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <input type="checkbox" id="g_{{.}}" name="groups" value="{{.}}"
+              style="width: 16px; height: 16px; flex: 0 0 16px; margin: 0;" {{if (contains $.EditUser.Groups
+              .)}}checked{{end}} />
+            <label for="g_{{.}}" style="display:inline; margin-top: 6px;">{{.}}</label>
+          </div>
+          {{end}}
 
-                    {{if .OtherGroups}}
-                    <details style="margin-top: 5px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 5px;">
-                        <summary style="cursor: pointer; font-size: 13px; color: var(--muted); padding: 5px 0;">Show
-                            other groups ({{len .OtherGroups}})</summary>
-                        <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 5px;">
-                            {{range .OtherGroups}}
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <input type="checkbox" id="g_{{.}}" name="groups" value="{{.}}"
-                                    style="width: 16px; height: 16px; flex: 0 0 16px; margin: 0;" {{if (contains
-                                    $.EditUser.Groups .)}}checked{{end}} />
-                                <label for="g_{{.}}" style="display:inline; margin-top: 6px;">{{.}}</label>
-                            </div>
-                            {{end}}
-                        </div>
-                    </details>
-                    {{end}}
-                </div>
+          {{if .OtherGroups}}
+          <details style="margin-top: 5px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 5px;">
+            <summary style="cursor: pointer; font-size: 13px; color: var(--muted); padding: 5px 0;">Show
+              other groups ({{len .OtherGroups}})</summary>
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 5px;">
+              {{range .OtherGroups}}
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <input type="checkbox" id="g_{{.}}" name="groups" value="{{.}}"
+                  style="width: 16px; height: 16px; flex: 0 0 16px; margin: 0;" {{if (contains $.EditUser.Groups
+                  .)}}checked{{end}} />
+                <label for="g_{{.}}" style="display:inline; margin-top: 6px;">{{.}}</label>
+              </div>
+              {{end}}
             </div>
+          </details>
+          {{end}}
+        </div>
+      </div>
 
-            <div style="display:flex; justify-content:flex-end; margin-top: 14px;">
-                <button class="btn primary small" type="submit">Save Join</button>
-            </div>
-        </form>
+      <div style="display:flex; justify-content:flex-end; margin-top: 14px;">
+        <button class="btn primary small" type="submit">Save Join</button>
+      </div>
+    </form>
 
-        <script>
-            (function () {
-                function initGroupsSelectedCount(container) {
-                    if (!container) return;
-                    const label = container.previousElementSibling && container.previousElementSibling.previousElementSibling
-                        ? container.previousElementSibling.previousElementSibling
-                        : container.previousElementSibling;
-                    const countEl = label && label.querySelector ? label.querySelector('[data-groups-selected-count]') : null;
-                    if (!countEl) return;
+    <script>
+      (function () {
+        function initGroupsSelectedCount(container) {
+          if (!container) return;
+          const label = container.previousElementSibling && container.previousElementSibling.previousElementSibling
+            ? container.previousElementSibling.previousElementSibling
+            : container.previousElementSibling;
+          const countEl = label && label.querySelector ? label.querySelector('[data-groups-selected-count]') : null;
+          if (!countEl) return;
 
-                    const update = () => {
-                        const n = container.querySelectorAll('input[type="checkbox"]:checked').length;
-                        countEl.textContent = String(n);
-                    };
+          const update = () => {
+            const n = container.querySelectorAll('input[type="checkbox"]:checked').length;
+            countEl.textContent = String(n);
+          };
 
-                    update();
+          update();
 
-                    container.addEventListener('change', (ev) => {
-                        const t = ev && ev.target;
-                        if (t && t.matches && t.matches('input[type="checkbox"]')) {
-                            update();
-                        }
-                    });
-                }
+          container.addEventListener('change', (ev) => {
+            const t = ev && ev.target;
+            if (t && t.matches && t.matches('input[type="checkbox"]')) {
+              update();
+            }
+          });
+        }
 
-                function init() {
-                    document.querySelectorAll('[data-groups-container]').forEach(initGroupsSelectedCount);
-                }
+        function init() {
+          document.querySelectorAll('[data-groups-container]').forEach(initGroupsSelectedCount);
+        }
 
-                if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', init);
-                } else {
-                    init();
-                }
-            })();
-        </script>
-    </div>
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', init);
+        } else {
+          init();
+        }
+      })();
+    </script>
+  </div>
 
 
-    <div class="card">
-        <h2 style="margin:0 0 8px;">File Permissions</h2>
-        <div class="muted" style="margin-bottom: 12px;">Recursively apply chmod to user's home (skips .ssh).</div>
+  <div class="card">
+    <h2 style="margin:0 0 8px;">File Permissions</h2>
+    <div class="muted" style="margin-bottom: 12px;">Recursively apply chmod to user's home (skips .ssh).</div>
 
-        <form method="post" action="{{.PermFormAction}}">
-            <input type="hidden" name="username" value="{{.EditUser.Name}}" />
+    <form method="post" action="{{.PermFormAction}}">
+      <input type="hidden" name="username" value="{{.EditUser.Name}}" />
 
-            {{template "perms_table" .}}
+      {{template "perms_table" .}}
 
-            <div style="display:flex; justify-content:space-between; margin-top: 14px;">
-                <a href="/admin/users" class="btn ghost">Back</a>
-                <button class="btn danger small" type="submit">{{.PermSubmitLabel}}</button>
-            </div>
-        </form>
-    </div>
+      <div style="display:flex; justify-content:space-between; margin-top: 14px;">
+        <a href="/admin/users" class="btn ghost">Back</a>
+        <button class="btn danger small" type="submit">{{.PermSubmitLabel}}</button>
+      </div>
+    </form>
+  </div>
 
-    <div class="card">
-        <h2 style="margin:0 0 8px;">Default umask</h2>
-        <div class="muted" style="margin-bottom: 12px;">Used when creating new files and directories.</div>
+  <div class="card">
+    <h2 style="margin:0 0 8px;">Default umask</h2>
+    <div class="muted" style="margin-bottom: 12px;">Used when creating new files and directories.</div>
 
-        <form method="post" action="{{.PermUmaskFormAction}}" style="display:flex; gap:8px; align-items:center;">
-            <input type="hidden" name="username" value="{{.EditUser.Name}}" />
-            <input name="umask" placeholder="022" value="{{.PermUmaskValue}}" style="width:80px;" />
-            <button class="btn primary small" type="submit">Save</button>
-        </form>
-    </div>
+    <form method="post" action="{{.PermUmaskFormAction}}" style="display:flex; gap:8px; align-items:center;">
+      <input type="hidden" name="username" value="{{.EditUser.Name}}" />
+      <input name="umask" placeholder="022" value="{{.PermUmaskValue}}" style="width:80px;" />
+      <button class="btn primary small" type="submit">Save</button>
+    </form>
+  </div>
 </div>
 {{end}}
