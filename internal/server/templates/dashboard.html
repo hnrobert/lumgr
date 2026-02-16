@@ -35,35 +35,51 @@
     <div class="grid two" style="margin-top: 12px;">
         <div>
             <div class="muted">CPU usage</div>
-            <div style="font-size:22px; font-weight:600; margin-top:4px;">{{printf "%.1f" .CurrentMetrics.CPUUsage}}%
-            </div>
+            <div style="font-size:22px; font-weight:600; margin-top:4px;"><span id="resmon-cpu-usage">{{printf "%.1f"
+                    .CurrentMetrics.CPUUsage}}</span>%</div>
         </div>
         <div>
             <div class="muted">Memory</div>
-            <div style="font-size:22px; font-weight:600; margin-top:4px;">{{bytes .CurrentMetrics.MemUsed}} / {{bytes
-                .CurrentMetrics.MemTotal}}</div>
+            <div style="font-size:22px; font-weight:600; margin-top:4px;"><span id="resmon-mem-used">{{bytes
+                    .CurrentMetrics.MemUsed}}</span> / <span id="resmon-mem-total">{{bytes
+                    .CurrentMetrics.MemTotal}}</span></div>
         </div>
         <div>
             <div class="muted">Disk IO (cumulative)</div>
-            <div style="font-size:14px; margin-top:4px;">R: {{bytes .CurrentMetrics.DiskReadBytes}} · W: {{bytes
-                .CurrentMetrics.DiskWriteBytes}}</div>
+            <div style="font-size:14px; margin-top:4px;">R: <span id="resmon-disk-r">{{bytes
+                    .CurrentMetrics.DiskReadBytes}}</span> · W: <span id="resmon-disk-w">{{bytes
+                    .CurrentMetrics.DiskWriteBytes}}</span></div>
+
+            {{if .CurrentMetrics.Filesystems}}
+            <div style="margin-top:8px;">
+                <div class="muted" style="margin-bottom:6px;">Mounts</div>
+                <div id="resmon-filesystems" style="display:flex; flex-direction:column; gap:6px;">
+                    {{range .CurrentMetrics.Filesystems}}
+                    <div style="display:flex; justify-content:space-between; gap:8px; font-size:13px;">
+                        <span><code>{{.MountPoint}}</code></span>
+                        <span>{{printf "%.1f" .UsePercent}}% ({{bytes .Used}} / {{bytes .Total}})</span>
+                    </div>
+                    {{end}}
+                </div>
+            </div>
+            {{end}}
         </div>
         <div>
             <div class="muted">Network (cumulative)</div>
-            <div style="font-size:14px; margin-top:4px;">RX: {{bytes .CurrentMetrics.NetworkRxBytes}} · TX: {{bytes
-                .CurrentMetrics.NetworkTxBytes}}</div>
+            <div style="font-size:14px; margin-top:4px;">RX: <span id="resmon-net-rx">{{bytes
+                    .CurrentMetrics.NetworkRxBytes}}</span> · TX: <span id="resmon-net-tx">{{bytes
+                    .CurrentMetrics.NetworkTxBytes}}</span></div>
         </div>
     </div>
-    {{if .CurrentMetrics.Filesystems}}
-    <div style="margin-top:12px;">
-        <div class="muted" style="margin-bottom:6px;">Filesystems</div>
-        <div style="display:flex; flex-direction:column; gap:6px;">
-            {{range .CurrentMetrics.Filesystems}}
-            <div style="display:flex; justify-content:space-between; gap:8px; font-size:13px;">
-                <span><code>{{.MountPoint}}</code></span>
-                <span>{{printf "%.1f" .UsePercent}}% ({{bytes .Used}} / {{bytes .Total}})</span>
-            </div>
-            {{end}}
+    {{if .Admin}}
+    <div class="grid two" style="margin-top: 12px;">
+        <div>
+            <div class="muted" style="margin-bottom:6px;">Realtime CPU / Memory %</div>
+            <canvas id="resmonDashCpuMemChart" height="100"></canvas>
+        </div>
+        <div>
+            <div class="muted" style="margin-bottom:6px;">Realtime Disk / Network Delta Bytes</div>
+            <canvas id="resmonDashIoChart" height="100"></canvas>
         </div>
     </div>
     {{end}}
@@ -129,6 +145,165 @@
         </div>
     </div>
 </div>
+{{end}}
+
+{{if .Admin}}
+<script src="/assets/vendor/chart.min.js"></script>
+<script id="resmonDashboardConfig" type="application/json">{{toJSON .ResmonConfig}}</script>
+<script id="resmonDashboardSeed" type="application/json">{{toJSON .CurrentMetrics}}</script>
+<script>
+    (function () {
+        const cfg = JSON.parse(document.getElementById('resmonDashboardConfig')?.textContent || '{}');
+        const seed = JSON.parse(document.getElementById('resmonDashboardSeed')?.textContent || '{}');
+        const intervalSeconds = Number(cfg.interval_seconds || cfg.IntervalSeconds || 5) || 5;
+        const pollInterval = Math.max(5, Number(intervalSeconds)) * 1000;
+        const formatBytes = (v) => {
+            v = Number(v) || 0;
+            if (v < 1024) return v + ' B';
+            const units = ['KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
+            let i = 0;
+            while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+            return v.toFixed(1) + ' ' + units[i];
+        };
+        const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+        const labels = [];
+        const cpuSeries = [];
+        const memSeries = [];
+        const diskReadSeries = [];
+        const diskWriteSeries = [];
+        const netRxSeries = [];
+        const netTxSeries = [];
+        const maxPoints = 30;
+
+        let prevCounters = null;
+        let cpuMemChart = null;
+        let ioChart = null;
+
+        function pushSeries(arr, value) {
+            arr.push(value);
+            if (arr.length > maxPoints) arr.shift();
+        }
+
+        function updateCharts(now, m) {
+            const label = now.toLocaleTimeString();
+            pushSeries(labels, label);
+            pushSeries(cpuSeries, Number(m.cpu_usage ?? m.CPUUsage ?? 0));
+            const memUsed = Number(m.mem_used ?? m.MemUsed ?? 0);
+            const memTotal = Number(m.mem_total ?? m.MemTotal ?? 0);
+            pushSeries(memSeries, memTotal > 0 ? (memUsed / memTotal) * 100 : 0);
+
+            const curRead = Number(m.disk_read_bytes ?? m.DiskReadBytes ?? 0);
+            const curWrite = Number(m.disk_write_bytes ?? m.DiskWriteBytes ?? 0);
+            const curRx = Number(m.network_rx_bytes ?? m.NetworkRxBytes ?? 0);
+            const curTx = Number(m.network_tx_bytes ?? m.NetworkTxBytes ?? 0);
+            let readDelta = 0;
+            let writeDelta = 0;
+            let rxDelta = 0;
+            let txDelta = 0;
+            if (prevCounters) {
+                readDelta = Math.max(0, curRead - prevCounters.read);
+                writeDelta = Math.max(0, curWrite - prevCounters.write);
+                rxDelta = Math.max(0, curRx - prevCounters.rx);
+                txDelta = Math.max(0, curTx - prevCounters.tx);
+            }
+            prevCounters = { read: curRead, write: curWrite, rx: curRx, tx: curTx };
+            pushSeries(diskReadSeries, readDelta);
+            pushSeries(diskWriteSeries, writeDelta);
+            pushSeries(netRxSeries, rxDelta);
+            pushSeries(netTxSeries, txDelta);
+
+            if (cpuMemChart) cpuMemChart.update('none');
+            if (ioChart) ioChart.update('none');
+        }
+
+        function ensureCharts() {
+            if (typeof Chart === 'undefined') return;
+            if (!cpuMemChart) {
+                const canvas = document.getElementById('resmonDashCpuMemChart');
+                if (canvas) {
+                    cpuMemChart = new Chart(canvas, {
+                        type: 'line',
+                        data: {
+                            labels,
+                            datasets: [
+                                { label: 'CPU %', data: cpuSeries, borderColor: '#7aa2ff', backgroundColor: 'rgba(122,162,255,0.15)', tension: 0.25 },
+                                { label: 'Mem %', data: memSeries, borderColor: '#3ddc97', backgroundColor: 'rgba(61,220,151,0.15)', tension: 0.25 }
+                            ]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false }
+                    });
+                }
+            }
+            if (!ioChart) {
+                const canvas = document.getElementById('resmonDashIoChart');
+                if (canvas) {
+                    ioChart = new Chart(canvas, {
+                        type: 'line',
+                        data: {
+                            labels,
+                            datasets: [
+                                { label: 'Disk R Δ', data: diskReadSeries, borderColor: '#f2c879', tension: 0.25 },
+                                { label: 'Disk W Δ', data: diskWriteSeries, borderColor: '#ff8f8f', tension: 0.25 },
+                                { label: 'Net RX Δ', data: netRxSeries, borderColor: '#86d6ff', tension: 0.25 },
+                                { label: 'Net TX Δ', data: netTxSeries, borderColor: '#c48fff', tension: 0.25 }
+                            ]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false }
+                    });
+                }
+            }
+        }
+
+        function renderMetric(m) {
+            setText('resmon-cpu-usage', (Number(m.cpu_usage ?? m.CPUUsage ?? 0)).toFixed(1));
+            setText('resmon-mem-used', formatBytes(m.mem_used ?? m.MemUsed ?? 0));
+            setText('resmon-mem-total', formatBytes(m.mem_total ?? m.MemTotal ?? 0));
+            setText('resmon-disk-r', formatBytes(m.disk_read_bytes ?? m.DiskReadBytes ?? 0));
+            setText('resmon-disk-w', formatBytes(m.disk_write_bytes ?? m.DiskWriteBytes ?? 0));
+            setText('resmon-net-rx', formatBytes(m.network_rx_bytes ?? m.NetworkRxBytes ?? 0));
+            setText('resmon-net-tx', formatBytes(m.network_tx_bytes ?? m.NetworkTxBytes ?? 0));
+
+            const fs = (m.filesystems || m.Filesystems || []);
+            const cont = document.getElementById('resmon-filesystems');
+            if (cont) {
+                cont.innerHTML = '';
+                for (let i = 0; i < fs.length; i++) {
+                    const f = fs[i];
+                    const mp = f.mount_point || f.MountPoint || '';
+                    const pct = (f.use_percent ?? f.UsePercent ?? 0).toFixed(1);
+                    const used = formatBytes(f.used ?? f.Used ?? 0);
+                    const total = formatBytes(f.total ?? f.Total ?? 0);
+                    const row = document.createElement('div');
+                    row.style.display = 'flex'; row.style.justifyContent = 'space-between'; row.style.gap = '8px'; row.style.fontSize = '13px';
+                    row.innerHTML = '<span><code>' + mp + '</code></span><span>' + pct + '% (' + used + ' / ' + total + ')</span>';
+                    cont.appendChild(row);
+                }
+            }
+
+            ensureCharts();
+            updateCharts(new Date(), m);
+        }
+
+        async function fetchCurrent() {
+            try {
+                const res = await fetch('/api/resmon/current', { cache: 'no-store' });
+                if (!res.ok) return;
+                const sm = await res.json();
+                const m = sm.metrics || sm.Metrics || {};
+                renderMetric(m);
+
+            } catch (err) {
+                // silent
+            }
+        }
+
+        if (seed) {
+            renderMetric(seed);
+        }
+        fetchCurrent();
+        setInterval(fetchCurrent, pollInterval);
+    })();
+</script>
 {{end}}
 
 {{end}}

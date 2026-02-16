@@ -263,6 +263,10 @@ func (c *Collector) readFilesystems() ([]FSInfo, error) {
 		if skipFs[fst] || seen[mnt] {
 			continue
 		}
+		fi, err := os.Stat(mnt)
+		if err != nil || !fi.IsDir() {
+			continue
+		}
 		seen[mnt] = true
 		var s syscall.Statfs_t
 		if err := syscall.Statfs(mnt, &s); err != nil {
