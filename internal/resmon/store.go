@@ -60,12 +60,12 @@ func (s *Store) Load() error {
 			}
 			return err
 		}
-		defer f.Close()
 
 		// detect by extension: .json (legacy) or .yaml/.yml (appended YAML docs)
 		ext := strings.ToLower(filepath.Ext(name))
 		if ext == ".json" {
 			b, err := os.ReadFile(p)
+			_ = f.Close()
 			if err != nil {
 				return err
 			}
@@ -89,8 +89,10 @@ func (s *Store) Load() error {
 			err := d.Decode(&sm)
 			if err != nil {
 				if errors.Is(err, io.EOF) {
+					_ = f.Close()
 					break
 				}
+				_ = f.Close()
 				return err
 			}
 			merged = append(merged, sm)
@@ -117,6 +119,9 @@ func (s *Store) Append(sample Sample, retentionDays int) error {
 	} else {
 		sample.Timestamp = sample.Timestamp.UTC()
 	}
+	if isEffectivelyEmptySample(sample) {
+		return nil
+	}
 	// append to in-memory slice
 	s.samples = append(s.samples, sample)
 
@@ -126,18 +131,17 @@ func (s *Store) Append(sample Sample, retentionDays int) error {
 	}
 
 	// prune in-memory; only rewrite files when pruning actually removed samples
-	before := len(s.samples)
-	s.pruneLocked(retentionDays)
-	if len(s.samples) < before {
+	if s.pruneLocked(retentionDays) {
 		return s.saveLocked()
 	}
 	return nil
 }
 
-func (s *Store) pruneLocked(retentionDays int) {
+func (s *Store) pruneLocked(retentionDays int) bool {
 	if retentionDays <= 0 {
 		retentionDays = 7
 	}
+	before := len(s.samples)
 	cutoff := time.Now().UTC().Add(-time.Duration(retentionDays) * 24 * time.Hour)
 	keep := s.samples[:0]
 	for _, sm := range s.samples {
@@ -146,12 +150,15 @@ func (s *Store) pruneLocked(retentionDays int) {
 		}
 	}
 	s.samples = keep
+	return len(s.samples) != before
 }
 
 func (s *Store) Prune(retentionDays int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.pruneLocked(retentionDays)
+	if !s.pruneLocked(retentionDays) {
+		return nil
+	}
 	return s.saveLocked()
 }
 
@@ -299,17 +306,6 @@ func formatYAMLSample(s Sample) string {
 	fmt.Fprintf(sb, "  mem_available: %d\n", m.MemAvailable)
 	fmt.Fprintf(sb, "  disk_read_bytes: %d\n", m.DiskReadBytes)
 	fmt.Fprintf(sb, "  disk_write_bytes: %d\n", m.DiskWriteBytes)
-	if len(m.Filesystems) == 0 {
-		fmt.Fprintf(sb, "  filesystems: null\n")
-	} else {
-		fmt.Fprintf(sb, "  filesystems:\n")
-		for _, fs := range m.Filesystems {
-			fmt.Fprintf(sb, "    - mount_point: %s\n", fs.MountPoint)
-			fmt.Fprintf(sb, "      total: %d\n", fs.Total)
-			fmt.Fprintf(sb, "      used: %d\n", fs.Used)
-			fmt.Fprintf(sb, "      use_percent: %v\n", fs.UsePercent)
-		}
-	}
 	fmt.Fprintf(sb, "  network_rx_bytes: %d\n", m.NetworkRxBytes)
 	fmt.Fprintf(sb, "  network_tx_bytes: %d\n", m.NetworkTxBytes)
 
@@ -337,4 +333,21 @@ func writeYAMLAtomic(path string, samples []Sample) error {
 		return err
 	}
 	return os.Rename(tmp, path)
+}
+
+func isEffectivelyEmptySample(s Sample) bool {
+	m := s.Metrics
+	metricsAllZero := m.CPUUser == 0 &&
+		m.CPUSystem == 0 &&
+		m.CPUIdle == 0 &&
+		m.CPUUsage == 0 &&
+		m.MemTotal == 0 &&
+		m.MemUsed == 0 &&
+		m.MemAvailable == 0 &&
+		m.DiskReadBytes == 0 &&
+		m.DiskWriteBytes == 0 &&
+		m.NetworkRxBytes == 0 &&
+		m.NetworkTxBytes == 0
+
+	return metricsAllZero && len(s.UserStats) == 0
 }

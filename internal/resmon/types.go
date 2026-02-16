@@ -2,44 +2,35 @@ package resmon
 
 import "time"
 
-type FSInfo struct {
-	MountPoint string  `json:"mount_point"`
-	Total      uint64  `json:"total"`
-	Used       uint64  `json:"used"`
-	UsePercent float64 `json:"use_percent"`
-}
-
 type Metrics struct {
-	Timestamp time.Time `json:"timestamp"`
+	Timestamp time.Time `json:"timestamp" yaml:"timestamp"`
 
-	CPUUser   float64 `json:"cpu_user"`
-	CPUSystem float64 `json:"cpu_system"`
-	CPUIdle   float64 `json:"cpu_idle"`
-	CPUUsage  float64 `json:"cpu_usage"`
+	CPUUser   float64 `json:"cpu_user" yaml:"cpu_user"`
+	CPUSystem float64 `json:"cpu_system" yaml:"cpu_system"`
+	CPUIdle   float64 `json:"cpu_idle" yaml:"cpu_idle"`
+	CPUUsage  float64 `json:"cpu_usage" yaml:"cpu_usage"`
 
-	MemTotal     uint64 `json:"mem_total"`
-	MemUsed      uint64 `json:"mem_used"`
-	MemAvailable uint64 `json:"mem_available"`
+	MemTotal     uint64 `json:"mem_total" yaml:"mem_total"`
+	MemUsed      uint64 `json:"mem_used" yaml:"mem_used"`
+	MemAvailable uint64 `json:"mem_available" yaml:"mem_available"`
 
-	DiskReadBytes  uint64 `json:"disk_read_bytes"`
-	DiskWriteBytes uint64 `json:"disk_write_bytes"`
+	DiskReadBytes  uint64 `json:"disk_read_bytes" yaml:"disk_read_bytes"`
+	DiskWriteBytes uint64 `json:"disk_write_bytes" yaml:"disk_write_bytes"`
 
-	Filesystems []FSInfo `json:"filesystems"`
-
-	NetworkRxBytes uint64 `json:"network_rx_bytes"`
-	NetworkTxBytes uint64 `json:"network_tx_bytes"`
+	NetworkRxBytes uint64 `json:"network_rx_bytes" yaml:"network_rx_bytes"`
+	NetworkTxBytes uint64 `json:"network_tx_bytes" yaml:"network_tx_bytes"`
 }
 
 type UserResource struct {
-	Username    string  `json:"username"`
-	CPU         float64 `json:"cpu_percent"`
-	MemoryBytes uint64  `json:"memory_bytes"`
+	Username    string  `json:"username" yaml:"username"`
+	CPU         float64 `json:"cpu_percent" yaml:"cpu_percent"`
+	MemoryBytes uint64  `json:"memory_bytes" yaml:"memory_bytes"`
 }
 
 type Sample struct {
-	Timestamp time.Time      `json:"timestamp"`
-	Metrics   Metrics        `json:"metrics"`
-	UserStats []UserResource `json:"user_stats,omitempty"`
+	Timestamp time.Time      `json:"timestamp" yaml:"timestamp"`
+	Metrics   Metrics        `json:"metrics" yaml:"metrics"`
+	UserStats []UserResource `json:"user_stats,omitempty" yaml:"user_stats,omitempty"`
 }
 
 type Config struct {
