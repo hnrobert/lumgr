@@ -5,7 +5,8 @@
 <div class="card" style="margin-bottom: 16px;">
     <h2 style="margin:0 0 8px;">Host Information</h2>
     <div style="margin-top: 14px;">
-        <div style="padding: 16px; background: var(--bg-darker); border-radius: 8px; border: 1px solid var(--border); padding-top: 0;">
+        <div
+            style="padding: 16px; background: var(--bg-darker); border-radius: 8px; border: 1px solid var(--border); padding-top: 0;">
             <div style="display: grid; gap: 12px;">
                 {{if .Hostname}}
                 <div>
@@ -72,13 +73,13 @@
             </div>
         </div>
         <div>
-            <div class="muted" style="margin-bottom:6px;">Realtime Disk Delta Bytes</div>
+            <div class="muted" style="margin-bottom:6px;">Disk IO Bytes</div>
             <div style="height:220px; min-height:220px; max-height:220px; position:relative;">
                 <canvas id="resmonDashDiskIoChart"></canvas>
             </div>
         </div>
         <div>
-            <div class="muted" style="margin-bottom:6px;">Realtime Network Delta Bytes</div>
+            <div class="muted" style="margin-bottom:6px;">Network IO Bytes</div>
             <div style="height:220px; min-height:220px; max-height:220px; position:relative;">
                 <canvas id="resmonDashNetIoChart"></canvas>
             </div>
@@ -301,8 +302,8 @@
                         data: {
                             labels,
                             datasets: [
-                                { label: 'Disk R Δ', data: diskReadSeries, borderColor: '#f2c879', tension: 0.25 },
-                                { label: 'Disk W Δ', data: diskWriteSeries, borderColor: '#ff8f8f', tension: 0.25 }
+                                { label: 'Disk R', data: diskReadSeries, borderColor: '#f2c879', tension: 0.25 },
+                                { label: 'Disk W', data: diskWriteSeries, borderColor: '#ff8f8f', tension: 0.25 }
                             ]
                         },
                         options: { responsive: true, maintainAspectRatio: false, animation: false }
@@ -317,8 +318,8 @@
                         data: {
                             labels,
                             datasets: [
-                                { label: 'Net RX Δ', data: netRxSeries, borderColor: '#86d6ff', tension: 0.25 },
-                                { label: 'Net TX Δ', data: netTxSeries, borderColor: '#c48fff', tension: 0.25 }
+                                { label: 'Net RX', data: netRxSeries, borderColor: '#86d6ff', tension: 0.25 },
+                                { label: 'Net TX', data: netTxSeries, borderColor: '#c48fff', tension: 0.25 }
                             ]
                         },
                         options: { responsive: true, maintainAspectRatio: false, animation: false }
