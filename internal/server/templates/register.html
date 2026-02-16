@@ -1,135 +1,135 @@
 {{define "title"}}Register · lumgr{{end}}
 {{define "content"}}
 <div class="card" style="max-width:560px; margin: 24px auto;">
-    <h2 style="margin:0 0 6px;">Register</h2>
-    {{if eq .RegMode "closed"}}
-    <div class="muted" style="margin-bottom: 14px;">Registration is currently disabled.</div>
-    <div style="display:flex; justify-content:flex-end; margin-top: 14px;">
-        <a class="btn" href="/login">Back to login</a>
+  <h2 style="margin:0 0 6px;">Register</h2>
+  {{if eq .RegMode "closed"}}
+  <div class="muted" style="margin-bottom: 14px;">Registration is currently disabled.</div>
+  <div style="display:flex; justify-content:flex-end; margin-top: 14px;">
+    <a class="btn" href="/login">Back to login</a>
+  </div>
+
+  {{else if eq .RegMode "open"}}
+  <div class="muted" style="margin-bottom: 14px;">Create your account.</div>
+  <form method="post" action="/register/complete">
+    <label>Username</label>
+    <input name="username" autocomplete="username" required placeholder="e.g. alice" />
+    <div class="muted" style="margin-top: 6px; font-size: 12px;">Allowed: lowercase letters, digits, underscore,
+      dash. Must start with a letter or underscore.</div>
+
+    <label>Password</label>
+    <input type="password" name="password" autocomplete="new-password" required />
+
+    <label>Confirm password</label>
+    <input type="password" name="password2" autocomplete="new-password" required />
+
+    <label>Shell</label>
+    <select name="shell">
+      {{range .AvailableShells}}
+      <option value="{{.}}" {{if eq . "/bin/bash" }}selected{{end}}>{{.}}</option>
+      {{end}}
+    </select>
+
+    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top: 14px;">
+      <a class="btn" style="font-size: 11px;" href="/login">Back to login</a>
+      <button class="btn primary" type="submit">Create account</button>
     </div>
+  </form>
 
-    {{else if eq .RegMode "open"}}
-    <div class="muted" style="margin-bottom: 14px;">Create your account.</div>
-    <form method="post" action="/register/complete">
-        <label>Username</label>
-        <input name="username" autocomplete="username" required placeholder="e.g. alice" />
-        <div class="muted" style="margin-top: 6px; font-size: 12px;">Allowed: lowercase letters, digits, underscore,
-            dash. Must start with a letter or underscore.</div>
+  {{else}}
+  <div class="muted" style="margin-bottom: 14px;">Enter an invite code from an admin to create your account.</div>
+  {{if .InviteCode}}
+  <div class="flash ok" style="margin-bottom: 14px;">Invite code accepted.</div>
 
-        <label>Password</label>
-        <input type="password" name="password" autocomplete="new-password" required />
+  <form method="post" action="/register/complete">
+    <input type="hidden" name="code" value="{{.InviteCode}}" />
+    <label>Username</label>
+    <input name="username" autocomplete="username" required placeholder="e.g. alice" />
+    <div class="muted" style="margin-top: 6px; font-size: 12px;">Allowed: lowercase letters, digits, underscore,
+      dash. Must start with a letter or underscore.</div>
 
-        <label>Confirm password</label>
-        <input type="password" name="password2" autocomplete="new-password" required />
+    <label>Password</label>
+    <input type="password" name="password" autocomplete="new-password" required />
 
-        <label>Shell</label>
-        <select name="shell">
-            {{range .AvailableShells}}
-            <option value="{{.}}" {{if eq . "/bin/bash" }}selected{{end}}>{{.}}</option>
-            {{end}}
-        </select>
+    <label>Confirm password</label>
+    <input type="password" name="password2" autocomplete="new-password" required />
 
-        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top: 14px;">
-            <a class="btn" style="font-size: 11px;" href="/login">Back to login</a>
-            <button class="btn primary" type="submit">Create account</button>
-        </div>
-    </form>
+    <label>Shell</label>
+    <select name="shell">
+      {{range .AvailableShells}}
+      <option value="{{.}}" {{if eq . "/bin/bash" }}selected{{end}}>{{.}}</option>
+      {{end}}
+    </select>
 
-    {{else}}
-    <div class="muted" style="margin-bottom: 14px;">Enter an invite code from an admin to create your account.</div>
-    {{if .InviteCode}}
-    <div class="flash ok" style="margin-bottom: 14px;">Invite code accepted.</div>
+    <div style="display:flex; justify-content:flex-end; gap:10px; margin-top: 14px;">
+      <a class="btn" style="font-size: 11px;" href="/login">Back to login</a>
+      <button class="btn primary" type="submit">Create account</button>
+    </div>
+  </form>
+  {{else}}
+  <form method="get" action="/register">
+    <label>Invite code</label>
+    <div class="row" style="align-items:flex-end;">
+      <div style="flex: 1;">
+        <input id="inviteCode" name="code" required placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+      </div>
+      <div style="flex: 0 0 auto;">
+        <button class="btn" type="button" onclick="pasteInvite(this)"
+          style="min-width:84px; white-space:nowrap; display:inline-flex; justify-content:center; align-items:center;">Paste</button>
+      </div>
+    </div>
+    <div style="display:flex; justify-content:flex-end; margin-top: 14px;">
+      <button class="btn primary" type="submit">Continue</button>
+    </div>
+  </form>
 
-    <form method="post" action="/register/complete">
-        <input type="hidden" name="code" value="{{.InviteCode}}" />
-        <label>Username</label>
-        <input name="username" autocomplete="username" required placeholder="e.g. alice" />
-        <div class="muted" style="margin-top: 6px; font-size: 12px;">Allowed: lowercase letters, digits, underscore,
-            dash. Must start with a letter or underscore.</div>
+  <script>
+    function setPasteFeedback(btn, ok) {
+      if (!btn) return;
 
-        <label>Password</label>
-        <input type="password" name="password" autocomplete="new-password" required />
+      const original = btn.getAttribute('data-paste-label') || btn.textContent;
+      if (!btn.getAttribute('data-paste-label')) {
+        btn.setAttribute('data-paste-label', original);
+      }
 
-        <label>Confirm password</label>
-        <input type="password" name="password2" autocomplete="new-password" required />
+      if (btn._pasteFeedbackTimer) {
+        clearTimeout(btn._pasteFeedbackTimer);
+      }
 
-        <label>Shell</label>
-        <select name="shell">
-            {{range .AvailableShells}}
-            <option value="{{.}}" {{if eq . "/bin/bash" }}selected{{end}}>{{.}}</option>
-            {{end}}
-        </select>
+      btn.textContent = ok ? 'Pasted!' : 'Failed';
+      btn.disabled = true;
 
-        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top: 14px;">
-            <a class="btn" style="font-size: 11px;" href="/login">Back to login</a>
-            <button class="btn primary" type="submit">Create account</button>
-        </div>
-    </form>
-    {{else}}
-    <form method="get" action="/register">
-        <label>Invite code</label>
-        <div class="row" style="align-items:flex-end;">
-            <div style="flex: 1;">
-                <input id="inviteCode" name="code" required placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
-            </div>
-            <div style="flex: 0 0 auto;">
-                <button class="btn" type="button" onclick="pasteInvite(this)"
-                    style="min-width:84px; white-space:nowrap; display:inline-flex; justify-content:center; align-items:center;">Paste</button>
-            </div>
-        </div>
-        <div style="display:flex; justify-content:flex-end; margin-top: 14px;">
-            <button class="btn primary" type="submit">Continue</button>
-        </div>
-    </form>
+      btn._pasteFeedbackTimer = setTimeout(() => {
+        btn.textContent = btn.getAttribute('data-paste-label') || 'Paste';
+        btn.disabled = false;
+        btn._pasteFeedbackTimer = null;
+      }, 1200);
+    }
 
-    <script>
-        function setPasteFeedback(btn, ok) {
-            if (!btn) return;
-
-            const original = btn.getAttribute('data-paste-label') || btn.textContent;
-            if (!btn.getAttribute('data-paste-label')) {
-                btn.setAttribute('data-paste-label', original);
-            }
-
-            if (btn._pasteFeedbackTimer) {
-                clearTimeout(btn._pasteFeedbackTimer);
-            }
-
-            btn.textContent = ok ? 'Pasted!' : 'Failed';
-            btn.disabled = true;
-
-            btn._pasteFeedbackTimer = setTimeout(() => {
-                btn.textContent = btn.getAttribute('data-paste-label') || 'Paste';
-                btn.disabled = false;
-                btn._pasteFeedbackTimer = null;
-            }, 1200);
+    async function pasteInvite(btn) {
+      const el = document.getElementById('inviteCode');
+      if (el && el.focus) el.focus();
+      try {
+        const text = await navigator.clipboard.readText();
+        if (el && text && text.trim()) {
+          el.value = text.trim();
+          setPasteFeedback(btn, true);
+        } else {
+          setPasteFeedback(btn, false);
         }
-
-        async function pasteInvite(btn) {
-            const el = document.getElementById('inviteCode');
-            if (el && el.focus) el.focus();
-            try {
-                const text = await navigator.clipboard.readText();
-                if (el && text && text.trim()) {
-                    el.value = text.trim();
-                    setPasteFeedback(btn, true);
-                } else {
-                    setPasteFeedback(btn, false);
-                }
-            } catch (e) {
-                // Clipboard read can be blocked (non-HTTPS, permissions, browser policy).
-                // Fallback to a manual prompt so the button remains useful.
-                const manual = window.prompt('Paste invite code:', '');
-                if (el && manual && manual.trim()) {
-                    el.value = manual.trim();
-                    setPasteFeedback(btn, true);
-                } else {
-                    setPasteFeedback(btn, false);
-                }
-            }
+      } catch (e) {
+        // Clipboard read can be blocked (non-HTTPS, permissions, browser policy).
+        // Fallback to a manual prompt so the button remains useful.
+        const manual = window.prompt('Paste invite code:', '');
+        if (el && manual && manual.trim()) {
+          el.value = manual.trim();
+          setPasteFeedback(btn, true);
+        } else {
+          setPasteFeedback(btn, false);
         }
-    </script>
-    {{end}}
-    {{end}}
+      }
+    }
+  </script>
+  {{end}}
+  {{end}}
 </div>
 {{end}}

@@ -1,70 +1,69 @@
 {{define "title"}}Shell Settings · lumgr{{end}}
 {{define "content"}}
 <div class="grid">
-    <div class="card">
-        <h2 style="margin:0 0 8px;">Shell</h2>
-        <div class="muted">These settings are stored in your home directory.</div>
-        <form id="shellSettingsForm" method="post" action="/settings/shell">
-            <label>Default Shell</label>
-            <select name="shell">
-                {{range .AvailableShells}}
-                <option value="{{.}}" {{if eq . $.Shell}}selected{{end}}>{{.}}</option>
-                {{end}}
-            </select>
+  <div class="card">
+    <h2 style="margin:0 0 8px;">Shell</h2>
+    <div class="muted">These settings are stored in your home directory.</div>
+    <form id="shellSettingsForm" method="post" action="/settings/shell">
+      <label>Default Shell</label>
+      <select name="shell">
+        {{range .AvailableShells}}
+        <option value="{{.}}" {{if eq . $.Shell}}selected{{end}}>{{.}}</option>
+        {{end}}
+      </select>
 
-            <label>Preferred terminal type (TERM)</label>
-            <select id="term_preset_shell" aria-label="TERM preset">
-                <option value="xterm-256color" {{if eq .Term "xterm-256color" }}selected{{end}}>xterm-256color</option>
-                <option value="xterm" {{if eq .Term "xterm" }}selected{{end}}>xterm</option>
-                <option value="screen-256color" {{if eq .Term "screen-256color" }}selected{{end}}>screen-256color
-                </option>
-                <option value="linux" {{if eq .Term "linux" }}selected{{end}}>linux</option>
-                <option value="vt100" {{if eq .Term "vt100" }}selected{{end}}>vt100</option>
-                <option value="other" {{if and (ne .Term "" ) (ne .Term "xterm-256color" ) (ne .Term "xterm" ) (ne
-                    .Term "screen-256color" ) (ne .Term "linux" ) (ne .Term "vt100" )}}selected{{end}}>Other…</option>
-            </select>
-            <input id="term_other_shell" name="term_other" placeholder="custom TERM (e.g. rxvt-unicode)"
-                style="margin-top:8px; display:none;" value="{{if and (ne .Term "") (ne .Term " xterm-256color") (ne
-                .Term "xterm" ) (ne .Term "screen-256color" ) (ne .Term "linux" ) (ne .Term "vt100"
-                )}}{{.Term}}{{end}}" />
-            <input type="hidden" id="term_hidden_shell" name="term" value="{{.Term}}" />
+      <label>Preferred terminal type (TERM)</label>
+      <select id="term_preset_shell" aria-label="TERM preset">
+        <option value="xterm-256color" {{if eq .Term "xterm-256color" }}selected{{end}}>xterm-256color</option>
+        <option value="xterm" {{if eq .Term "xterm" }}selected{{end}}>xterm</option>
+        <option value="screen-256color" {{if eq .Term "screen-256color" }}selected{{end}}>screen-256color
+        </option>
+        <option value="linux" {{if eq .Term "linux" }}selected{{end}}>linux</option>
+        <option value="vt100" {{if eq .Term "vt100" }}selected{{end}}>vt100</option>
+        <option value="other" {{if and (ne .Term "" ) (ne .Term "xterm-256color" ) (ne .Term "xterm" ) (ne
+          .Term "screen-256color" ) (ne .Term "linux" ) (ne .Term "vt100" )}}selected{{end}}>Other…</option>
+      </select>
+      <input id="term_other_shell" name="term_other" placeholder="custom TERM (e.g. rxvt-unicode)"
+        style="margin-top:8px; display:none;" value="{{if and (ne .Term "") (ne .Term " xterm-256color") (ne
+        .Term "xterm" ) (ne .Term "screen-256color" ) (ne .Term "linux" ) (ne .Term "vt100" )}}{{.Term}}{{end}}" />
+      <input type="hidden" id="term_hidden_shell" name="term" value="{{.Term}}" />
 
-            <label>Login redirect directory (optional)</label>
-            <input name="redirect" placeholder="/home/{{.Username}}/example-directory" value="{{.Redirect}}" />
+      <label>Login redirect directory (optional)</label>
+      <input name="redirect" placeholder="/home/{{.Username}}/example-directory" value="{{.Redirect}}" />
 
-            <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: 14px;">
-                <button class="btn primary" type="submit" name="section" value="shell">Save</button>
-            </div>
-        </form>
-    </div>
+      <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: 14px;">
+        <button class="btn primary" type="submit" name="section" value="shell">Save</button>
+      </div>
+    </form>
+  </div>
 
-    {{if .ShowSaveAll}}
-    <div style="width:100%;">
-        <button class="btn" type="submit" form="shellSettingsForm" name="section" value="all"
-            style="width:100%; justify-content:center;">Save all</button>
-    </div>
-    {{end}}
+  {{if .ShowSaveAll}}
+  <div style="width:100%;">
+    <button class="btn" type="submit" form="shellSettingsForm" name="section" value="all"
+      style="width:100%; justify-content:center;">Save all</button>
+  </div>
+  {{end}}
 </div>
 
 <script>
-    (function () {
-        const preset = document.getElementById('term_preset_shell');
-        const other = document.getElementById('term_other_shell');
-        const hidden = document.getElementById('term_hidden_shell');
-        if (preset && other && hidden) {
-            const apply = () => {
-                if (preset.value === 'other') {
-                    other.style.display = 'block';
-                    hidden.value = other.value || '';
-                } else {
-                    other.style.display = 'none';
-                    hidden.value = preset.value || '';
-                }
-            };
-            preset.addEventListener('change', apply);
-            other.addEventListener('input', () => { if (preset.value === 'other') hidden.value = other.value; });
-            apply();
+  (function () {
+    const preset = document.getElementById('term_preset_shell');
+    const other = document.getElementById('term_other_shell');
+    const hidden = document.getElementById('term_hidden_shell');
+    if (preset && other && hidden) {
+      const apply = () => {
+        if (preset.value === 'other') {
+          other.style.display = 'block';
+          hidden.value = other.value || '';
+        } else {
+          other.style.display = 'none';
+          hidden.value = preset.value || '';
         }
-    })();
+      };
+      preset.addEventListener('change', apply);
+      other.addEventListener('input', () => { if (preset.value === 'other') hidden.value = other.value; });
+      apply();
+    }
+  })();
 </script>
 {{end}}

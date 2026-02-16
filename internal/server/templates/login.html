@@ -1,24 +1,24 @@
 {{define "title"}}Login · lumgr{{end}}
 {{define "content"}}
 <div class="card" style="max-width:520px; margin: 40px auto;">
-    <h2 style="margin:0 0 6px;">Login</h2>
-    <div class="muted" style="margin-bottom: 14px;">Authenticate with your host Linux username and password.</div>
-    <form method="post" action="/login">
-        <label>Username</label>
-        <input name="username" autocomplete="username" required />
-        <label>Password</label>
-        <input type="password" name="password" autocomplete="current-password" required />
-        <div
-            style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:14px; flex-wrap:nowrap;">
-            {{if ne .RegMode "closed"}}
-            <div class="muted"
-                style="font-size:12px; flex:1; min-width:0; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                No account? <a href="/register">Register</a></div>
-            {{else}}
-            <div style="flex:1; min-width:0"></div>
-            {{end}}
-            <div style="flex:0 0 auto"><button class="btn primary" type="submit">Sign in</button></div>
-        </div>
-    </form>
+  <h2 style="margin:0 0 6px;">Login</h2>
+  <div class="muted" style="margin-bottom: 14px;">Authenticate with your host Linux username and password.</div>
+  <form method="post" action="/login">
+    <label>Username</label>
+    <input name="username" autocomplete="username" required />
+    <label>Password</label>
+    <input type="password" name="password" autocomplete="current-password" required />
+    <div
+      style="display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:14px; flex-wrap:nowrap;">
+      {{if ne .RegMode "closed"}}
+      <div class="muted"
+        style="font-size:12px; flex:1; min-width:0; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+        No account? <a href="/register">Register</a></div>
+      {{else}}
+      <div style="flex:1; min-width:0"></div>
+      {{end}}
+      <div style="flex:0 0 auto"><button class="btn primary" type="submit">Sign in</button></div>
+    </div>
+  </form>
 </div>
 {{end}}

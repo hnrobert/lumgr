@@ -1,494 +1,490 @@
 {{define "title"}}Admin · Resources · lumgr{{end}}
 {{define "content"}}
 <div class="grid" style="gap:16px;">
+  <div class="card">
+    <h2 style="margin:0 0 8px;">Resource Monitor Configuration</h2>
+    <form method="post" action="/admin/resources/config">
+      <div class="row">
+        <div>
+          <label>Collect interval (seconds)</label>
+          <input type="number" min="1" name="interval_seconds" value="{{.ResmonConfig.IntervalSeconds}}" />
+        </div>
+        <div>
+          <label>Retention (days)</label>
+          <input type="number" min="1" max="365" name="retention_days" value="{{.ResmonConfig.RetentionDays}}" />
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:8px;">
+        <label><input type="checkbox" name="enabled" value="1" {{if .ResmonConfig.Enabled}}checked{{end}}
+            style="width:auto; margin-right:6px;" />Enabled</label>
+        <label><input type="checkbox" name="collect_cpu" value="1" {{if .ResmonConfig.CollectCPU}}checked{{end}}
+            style="width:auto; margin-right:6px;" />CPU</label>
+        <label><input type="checkbox" name="collect_memory" value="1" {{if .ResmonConfig.CollectMemory}}checked{{end}}
+            style="width:auto; margin-right:6px;" />Memory</label>
+        <label><input type="checkbox" name="collect_disk_io" value="1" {{if .ResmonConfig.CollectDiskIO}}checked{{end}}
+            style="width:auto; margin-right:6px;" />Disk
+          IO</label>
+        <label><input type="checkbox" name="collect_network" value="1" {{if .ResmonConfig.CollectNetwork}}checked{{end}}
+            style="width:auto; margin-right:6px;" />Network</label>
+        <label><input type="checkbox" name="collect_user_stats" value="1" {{if
+            .ResmonConfig.CollectUserStats}}checked{{end}} style="width:auto; margin-right:6px;" />User
+          stats</label>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; margin-top:12px;">
+        <button class="btn primary" type="submit">Save configuration</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="grid two">
     <div class="card">
-        <h2 style="margin:0 0 8px;">Resource Monitor Configuration</h2>
-        <form method="post" action="/admin/resources/config">
-            <div class="row">
-                <div>
-                    <label>Collect interval (seconds)</label>
-                    <input type="number" min="1" name="interval_seconds" value="{{.ResmonConfig.IntervalSeconds}}" />
-                </div>
-                <div>
-                    <label>Retention (days)</label>
-                    <input type="number" min="1" max="365" name="retention_days"
-                        value="{{.ResmonConfig.RetentionDays}}" />
-                </div>
-            </div>
-
-            <div class="row" style="margin-top:8px;">
-                <label><input type="checkbox" name="enabled" value="1" {{if .ResmonConfig.Enabled}}checked{{end}}
-                        style="width:auto; margin-right:6px;" />Enabled</label>
-                <label><input type="checkbox" name="collect_cpu" value="1" {{if .ResmonConfig.CollectCPU}}checked{{end}}
-                        style="width:auto; margin-right:6px;" />CPU</label>
-                <label><input type="checkbox" name="collect_memory" value="1" {{if
-                        .ResmonConfig.CollectMemory}}checked{{end}}
-                        style="width:auto; margin-right:6px;" />Memory</label>
-                <label><input type="checkbox" name="collect_disk_io" value="1" {{if
-                        .ResmonConfig.CollectDiskIO}}checked{{end}} style="width:auto; margin-right:6px;" />Disk
-                    IO</label>
-                <label><input type="checkbox" name="collect_network" value="1" {{if
-                        .ResmonConfig.CollectNetwork}}checked{{end}}
-                        style="width:auto; margin-right:6px;" />Network</label>
-                <label><input type="checkbox" name="collect_user_stats" value="1" {{if
-                        .ResmonConfig.CollectUserStats}}checked{{end}} style="width:auto; margin-right:6px;" />User
-                    stats</label>
-            </div>
-
-            <div style="display:flex; justify-content:flex-end; margin-top:12px;">
-                <button class="btn primary" type="submit">Save configuration</button>
-            </div>
-        </form>
+      <h3 style="margin:0 0 8px;">Current CPU & Memory</h3>
+      <div class="muted">CPU usage: <strong><span id="admin-resmon-cpu">{{if .CurrentMetrics}}{{printf "%.1f"
+            .CurrentMetrics.CPUUsage}}{{else}}0.0{{end}}</span>%</strong></div>
+      <div class="muted" style="margin-top:4px;">Memory usage: <strong id="admin-resmon-mem-used">{{if
+          .CurrentMetrics}}{{bytes .CurrentMetrics.MemUsed}}{{else}}0 B{{end}}</strong>
+        / <span id="admin-resmon-mem-total">{{if .CurrentMetrics}}{{bytes .CurrentMetrics.MemTotal}}{{else}}0
+          B{{end}}</span></div>
     </div>
-
-    <div class="grid two">
-        <div class="card">
-            <h3 style="margin:0 0 8px;">Current CPU & Memory</h3>
-            <div class="muted">CPU usage: <strong><span id="admin-resmon-cpu">{{if .CurrentMetrics}}{{printf "%.1f"
-                        .CurrentMetrics.CPUUsage}}{{else}}0.0{{end}}</span>%</strong></div>
-            <div class="muted" style="margin-top:4px;">Memory usage: <strong id="admin-resmon-mem-used">{{if
-                    .CurrentMetrics}}{{bytes .CurrentMetrics.MemUsed}}{{else}}0 B{{end}}</strong>
-                / <span id="admin-resmon-mem-total">{{if .CurrentMetrics}}{{bytes .CurrentMetrics.MemTotal}}{{else}}0
-                    B{{end}}</span></div>
-        </div>
-        <div class="card">
-            <h3 style="margin:0 0 8px;">Current Disk & Network</h3>
-            <div class="muted">Disk read/write: <strong id="admin-resmon-disk-r">{{if .CurrentMetrics}}{{bytes
-                    .CurrentMetrics.DiskReadBytes}}{{else}}0 B{{end}}</strong> /
-                <strong id="admin-resmon-disk-w">{{if .CurrentMetrics}}{{bytes .CurrentMetrics.DiskWriteBytes}}{{else}}0
-                    B{{end}}</strong>
-            </div>
-            <div class="muted" style="margin-top:4px;">Network Download/Upload: <strong id="admin-resmon-net-rx">{{if
-                    .CurrentMetrics}}{{bytes .CurrentMetrics.NetworkRxBytes}}{{else}}0 B{{end}}</strong> /
-                <strong id="admin-resmon-net-tx">{{if .CurrentMetrics}}{{bytes .CurrentMetrics.NetworkTxBytes}}{{else}}0
-                    B{{end}}</strong>
-            </div>
-        </div>
-    </div>
-
     <div class="card">
-        <h2 style="margin:0 0 8px;">History</h2>
-        <form method="get" action="/admin/resources"
-            style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:10px;">
-            <div>
-                <label>Window (hours)</label>
-                <input type="number" name="hours" value="{{if gt .ResmonHours 0}}{{.ResmonHours}}{{else}}24{{end}}"
-                    min="1" max="720" style="width:120px;" />
-            </div>
-            <div>
-                <label>Start</label>
-                <input type="datetime-local" name="start_at" id="resmon-start-at" step="1" value="{{.ResmonStartAt}}" />
-            </div>
-            <div style="display:flex; flex-direction:column; gap:6px; min-width:260px;">
-                <label style="margin-bottom:0;">End</label>
-                <div style="display:flex; gap:12px; align-items:center;">
-                    <label style="display:flex; align-items:center; gap:6px; margin:0;">
-                        <input type="radio" name="end_mode" value="now" {{if eq .ResmonEndMode "now" }}checked{{end}}
-                            style="width:auto;" />
-                        <span>Now</span>
-                    </label>
-                    <label id="resmon-end-datetime-wrap" style="display:flex; align-items:center; gap:6px; margin:0;">
-                        <input type="radio" name="end_mode" value="datetime" {{if ne .ResmonEndMode "now"
-                            }}checked{{end}} style="width:auto;" />
-                        <input type="datetime-local" name="end_at" id="resmon-end-at" step="1"
-                            value="{{.ResmonEndAt}}" />
-                    </label>
-                </div>
-            </div>
-            <button class="btn" type="submit">Apply</button>
-        </form>
-
-        {{if .ResmonHistory}}
-        <div style="height:260px; min-height:260px; max-height:260px; position:relative;">
-            <canvas id="cpuTotalChart"></canvas>
-        </div>
-        <div style="height:12px"></div>
-        <div style="height:260px; min-height:260px; max-height:260px; position:relative;">
-            <canvas id="cpuUsersChart"></canvas>
-        </div>
-        <div style="height:12px"></div>
-        <div style="height:260px; min-height:260px; max-height:260px; position:relative;">
-            <canvas id="memTotalChart"></canvas>
-        </div>
-        <div style="height:12px"></div>
-        <div style="height:260px; min-height:260px; max-height:260px; position:relative;">
-            <canvas id="memUsersChart"></canvas>
-        </div>
-
-        <div style="height:12px"></div>
-        <div style="height:260px; min-height:260px; max-height:260px; position:relative;">
-            <canvas id="diskIoChart"></canvas>
-        </div>
-        <div style="height:12px"></div>
-        <div style="height:260px; min-height:260px; max-height:260px; position:relative;">
-            <canvas id="netIoChart"></canvas>
-        </div>
-        {{else}}
-        <div class="muted">No history samples yet. Wait for at least one collection interval.</div>
-        {{end}}
+      <h3 style="margin:0 0 8px;">Current Disk & Network</h3>
+      <div class="muted">Disk read/write: <strong id="admin-resmon-disk-r">{{if .CurrentMetrics}}{{bytes
+          .CurrentMetrics.DiskReadBytes}}{{else}}0 B{{end}}</strong> /
+        <strong id="admin-resmon-disk-w">{{if .CurrentMetrics}}{{bytes .CurrentMetrics.DiskWriteBytes}}{{else}}0
+          B{{end}}</strong>
+      </div>
+      <div class="muted" style="margin-top:4px;">Network Download/Upload: <strong id="admin-resmon-net-rx">{{if
+          .CurrentMetrics}}{{bytes .CurrentMetrics.NetworkRxBytes}}{{else}}0 B{{end}}</strong> /
+        <strong id="admin-resmon-net-tx">{{if .CurrentMetrics}}{{bytes .CurrentMetrics.NetworkTxBytes}}{{else}}0
+          B{{end}}</strong>
+      </div>
     </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin:0 0 8px;">History</h2>
+    <form method="get" action="/admin/resources"
+      style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:10px;">
+      <div>
+        <label>Window (hours)</label>
+        <input type="number" name="hours" value="{{if gt .ResmonHours 0}}{{.ResmonHours}}{{else}}24{{end}}" min="1"
+          max="720" style="width:120px;" />
+      </div>
+      <div>
+        <label>Start</label>
+        <input type="datetime-local" name="start_at" id="resmon-start-at" step="1" value="{{.ResmonStartAt}}" />
+      </div>
+      <div style="display:flex; flex-direction:column; gap:6px; min-width:260px;">
+        <label style="margin-bottom:0;">End</label>
+        <div style="display:flex; gap:12px; align-items:center;">
+          <label style="display:flex; align-items:center; gap:6px; margin:0;">
+            <input type="radio" name="end_mode" value="now" {{if eq .ResmonEndMode "now" }}checked{{end}}
+              style="width:auto;" />
+            <span>Now</span>
+          </label>
+          <label id="resmon-end-datetime-wrap" style="display:flex; align-items:center; gap:6px; margin:0;">
+            <input type="radio" name="end_mode" value="datetime" {{if ne .ResmonEndMode "now" }}checked{{end}}
+              style="width:auto;" />
+            <input type="datetime-local" name="end_at" id="resmon-end-at" step="1" value="{{.ResmonEndAt}}" />
+          </label>
+        </div>
+      </div>
+      <button class="btn" type="submit">Apply</button>
+    </form>
+
+    {{if .ResmonHistory}}
+    <div style="height:260px; min-height:260px; max-height:260px; position:relative;">
+      <canvas id="cpuTotalChart"></canvas>
+    </div>
+    <div style="height:12px"></div>
+    <div style="height:260px; min-height:260px; max-height:260px; position:relative;">
+      <canvas id="cpuUsersChart"></canvas>
+    </div>
+    <div style="height:12px"></div>
+    <div style="height:260px; min-height:260px; max-height:260px; position:relative;">
+      <canvas id="memTotalChart"></canvas>
+    </div>
+    <div style="height:12px"></div>
+    <div style="height:260px; min-height:260px; max-height:260px; position:relative;">
+      <canvas id="memUsersChart"></canvas>
+    </div>
+
+    <div style="height:12px"></div>
+    <div style="height:260px; min-height:260px; max-height:260px; position:relative;">
+      <canvas id="diskIoChart"></canvas>
+    </div>
+    <div style="height:12px"></div>
+    <div style="height:260px; min-height:260px; max-height:260px; position:relative;">
+      <canvas id="netIoChart"></canvas>
+    </div>
+    {{else}}
+    <div class="muted">No history samples yet. Wait for at least one collection interval.</div>
+    {{end}}
+  </div>
 </div>
 
 {{if .ResmonHistory}}
 <script src="/assets/vendor/chart.min.js"></script>
 <script id="resmonHistoryData" type="application/json">{{toJSON .ResmonHistory}}</script>
 <script>
-    (function () {
-        const radios = document.querySelectorAll('input[name="end_mode"]');
-        const endInput = document.getElementById('resmon-end-at');
-        const endWrap = document.getElementById('resmon-end-datetime-wrap');
-        let nowRefreshTimer = null;
-        if (!radios.length || !endInput || !endWrap) return;
+  (function () {
+    const radios = document.querySelectorAll('input[name="end_mode"]');
+    const endInput = document.getElementById('resmon-end-at');
+    const endWrap = document.getElementById('resmon-end-datetime-wrap');
+    let nowRefreshTimer = null;
+    if (!radios.length || !endInput || !endWrap) return;
 
-        function syncEndMode() {
-            const mode = document.querySelector('input[name="end_mode"]:checked')?.value || 'datetime';
-            const useDatetime = mode === 'datetime';
-            endInput.disabled = !useDatetime;
-            endWrap.style.opacity = useDatetime ? '1' : '0.45';
+    function syncEndMode() {
+      const mode = document.querySelector('input[name="end_mode"]:checked')?.value || 'datetime';
+      const useDatetime = mode === 'datetime';
+      endInput.disabled = !useDatetime;
+      endWrap.style.opacity = useDatetime ? '1' : '0.45';
 
-            if (!useDatetime) {
-                if (nowRefreshTimer == null) {
-                    nowRefreshTimer = setInterval(() => {
-                        window.location.reload();
-                    }, 1000);
-                }
-            } else if (nowRefreshTimer != null) {
-                clearInterval(nowRefreshTimer);
-                nowRefreshTimer = null;
-            }
+      if (!useDatetime) {
+        if (nowRefreshTimer == null) {
+          nowRefreshTimer = setInterval(() => {
+            window.location.reload();
+          }, 1000);
         }
-
-        radios.forEach((r) => r.addEventListener('change', syncEndMode));
-        syncEndMode();
-    })();
-
-    if (window.__lumgrAdminResmonChartsInit) {
-        // prevent duplicate chart/timer setup on accidental duplicate script execution
-    } else {
-        window.__lumgrAdminResmonChartsInit = true;
-
-        const history = JSON.parse(document.getElementById('resmonHistoryData')?.textContent || '[]');
-        const formatBytes = (v) => {
-            v = Number(v) || 0;
-            const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
-            let i = 0;
-            while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
-            if (i === 0) return Math.round(v) + ' B';
-            return v.toFixed(1) + ' ' + units[i];
-        };
-        const userColors = ['#f97316', '#22c55e', '#06b6d4', '#a855f7', '#eab308', '#ef4444', '#14b8a6', '#6366f1', '#84cc16', '#ec4899'];
-
-        const labels = history.map((s) => {
-            const d = new Date(s.timestamp);
-            if (Number.isNaN(d.getTime())) return "";
-            return d.toLocaleTimeString();
-        });
-        const cpuUsage = history.map((s) => Number((s.metrics && s.metrics.cpu_usage) || 0));
-        const memUsed = history.map((s) => Number((s.metrics && s.metrics.mem_used) || 0));
-        const memTotal = history.map((s) => Number((s.metrics && s.metrics.mem_total) || 0));
-        const maxMem = Math.max(1, ...memTotal);
-        const diskR = history.map((s) => Number((s.metrics && s.metrics.disk_read_bytes) || 0));
-        const diskW = history.map((s) => Number((s.metrics && s.metrics.disk_write_bytes) || 0));
-        const diskDelta = (arr) => arr.map((v, i) => i === 0 ? 0 : Math.max(0, v - (arr[i - 1] || 0)));
-        const diskRDelta = diskDelta(diskR);
-        const diskWDelta = diskDelta(diskW);
-        const netRx = history.map((s) => Number((s.metrics && s.metrics.network_rx_bytes) || 0));
-        const netTx = history.map((s) => Number((s.metrics && s.metrics.network_tx_bytes) || 0));
-
-        const userIndexByNameBySample = history.map((s) => {
-            const users = Array.isArray(s.user_stats) ? s.user_stats : [];
-            const idx = {};
-            for (let i = 0; i < users.length; i++) {
-                const name = String(users[i].username || '');
-                if (name && idx[name] === undefined) idx[name] = i;
-            }
-            return { users, idx };
-        });
-        const userSet = new Set();
-        userIndexByNameBySample.forEach((entry) => {
-            Object.keys(entry.idx).forEach((name) => userSet.add(name));
-        });
-        const userNames = Array.from(userSet).sort((a, b) => {
-            const last = userIndexByNameBySample[userIndexByNameBySample.length - 1];
-            const av = (last && last.idx[a] !== undefined) ? Number(last.users[last.idx[a]].cpu_percent || 0) : 0;
-            const bv = (last && last.idx[b] !== undefined) ? Number(last.users[last.idx[b]].cpu_percent || 0) : 0;
-            return bv - av;
-        });
-
-        const userCpuDatasets = userNames.map((name, i) => ({
-            label: `CPU · ${name}`,
-            data: userIndexByNameBySample.map((entry) => {
-                if (entry.idx[name] === undefined) return 0;
-                return Number(entry.users[entry.idx[name]].cpu_percent || 0);
-            }),
-            borderColor: userColors[i % userColors.length],
-            backgroundColor: 'transparent',
-            borderWidth: 1.5,
-            pointRadius: 2,
-            pointHoverRadius: 4,
-            pointHitRadius: 10,
-            tension: 0.2,
-        }));
-
-        const userMemDatasets = userNames.map((name, i) => ({
-            label: `Mem · ${name}`,
-            data: userIndexByNameBySample.map((entry) => {
-                if (entry.idx[name] === undefined) return 0;
-                return Number(entry.users[entry.idx[name]].memory_bytes || 0);
-            }),
-            borderColor: userColors[i % userColors.length],
-            backgroundColor: 'transparent',
-            borderWidth: 1.5,
-            pointRadius: 2,
-            pointHoverRadius: 4,
-            pointHitRadius: 10,
-            tension: 0.2,
-        }));
-
-        const maxFromDatasets = (datasets) => {
-            let maxValue = 0;
-            datasets.forEach((dataset) => {
-                (dataset.data || []).forEach((value) => {
-                    const v = Number(value) || 0;
-                    if (v > maxValue) maxValue = v;
-                });
-            });
-            return maxValue;
-        };
-        const maxUserCPU = maxFromDatasets(userCpuDatasets);
-        const maxUserMem = maxFromDatasets(userMemDatasets);
-        const cpuUsersAxisMax = Math.max(1, Math.ceil(maxUserCPU * 1.1));
-        const memUsersAxisMax = Math.max(1, Math.ceil(maxUserMem * 1.1));
-
-        new Chart(document.getElementById('cpuTotalChart'), {
-            type: 'line',
-            data: {
-                labels,
-                datasets: [
-                    {
-                        label: 'CPU Total %',
-                        data: cpuUsage,
-                        borderColor: '#7aa2ff',
-                        backgroundColor: 'rgba(122,162,255,0.15)',
-                        borderWidth: 2,
-                        pointRadius: 2,
-                        pointHoverRadius: 4,
-                        pointHitRadius: 10,
-                        tension: 0.2,
-                    },
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                animation: false,
-                scales: { y: { min: 0, max: 100 } },
-                elements: {
-                    point: {
-                        radius: 2,
-                        hoverRadius: 4,
-                        hitRadius: 10,
-                    }
-                },
-                plugins: {
-                    legend: { display: true }
-                }
-            }
-        });
-
-        new Chart(document.getElementById('cpuUsersChart'), {
-            type: 'line',
-            data: {
-                labels,
-                datasets: userCpuDatasets,
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                animation: false,
-                scales: {
-                    y: {
-                        min: 0,
-                        max: cpuUsersAxisMax,
-                    }
-                },
-                elements: {
-                    point: {
-                        radius: 2,
-                        hoverRadius: 4,
-                        hitRadius: 10,
-                    }
-                },
-                plugins: {
-                    legend: { display: true }
-                }
-            }
-        });
-
-        new Chart(document.getElementById('memTotalChart'), {
-            type: 'line',
-            data: {
-                labels,
-                datasets: [
-                    {
-                        label: 'Mem Total Used',
-                        data: memUsed,
-                        borderColor: '#3ddc97',
-                        backgroundColor: 'rgba(61,220,151,0.15)',
-                        borderWidth: 2,
-                        pointRadius: 2,
-                        pointHoverRadius: 4,
-                        pointHitRadius: 10,
-                        tension: 0.2,
-                    },
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                animation: false,
-                scales: {
-                    y: {
-                        min: 0,
-                        max: maxMem,
-                        ticks: {
-                            callback: function (value) { return formatBytes(value); }
-                        }
-                    }
-                },
-                elements: {
-                    point: {
-                        radius: 2,
-                        hoverRadius: 4,
-                        hitRadius: 10,
-                    }
-                },
-                plugins: {
-                    legend: { display: true },
-                    tooltip: {
-                        callbacks: {
-                            label: function (ctx) {
-                                const used = Number(ctx.parsed.y || 0);
-                                const total = Number(memTotal[ctx.dataIndex] || 0);
-                                const pct = total > 0 ? (used / total) * 100 : 0;
-                                return `${ctx.dataset.label}: ${formatBytes(used)} (${pct.toFixed(1)}%)`;
-                            }
-                        }
-                    }
-                }
-            }
-        });
-
-        new Chart(document.getElementById('memUsersChart'), {
-            type: 'line',
-            data: {
-                labels,
-                datasets: userMemDatasets,
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                animation: false,
-                scales: {
-                    y: {
-                        min: 0,
-                        max: memUsersAxisMax,
-                        ticks: {
-                            callback: function (value) { return formatBytes(value); }
-                        }
-                    }
-                },
-                elements: {
-                    point: {
-                        radius: 2,
-                        hoverRadius: 4,
-                        hitRadius: 10,
-                    }
-                },
-                plugins: {
-                    legend: { display: true },
-                    tooltip: {
-                        callbacks: {
-                            label: function (ctx) {
-                                const used = Number(ctx.parsed.y || 0);
-                                const total = Number(memTotal[ctx.dataIndex] || 0);
-                                const pct = total > 0 ? (used / total) * 100 : 0;
-                                return `${ctx.dataset.label}: ${formatBytes(used)} (${pct.toFixed(1)}%)`;
-                            }
-                        }
-                    }
-                }
-            }
-        });
-
-        new Chart(document.getElementById('diskIoChart'), {
-            type: 'line',
-            data: {
-                labels,
-                datasets: [
-                    { label: 'Disk Read Bytes', data: diskRDelta, borderColor: '#f2c879' },
-                    { label: 'Disk Write Bytes', data: diskWDelta, borderColor: '#ff8f8f' }
-                ]
-            },
-            options: { responsive: true, maintainAspectRatio: false, animation: false }
-        });
-
-        new Chart(document.getElementById('netIoChart'), {
-            type: 'line',
-            data: {
-                labels,
-                datasets: [
-                    { label: 'Network Download Bytes', data: netRx, borderColor: '#86d6ff' },
-                    { label: 'Network Upload Bytes', data: netTx, borderColor: '#c48fff' }
-                ]
-            },
-            options: { responsive: true, maintainAspectRatio: false, animation: false }
-        });
+      } else if (nowRefreshTimer != null) {
+        clearInterval(nowRefreshTimer);
+        nowRefreshTimer = null;
+      }
     }
+
+    radios.forEach((r) => r.addEventListener('change', syncEndMode));
+    syncEndMode();
+  })();
+
+  if (window.__lumgrAdminResmonChartsInit) {
+    // prevent duplicate chart/timer setup on accidental duplicate script execution
+  } else {
+    window.__lumgrAdminResmonChartsInit = true;
+
+    const history = JSON.parse(document.getElementById('resmonHistoryData')?.textContent || '[]');
+    const formatBytes = (v) => {
+      v = Number(v) || 0;
+      const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
+      let i = 0;
+      while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+      if (i === 0) return Math.round(v) + ' B';
+      return v.toFixed(1) + ' ' + units[i];
+    };
+    const userColors = ['#f97316', '#22c55e', '#06b6d4', '#a855f7', '#eab308', '#ef4444', '#14b8a6', '#6366f1', '#84cc16', '#ec4899'];
+
+    const labels = history.map((s) => {
+      const d = new Date(s.timestamp);
+      if (Number.isNaN(d.getTime())) return "";
+      return d.toLocaleTimeString();
+    });
+    const cpuUsage = history.map((s) => Number((s.metrics && s.metrics.cpu_usage) || 0));
+    const memUsed = history.map((s) => Number((s.metrics && s.metrics.mem_used) || 0));
+    const memTotal = history.map((s) => Number((s.metrics && s.metrics.mem_total) || 0));
+    const maxMem = Math.max(1, ...memTotal);
+    const diskR = history.map((s) => Number((s.metrics && s.metrics.disk_read_bytes) || 0));
+    const diskW = history.map((s) => Number((s.metrics && s.metrics.disk_write_bytes) || 0));
+    const diskDelta = (arr) => arr.map((v, i) => i === 0 ? 0 : Math.max(0, v - (arr[i - 1] || 0)));
+    const diskRDelta = diskDelta(diskR);
+    const diskWDelta = diskDelta(diskW);
+    const netRx = history.map((s) => Number((s.metrics && s.metrics.network_rx_bytes) || 0));
+    const netTx = history.map((s) => Number((s.metrics && s.metrics.network_tx_bytes) || 0));
+
+    const userIndexByNameBySample = history.map((s) => {
+      const users = Array.isArray(s.user_stats) ? s.user_stats : [];
+      const idx = {};
+      for (let i = 0; i < users.length; i++) {
+        const name = String(users[i].username || '');
+        if (name && idx[name] === undefined) idx[name] = i;
+      }
+      return { users, idx };
+    });
+    const userSet = new Set();
+    userIndexByNameBySample.forEach((entry) => {
+      Object.keys(entry.idx).forEach((name) => userSet.add(name));
+    });
+    const userNames = Array.from(userSet).sort((a, b) => {
+      const last = userIndexByNameBySample[userIndexByNameBySample.length - 1];
+      const av = (last && last.idx[a] !== undefined) ? Number(last.users[last.idx[a]].cpu_percent || 0) : 0;
+      const bv = (last && last.idx[b] !== undefined) ? Number(last.users[last.idx[b]].cpu_percent || 0) : 0;
+      return bv - av;
+    });
+
+    const userCpuDatasets = userNames.map((name, i) => ({
+      label: `CPU · ${name}`,
+      data: userIndexByNameBySample.map((entry) => {
+        if (entry.idx[name] === undefined) return 0;
+        return Number(entry.users[entry.idx[name]].cpu_percent || 0);
+      }),
+      borderColor: userColors[i % userColors.length],
+      backgroundColor: 'transparent',
+      borderWidth: 1.5,
+      pointRadius: 2,
+      pointHoverRadius: 4,
+      pointHitRadius: 10,
+      tension: 0.2,
+    }));
+
+    const userMemDatasets = userNames.map((name, i) => ({
+      label: `Mem · ${name}`,
+      data: userIndexByNameBySample.map((entry) => {
+        if (entry.idx[name] === undefined) return 0;
+        return Number(entry.users[entry.idx[name]].memory_bytes || 0);
+      }),
+      borderColor: userColors[i % userColors.length],
+      backgroundColor: 'transparent',
+      borderWidth: 1.5,
+      pointRadius: 2,
+      pointHoverRadius: 4,
+      pointHitRadius: 10,
+      tension: 0.2,
+    }));
+
+    const maxFromDatasets = (datasets) => {
+      let maxValue = 0;
+      datasets.forEach((dataset) => {
+        (dataset.data || []).forEach((value) => {
+          const v = Number(value) || 0;
+          if (v > maxValue) maxValue = v;
+        });
+      });
+      return maxValue;
+    };
+    const maxUserCPU = maxFromDatasets(userCpuDatasets);
+    const maxUserMem = maxFromDatasets(userMemDatasets);
+    const cpuUsersAxisMax = Math.max(1, Math.ceil(maxUserCPU * 1.1));
+    const memUsersAxisMax = Math.max(1, Math.ceil(maxUserMem * 1.1));
+
+    new Chart(document.getElementById('cpuTotalChart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'CPU Total %',
+            data: cpuUsage,
+            borderColor: '#7aa2ff',
+            backgroundColor: 'rgba(122,162,255,0.15)',
+            borderWidth: 2,
+            pointRadius: 2,
+            pointHoverRadius: 4,
+            pointHitRadius: 10,
+            tension: 0.2,
+          },
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        scales: { y: { min: 0, max: 100 } },
+        elements: {
+          point: {
+            radius: 2,
+            hoverRadius: 4,
+            hitRadius: 10,
+          }
+        },
+        plugins: {
+          legend: { display: true }
+        }
+      }
+    });
+
+    new Chart(document.getElementById('cpuUsersChart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: userCpuDatasets,
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        scales: {
+          y: {
+            min: 0,
+            max: cpuUsersAxisMax,
+          }
+        },
+        elements: {
+          point: {
+            radius: 2,
+            hoverRadius: 4,
+            hitRadius: 10,
+          }
+        },
+        plugins: {
+          legend: { display: true }
+        }
+      }
+    });
+
+    new Chart(document.getElementById('memTotalChart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Mem Total Used',
+            data: memUsed,
+            borderColor: '#3ddc97',
+            backgroundColor: 'rgba(61,220,151,0.15)',
+            borderWidth: 2,
+            pointRadius: 2,
+            pointHoverRadius: 4,
+            pointHitRadius: 10,
+            tension: 0.2,
+          },
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        scales: {
+          y: {
+            min: 0,
+            max: maxMem,
+            ticks: {
+              callback: function (value) { return formatBytes(value); }
+            }
+          }
+        },
+        elements: {
+          point: {
+            radius: 2,
+            hoverRadius: 4,
+            hitRadius: 10,
+          }
+        },
+        plugins: {
+          legend: { display: true },
+          tooltip: {
+            callbacks: {
+              label: function (ctx) {
+                const used = Number(ctx.parsed.y || 0);
+                const total = Number(memTotal[ctx.dataIndex] || 0);
+                const pct = total > 0 ? (used / total) * 100 : 0;
+                return `${ctx.dataset.label}: ${formatBytes(used)} (${pct.toFixed(1)}%)`;
+              }
+            }
+          }
+        }
+      }
+    });
+
+    new Chart(document.getElementById('memUsersChart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: userMemDatasets,
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        scales: {
+          y: {
+            min: 0,
+            max: memUsersAxisMax,
+            ticks: {
+              callback: function (value) { return formatBytes(value); }
+            }
+          }
+        },
+        elements: {
+          point: {
+            radius: 2,
+            hoverRadius: 4,
+            hitRadius: 10,
+          }
+        },
+        plugins: {
+          legend: { display: true },
+          tooltip: {
+            callbacks: {
+              label: function (ctx) {
+                const used = Number(ctx.parsed.y || 0);
+                const total = Number(memTotal[ctx.dataIndex] || 0);
+                const pct = total > 0 ? (used / total) * 100 : 0;
+                return `${ctx.dataset.label}: ${formatBytes(used)} (${pct.toFixed(1)}%)`;
+              }
+            }
+          }
+        }
+      }
+    });
+
+    new Chart(document.getElementById('diskIoChart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Disk Read Bytes', data: diskRDelta, borderColor: '#f2c879' },
+          { label: 'Disk Write Bytes', data: diskWDelta, borderColor: '#ff8f8f' }
+        ]
+      },
+      options: { responsive: true, maintainAspectRatio: false, animation: false }
+    });
+
+    new Chart(document.getElementById('netIoChart'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Network Download Bytes', data: netRx, borderColor: '#86d6ff' },
+          { label: 'Network Upload Bytes', data: netTx, borderColor: '#c48fff' }
+        ]
+      },
+      options: { responsive: true, maintainAspectRatio: false, animation: false }
+    });
+  }
 </script>
 {{end}}
 
 <script>
-    (function () {
-        if (window.__lumgrAdminResmonCardsInit) return;
-        window.__lumgrAdminResmonCardsInit = true;
+  (function () {
+    if (window.__lumgrAdminResmonCardsInit) return;
+    window.__lumgrAdminResmonCardsInit = true;
 
-        const formatBytes = (v) => {
-            v = Number(v) || 0;
-            const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
-            let i = 0;
-            while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
-            if (i === 0) return Math.round(v) + ' B';
-            return v.toFixed(1) + ' ' + units[i];
-        };
-        const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+    const formatBytes = (v) => {
+      v = Number(v) || 0;
+      const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
+      let i = 0;
+      while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+      if (i === 0) return Math.round(v) + ' B';
+      return v.toFixed(1) + ' ' + units[i];
+    };
+    const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
 
-        async function refreshCards() {
-            try {
-                const res = await fetch('/api/resmon/current', { cache: 'no-store' });
-                if (!res.ok) return;
-                const payload = await res.json();
-                const sm = payload.sample || payload;
-                const m = sm.metrics || sm.Metrics || {};
+    async function refreshCards() {
+      try {
+        const res = await fetch('/api/resmon/current', { cache: 'no-store' });
+        if (!res.ok) return;
+        const payload = await res.json();
+        const sm = payload.sample || payload;
+        const m = sm.metrics || sm.Metrics || {};
 
-                setText('admin-resmon-cpu', (Number(m.cpu_usage ?? m.CPUUsage ?? 0)).toFixed(1));
-                setText('admin-resmon-mem-used', formatBytes(m.mem_used ?? m.MemUsed ?? 0));
-                setText('admin-resmon-mem-total', formatBytes(m.mem_total ?? m.MemTotal ?? 0));
-                setText('admin-resmon-disk-r', formatBytes(m.disk_read_bytes ?? m.DiskReadBytes ?? 0));
-                setText('admin-resmon-disk-w', formatBytes(m.disk_write_bytes ?? m.DiskWriteBytes ?? 0));
-                setText('admin-resmon-net-rx', formatBytes(m.network_rx_bytes ?? m.NetworkRxBytes ?? 0));
-                setText('admin-resmon-net-tx', formatBytes(m.network_tx_bytes ?? m.NetworkTxBytes ?? 0));
-            } catch (e) {
-                // silent
-            }
-        }
+        setText('admin-resmon-cpu', (Number(m.cpu_usage ?? m.CPUUsage ?? 0)).toFixed(1));
+        setText('admin-resmon-mem-used', formatBytes(m.mem_used ?? m.MemUsed ?? 0));
+        setText('admin-resmon-mem-total', formatBytes(m.mem_total ?? m.MemTotal ?? 0));
+        setText('admin-resmon-disk-r', formatBytes(m.disk_read_bytes ?? m.DiskReadBytes ?? 0));
+        setText('admin-resmon-disk-w', formatBytes(m.disk_write_bytes ?? m.DiskWriteBytes ?? 0));
+        setText('admin-resmon-net-rx', formatBytes(m.network_rx_bytes ?? m.NetworkRxBytes ?? 0));
+        setText('admin-resmon-net-tx', formatBytes(m.network_tx_bytes ?? m.NetworkTxBytes ?? 0));
+      } catch (e) {
+        // silent
+      }
+    }
 
-        refreshCards();
-        const timerId = setInterval(refreshCards, 1000);
-        window.addEventListener('beforeunload', function () {
-            clearInterval(timerId);
-            window.__lumgrAdminResmonCardsInit = false;
-        });
-    })();
+    refreshCards();
+    const timerId = setInterval(refreshCards, 1000);
+    window.addEventListener('beforeunload', function () {
+      clearInterval(timerId);
+      window.__lumgrAdminResmonCardsInit = false;
+    });
+  })();
 </script>
 {{end}}
