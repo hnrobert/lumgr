@@ -50,7 +50,7 @@ internal/
   ├── invite/               # Invitation system with expiration and usage limits
   ├── logger/               # Structured logging
   ├── server/               # HTTP layer: handlers, middleware, templates
-  ├── resmon/               # System resource collector + history store (reads /proc)
+   ├── resmon/               # System resource collector + history store (prefers /host/proc, falls back to /proc)
   ├── usercmd/              # Wrapper for shell commands (useradd, usermod, etc.)
   ├── usermgr/              # Core business logic: passwd/shadow/group parsers
   └── hostfs/               # Host filesystem access abstraction

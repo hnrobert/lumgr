@@ -75,11 +75,15 @@
     <div class="grid two" style="margin-top: 12px;">
         <div>
             <div class="muted" style="margin-bottom:6px;">Realtime CPU / Memory %</div>
-            <canvas id="resmonDashCpuMemChart" height="100"></canvas>
+            <div style="height:220px; min-height:220px; max-height:220px; position:relative;">
+                <canvas id="resmonDashCpuMemChart"></canvas>
+            </div>
         </div>
         <div>
             <div class="muted" style="margin-bottom:6px;">Realtime Disk / Network Delta Bytes</div>
-            <canvas id="resmonDashIoChart" height="100"></canvas>
+            <div style="height:220px; min-height:220px; max-height:220px; position:relative;">
+                <canvas id="resmonDashIoChart"></canvas>
+            </div>
         </div>
     </div>
     {{end}}
@@ -153,6 +157,9 @@
 <script id="resmonDashboardSeed" type="application/json">{{toJSON .CurrentMetrics}}</script>
 <script>
     (function () {
+        if (window.__lumgrDashResmonInit) return;
+        window.__lumgrDashResmonInit = true;
+
         const cfg = JSON.parse(document.getElementById('resmonDashboardConfig')?.textContent || '{}');
         const seed = JSON.parse(document.getElementById('resmonDashboardSeed')?.textContent || '{}');
         const intervalSeconds = Number(cfg.interval_seconds || cfg.IntervalSeconds || 5) || 5;
@@ -178,6 +185,7 @@
         let prevCounters = null;
         let cpuMemChart = null;
         let ioChart = null;
+        let timerId = null;
 
         function pushSeries(arr, value) {
             arr.push(value);
@@ -230,7 +238,7 @@
                                 { label: 'Mem %', data: memSeries, borderColor: '#3ddc97', backgroundColor: 'rgba(61,220,151,0.15)', tension: 0.25 }
                             ]
                         },
-                        options: { responsive: true, maintainAspectRatio: false }
+                        options: { responsive: true, maintainAspectRatio: false, animation: false }
                     });
                 }
             }
@@ -248,7 +256,7 @@
                                 { label: 'Net TX Δ', data: netTxSeries, borderColor: '#c48fff', tension: 0.25 }
                             ]
                         },
-                        options: { responsive: true, maintainAspectRatio: false }
+                        options: { responsive: true, maintainAspectRatio: false, animation: false }
                     });
                 }
             }
@@ -301,7 +309,11 @@
             renderMetric(seed);
         }
         fetchCurrent();
-        setInterval(fetchCurrent, pollInterval);
+        timerId = setInterval(fetchCurrent, pollInterval);
+        window.addEventListener('beforeunload', function () {
+            if (timerId) clearInterval(timerId);
+            window.__lumgrDashResmonInit = false;
+        });
     })();
 </script>
 {{end}}

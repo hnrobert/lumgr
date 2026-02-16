@@ -39,7 +39,7 @@ A modern, containerized web-based user management interface for Linux systems. M
 
 ### System Resource Monitor (resmon)
 
-`resmon` is an optional subsystem that samples host resource usage (CPU, memory, disk I/O, filesystems, network and per-user aggregates) and persists rolling history in `lumgr_data/resmon_history/` as daily files (for example `2026-02-16.json`). To enable full host-level monitoring when running in a container, bind-mount the host `/proc` into the container (read‑only) as shown in the Docker Compose example above.
+`resmon` is an optional subsystem that samples host resource usage (CPU, memory, disk I/O, filesystems, network and per-user aggregates) and persists rolling history in `lumgr_data/resmon_history/` as daily files (for example `2026-02-16.json`). To enable full host-level monitoring when running in a container, bind-mount the host `/proc` into `/host/proc` (read‑only). The service automatically prefers `/host/proc` and falls back to `/proc` when `/host/proc` is not present.
 
 - Configure sampling interval, retention days, and which metrics to collect from the Admin → Resources page.
 - Current metrics are shown on the Dashboard and historical charts are available to administrators under Admin → Resources.
@@ -81,7 +81,7 @@ services:
       - /etc/shells:/etc/shells:ro # Available shells
       - /etc/os-release:/etc/os-release:ro # OS info
       - /etc/hostname:/etc/hostname:ro # Hostname
-      - /proc:/proc:ro # Required for resmon (system resource monitor)
+      - /proc:/host/proc:ro # Required for resmon (system resource monitor)
     restart: always
 ```
 

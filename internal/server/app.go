@@ -247,7 +247,11 @@ func newApp() (*App, error) {
 	rmStore := resmon.NewStore(resmon.DefaultPath())
 	_ = rmStore.Ensure()
 	_ = rmStore.Load()
-	rmCollector := resmon.NewCollector("/proc")
+	procRoot := "/proc"
+	if st, err := os.Stat("/host/proc"); err == nil && st.IsDir() {
+		procRoot = "/host/proc"
+	}
+	rmCollector := resmon.NewCollector(procRoot)
 
 	app := &App{
 		secret:     secretRaw,
