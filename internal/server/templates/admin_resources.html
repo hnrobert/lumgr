@@ -72,7 +72,25 @@
             style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:10px;">
             <div>
                 <label>Window (hours)</label>
-                <input type="number" name="hours" value="24" min="1" max="720" style="width:120px;" />
+                <input type="number" name="hours" value="{{if gt .ResmonHours 0}}{{.ResmonHours}}{{else}}24{{end}}"
+                    min="1" max="720" style="width:120px;" />
+            </div>
+            <div>
+                <label>Start</label>
+                <input type="datetime-local" name="start_at" id="resmon-start-at" step="1" value="{{.ResmonStartAt}}" />
+            </div>
+            <div style="display:flex; flex-direction:column; gap:6px; min-width:260px;">
+                <label style="margin-bottom:0;">End</label>
+                <label style="display:flex; align-items:center; gap:6px; margin:0;">
+                    <input type="radio" name="end_mode" value="now" {{if eq .ResmonEndMode "now" }}checked{{end}}
+                        style="width:auto;" />
+                    <span>Now</span>
+                </label>
+                <label id="resmon-end-datetime-wrap" style="display:flex; align-items:center; gap:6px; margin:0;">
+                    <input type="radio" name="end_mode" value="datetime" {{if ne .ResmonEndMode "now" }}checked{{end}}
+                        style="width:auto;" />
+                    <input type="datetime-local" name="end_at" id="resmon-end-at" step="1" value="{{.ResmonEndAt}}" />
+                </label>
             </div>
             <button class="btn" type="submit">Apply</button>
         </form>
@@ -112,6 +130,23 @@
 <script src="/assets/vendor/chart.min.js"></script>
 <script id="resmonHistoryData" type="application/json">{{toJSON .ResmonHistory}}</script>
 <script>
+    (function () {
+        const radios = document.querySelectorAll('input[name="end_mode"]');
+        const endInput = document.getElementById('resmon-end-at');
+        const endWrap = document.getElementById('resmon-end-datetime-wrap');
+        if (!radios.length || !endInput || !endWrap) return;
+
+        function syncEndMode() {
+            const mode = document.querySelector('input[name="end_mode"]:checked')?.value || 'datetime';
+            const useDatetime = mode === 'datetime';
+            endInput.disabled = !useDatetime;
+            endWrap.style.opacity = useDatetime ? '1' : '0.45';
+        }
+
+        radios.forEach((r) => r.addEventListener('change', syncEndMode));
+        syncEndMode();
+    })();
+
     if (window.__lumgrAdminResmonChartsInit) {
         // prevent duplicate chart/timer setup on accidental duplicate script execution
     } else {

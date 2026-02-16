@@ -1849,8 +1849,58 @@ func (a *App) handleAdminResources(w http.ResponseWriter, r *http.Request) {
 			hours = v
 		}
 	}
+	data.ResmonHours = hours
 
-	since := time.Now().UTC().Add(-time.Duration(hours) * time.Hour)
+	nowLocal := time.Now().In(time.Local)
+	yesterday := nowLocal.AddDate(0, 0, -1)
+	defaultStartLocal := time.Date(yesterday.Year(), yesterday.Month(), yesterday.Day(), 0, 0, 0, 0, time.Local)
+	defaultEndLocal := time.Date(yesterday.Year(), yesterday.Month(), yesterday.Day(), 23, 59, 59, 0, time.Local)
+
+	parseLocalDateTime := func(s string) (time.Time, bool) {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			return time.Time{}, false
+		}
+		layouts := []string{"2006-01-02T15:04:05", "2006-01-02T15:04"}
+		for _, layout := range layouts {
+			if t, err := time.ParseInLocation(layout, s, time.Local); err == nil {
+				return t, true
+			}
+		}
+		return time.Time{}, false
+	}
+
+	startLocal, okStart := parseLocalDateTime(r.URL.Query().Get("start_at"))
+	if !okStart {
+		startLocal = defaultStartLocal
+	}
+
+	endMode := strings.TrimSpace(r.URL.Query().Get("end_mode"))
+	if endMode != "now" && endMode != "datetime" {
+		endMode = "datetime"
+	}
+	data.ResmonEndMode = endMode
+
+	endLocal, okEnd := parseLocalDateTime(r.URL.Query().Get("end_at"))
+	if !okEnd {
+		endLocal = defaultEndLocal
+	}
+
+	if endMode == "now" {
+		endLocal = nowLocal
+	}
+
+	data.ResmonStartAt = startLocal.Format("2006-01-02T15:04:05")
+	data.ResmonEndAt = endLocal.Format("2006-01-02T15:04:05")
+
+	since := startLocal.UTC()
+	until := endLocal.UTC()
+	if !until.After(since) {
+		until = since.Add(time.Duration(hours) * time.Hour)
+	}
+	if until.Before(since) {
+		since = until.Add(-time.Duration(hours) * time.Hour)
+	}
 	if a.resmon != nil {
 		uidByName := loadUIDByUsername()
 		if last := a.resmon.Latest(); last != nil {
@@ -1862,6 +1912,9 @@ func (a *App) handleAdminResources(w http.ResponseWriter, r *http.Request) {
 		usersSet := map[string]bool{}
 		filtered := make([]resmon.Sample, 0, len(history))
 		for _, sm := range history {
+			if sm.Timestamp.After(until) {
+				continue
+			}
 			smFilteredUsers := filterResmonUsers(sm.UserStats, uidByName)
 			if len(smFilteredUsers) > 0 {
 				for _, u := range smFilteredUsers {

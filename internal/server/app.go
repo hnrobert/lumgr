@@ -116,6 +116,10 @@ type ViewData struct {
 	ResmonUsers        []string
 	ResmonSelectedUser string
 	ResmonLatestUsers  []resmon.UserResource
+	ResmonHours        int
+	ResmonStartAt      string
+	ResmonEndAt        string
+	ResmonEndMode      string
 }
 
 type GroupRow struct {
