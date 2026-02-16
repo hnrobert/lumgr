@@ -187,6 +187,7 @@
         const labels = [];
         const cpuSeries = [];
         const memSeries = [];
+        const memTotalSeries = [];
         const diskReadSeries = [];
         const diskWriteSeries = [];
         const netRxSeries = [];
@@ -209,6 +210,7 @@
             labels.length = 0;
             cpuSeries.length = 0;
             memSeries.length = 0;
+            memTotalSeries.length = 0;
             diskReadSeries.length = 0;
             diskWriteSeries.length = 0;
             netRxSeries.length = 0;
@@ -227,7 +229,8 @@
             pushSeries(cpuSeries, Number(m.cpu_usage ?? m.CPUUsage ?? 0));
             const memUsed = Number(m.mem_used ?? m.MemUsed ?? 0);
             const memTotal = Number(m.mem_total ?? m.MemTotal ?? 0);
-            pushSeries(memSeries, memTotal > 0 ? (memUsed / memTotal) * 100 : 0);
+            pushSeries(memSeries, memUsed);
+            pushSeries(memTotalSeries, memTotal);
 
             pushSeries(diskReadSeries, Number(m.disk_read_bytes ?? m.DiskReadBytes ?? 0));
             pushSeries(diskWriteSeries, Number(m.disk_write_bytes ?? m.DiskWriteBytes ?? 0));
@@ -235,7 +238,11 @@
             pushSeries(netTxSeries, Number(m.network_tx_bytes ?? m.NetworkTxBytes ?? 0));
 
             if (cpuChart) cpuChart.update('none');
-            if (memChart) memChart.update('none');
+            if (memChart) {
+                const maxMem = Math.max(1, ...memTotalSeries);
+                memChart.options.scales.y.max = maxMem;
+                memChart.update('none');
+            }
             if (diskIoChart) diskIoChart.update('none');
             if (netIoChart) netIoChart.update('none');
         }
@@ -253,7 +260,12 @@
                                 { label: 'CPU %', data: cpuSeries, borderColor: '#7aa2ff', backgroundColor: 'rgba(122,162,255,0.15)', tension: 0.25 }
                             ]
                         },
-                        options: { responsive: true, maintainAspectRatio: false, animation: false }
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            animation: false,
+                            scales: { y: { min: 0, max: 100 } }
+                        }
                     });
                 }
             }
@@ -265,10 +277,35 @@
                         data: {
                             labels,
                             datasets: [
-                                { label: 'Mem %', data: memSeries, borderColor: '#3ddc97', backgroundColor: 'rgba(61,220,151,0.15)', tension: 0.25 }
+                                { label: 'Mem Used', data: memSeries, borderColor: '#3ddc97', backgroundColor: 'rgba(61,220,151,0.15)', tension: 0.25 }
                             ]
                         },
-                        options: { responsive: true, maintainAspectRatio: false, animation: false }
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            animation: false,
+                            scales: {
+                                y: {
+                                    min: 0,
+                                    max: Math.max(1, ...memTotalSeries),
+                                    ticks: {
+                                        callback: function (value) { return formatBytes(value); }
+                                    }
+                                }
+                            },
+                            plugins: {
+                                tooltip: {
+                                    callbacks: {
+                                        label: function (ctx) {
+                                            const used = Number(ctx.parsed.y || 0);
+                                            const total = Number(memTotalSeries[ctx.dataIndex] || 0);
+                                            const pct = total > 0 ? (used / total) * 100 : 0;
+                                            return 'Mem Used: ' + formatBytes(used) + ' (' + pct.toFixed(1) + '%)';
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     });
                 }
             }

@@ -127,6 +127,14 @@
 
         const history = JSON.parse(document.getElementById('resmonHistoryData')?.textContent || '[]');
         const latestUsers = JSON.parse(document.getElementById('resmonLatestUsersData')?.textContent || '[]');
+        const formatBytes = (v) => {
+            v = Number(v) || 0;
+            if (v < 1024) return v + ' B';
+            const units = ['KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
+            let i = 0;
+            while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+            return v.toFixed(1) + ' ' + units[i];
+        };
 
         const labels = history.map((s) => {
             const d = new Date(s.timestamp);
@@ -136,11 +144,7 @@
         const cpuUsage = history.map((s) => Number((s.metrics && s.metrics.cpu_usage) || 0));
         const memUsed = history.map((s) => Number((s.metrics && s.metrics.mem_used) || 0));
         const memTotal = history.map((s) => Number((s.metrics && s.metrics.mem_total) || 0));
-        const memPct = memUsed.map((v, i) => {
-            const t = memTotal[i] || 0;
-            if (!t) return 0;
-            return (v / t) * 100;
-        });
+        const maxMem = Math.max(1, ...memTotal);
         const diskR = history.map((s) => Number((s.metrics && s.metrics.disk_read_bytes) || 0));
         const diskW = history.map((s) => Number((s.metrics && s.metrics.disk_write_bytes) || 0));
         const netRx = history.map((s) => Number((s.metrics && s.metrics.network_rx_bytes) || 0));
@@ -157,7 +161,12 @@
                     { label: 'CPU %', data: cpuUsage, borderColor: '#7aa2ff', backgroundColor: 'rgba(122,162,255,0.15)' }
                 ]
             },
-            options: { responsive: true, maintainAspectRatio: false, animation: false }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                scales: { y: { min: 0, max: 100 } }
+            }
         });
 
         new Chart(document.getElementById('memChart'), {
@@ -165,10 +174,35 @@
             data: {
                 labels,
                 datasets: [
-                    { label: 'Mem %', data: memPct, borderColor: '#3ddc97', backgroundColor: 'rgba(61,220,151,0.15)' }
+                    { label: 'Mem Used', data: memUsed, borderColor: '#3ddc97', backgroundColor: 'rgba(61,220,151,0.15)' }
                 ]
             },
-            options: { responsive: true, maintainAspectRatio: false, animation: false }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                scales: {
+                    y: {
+                        min: 0,
+                        max: maxMem,
+                        ticks: {
+                            callback: function (value) { return formatBytes(value); }
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function (ctx) {
+                                const used = Number(ctx.parsed.y || 0);
+                                const total = Number(memTotal[ctx.dataIndex] || 0);
+                                const pct = total > 0 ? (used / total) * 100 : 0;
+                                return 'Mem Used: ' + formatBytes(used) + ' (' + pct.toFixed(1) + '%)';
+                            }
+                        }
+                    }
+                }
+            }
         });
 
         new Chart(document.getElementById('diskIoChart'), {
