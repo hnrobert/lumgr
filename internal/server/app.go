@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/hnrobert/lumgr/internal/auth"
@@ -32,6 +33,9 @@ type App struct {
 	cfg        *config.Store
 	resmon     *resmon.Store
 	collector  *resmon.Collector
+
+	realtimeMu      sync.RWMutex
+	realtimeSamples []resmon.Sample
 }
 
 type ViewData struct {
@@ -352,25 +356,60 @@ func (a *App) startResmonLoop() {
 		return
 	}
 	go func() {
+		lastPersistAt := time.Time{}
 		for {
 			cfg, err := a.cfg.Get()
 			if err != nil {
-				time.Sleep(30 * time.Second)
+				time.Sleep(1 * time.Second)
 				continue
 			}
 			rc := cfg.ResmonConfig.WithDefaults()
-			interval := time.Duration(rc.IntervalSeconds) * time.Second
-			if interval < 5*time.Second {
-				interval = 5 * time.Second
+			persistInterval := time.Duration(rc.IntervalSeconds) * time.Second
+			if persistInterval < 1*time.Second {
+				persistInterval = 1 * time.Second
 			}
 			if rc.Enabled {
 				m, us, err := a.collector.Collect(rc)
 				if err == nil {
-					_ = a.resmon.Append(resmon.Sample{Timestamp: time.Now().UTC(), Metrics: m, UserStats: us}, rc.RetentionDays)
+					now := time.Now().UTC()
+					sm := resmon.Sample{Timestamp: now, Metrics: m, UserStats: us}
+					a.appendRealtimeSample(sm)
+					if lastPersistAt.IsZero() || now.Sub(lastPersistAt) >= persistInterval {
+						_ = a.resmon.Append(sm, rc.RetentionDays)
+						lastPersistAt = now
+					}
 				}
 				_ = a.resmon.Prune(rc.RetentionDays)
+			} else {
+				a.clearRealtimeSamples()
 			}
-			time.Sleep(interval)
+			time.Sleep(1 * time.Second)
 		}
 	}()
+}
+
+func (a *App) appendRealtimeSample(sm resmon.Sample) {
+	a.realtimeMu.Lock()
+	defer a.realtimeMu.Unlock()
+	a.realtimeSamples = append(a.realtimeSamples, sm)
+	if len(a.realtimeSamples) > 30 {
+		a.realtimeSamples = a.realtimeSamples[len(a.realtimeSamples)-30:]
+	}
+}
+
+func (a *App) clearRealtimeSamples() {
+	a.realtimeMu.Lock()
+	defer a.realtimeMu.Unlock()
+	a.realtimeSamples = nil
+}
+
+func (a *App) getRealtimeSamples() []resmon.Sample {
+	a.realtimeMu.RLock()
+	defer a.realtimeMu.RUnlock()
+	if len(a.realtimeSamples) == 0 {
+		return nil
+	}
+	out := make([]resmon.Sample, len(a.realtimeSamples))
+	copy(out, a.realtimeSamples)
+	return out
 }

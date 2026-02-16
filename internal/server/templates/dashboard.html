@@ -29,46 +29,48 @@
 </div>
 {{end}}
 
-{{if .CurrentMetrics}}
 <div class="card" style="margin-bottom: 16px;">
     <h2 style="margin:0 0 8px;">System Resources</h2>
     <div class="grid two" style="margin-top: 12px;">
         <div>
             <div class="muted">CPU usage</div>
-            <div style="font-size:22px; font-weight:600; margin-top:4px;"><span id="resmon-cpu-usage">{{printf "%.1f"
-                    .CurrentMetrics.CPUUsage}}</span>%</div>
+            <div style="font-size:22px; font-weight:600; margin-top:4px;"><span id="resmon-cpu-usage">{{if
+                    .CurrentMetrics}}{{printf "%.1f" .CurrentMetrics.CPUUsage}}{{else}}0.0{{end}}</span>%</div>
         </div>
         <div>
             <div class="muted">Memory</div>
-            <div style="font-size:22px; font-weight:600; margin-top:4px;"><span id="resmon-mem-used">{{bytes
-                    .CurrentMetrics.MemUsed}}</span> / <span id="resmon-mem-total">{{bytes
-                    .CurrentMetrics.MemTotal}}</span></div>
+            <div style="font-size:22px; font-weight:600; margin-top:4px;"><span id="resmon-mem-used">{{if
+                    .CurrentMetrics}}{{bytes .CurrentMetrics.MemUsed}}{{else}}0 B{{end}}</span> / <span
+                    id="resmon-mem-total">{{if .CurrentMetrics}}{{bytes .CurrentMetrics.MemTotal}}{{else}}0
+                    B{{end}}</span></div>
         </div>
         <div>
             <div class="muted">Disk IO (cumulative)</div>
-            <div style="font-size:14px; margin-top:4px;">R: <span id="resmon-disk-r">{{bytes
-                    .CurrentMetrics.DiskReadBytes}}</span> · W: <span id="resmon-disk-w">{{bytes
-                    .CurrentMetrics.DiskWriteBytes}}</span></div>
+            <div style="font-size:14px; margin-top:4px;">R: <span id="resmon-disk-r">{{if .CurrentMetrics}}{{bytes
+                    .CurrentMetrics.DiskReadBytes}}{{else}}0 B{{end}}</span> · W: <span id="resmon-disk-w">{{if
+                    .CurrentMetrics}}{{bytes .CurrentMetrics.DiskWriteBytes}}{{else}}0 B{{end}}</span></div>
 
-            {{if .CurrentMetrics.Filesystems}}
             <div style="margin-top:8px;">
                 <div class="muted" style="margin-bottom:6px;">Mounts</div>
                 <div id="resmon-filesystems" style="display:flex; flex-direction:column; gap:6px;">
+                    {{if .CurrentMetrics.Filesystems}}
                     {{range .CurrentMetrics.Filesystems}}
                     <div style="display:flex; justify-content:space-between; gap:8px; font-size:13px;">
                         <span><code>{{.MountPoint}}</code></span>
                         <span>{{printf "%.1f" .UsePercent}}% ({{bytes .Used}} / {{bytes .Total}})</span>
                     </div>
                     {{end}}
+                    {{else}}
+                    <div class="muted" style="font-size:13px;">No mounts yet.</div>
+                    {{end}}
                 </div>
             </div>
-            {{end}}
         </div>
         <div>
             <div class="muted">Network (cumulative)</div>
-            <div style="font-size:14px; margin-top:4px;">RX: <span id="resmon-net-rx">{{bytes
-                    .CurrentMetrics.NetworkRxBytes}}</span> · TX: <span id="resmon-net-tx">{{bytes
-                    .CurrentMetrics.NetworkTxBytes}}</span></div>
+            <div style="font-size:14px; margin-top:4px;">RX: <span id="resmon-net-rx">{{if .CurrentMetrics}}{{bytes
+                    .CurrentMetrics.NetworkRxBytes}}{{else}}0 B{{end}}</span> · TX: <span id="resmon-net-tx">{{if
+                    .CurrentMetrics}}{{bytes .CurrentMetrics.NetworkTxBytes}}{{else}}0 B{{end}}</span></div>
         </div>
     </div>
     {{if .Admin}}
@@ -88,7 +90,6 @@
     </div>
     {{end}}
 </div>
-{{end}}
 
 <div class="grid two rowMatch" style="margin-bottom: 16px;">
     <div class="card">
@@ -160,10 +161,8 @@
         if (window.__lumgrDashResmonInit) return;
         window.__lumgrDashResmonInit = true;
 
-        const cfg = JSON.parse(document.getElementById('resmonDashboardConfig')?.textContent || '{}');
         const seed = JSON.parse(document.getElementById('resmonDashboardSeed')?.textContent || '{}');
-        const intervalSeconds = Number(cfg.interval_seconds || cfg.IntervalSeconds || 5) || 5;
-        const pollInterval = Math.max(5, Number(intervalSeconds)) * 1000;
+        const pollInterval = 1000;
         const formatBytes = (v) => {
             v = Number(v) || 0;
             if (v < 1024) return v + ' B';
@@ -190,6 +189,23 @@
         function pushSeries(arr, value) {
             arr.push(value);
             if (arr.length > maxPoints) arr.shift();
+        }
+
+        function rebuildSeriesFromSamples(samples) {
+            labels.length = 0;
+            cpuSeries.length = 0;
+            memSeries.length = 0;
+            diskReadSeries.length = 0;
+            diskWriteSeries.length = 0;
+            netRxSeries.length = 0;
+            netTxSeries.length = 0;
+            prevCounters = null;
+            for (let i = 0; i < samples.length; i++) {
+                const s = samples[i] || {};
+                const m = s.metrics || s.Metrics || {};
+                const ts = new Date(s.timestamp || s.Timestamp || Date.now());
+                updateCharts(ts, m);
+            }
         }
 
         function updateCharts(now, m) {
@@ -296,7 +312,12 @@
             try {
                 const res = await fetch('/api/resmon/current', { cache: 'no-store' });
                 if (!res.ok) return;
-                const sm = await res.json();
+                const payload = await res.json();
+                const samples = Array.isArray(payload.realtime_samples) ? payload.realtime_samples : [];
+                if (samples.length > 0) {
+                    rebuildSeriesFromSamples(samples.slice(-maxPoints));
+                }
+                const sm = payload.sample || payload;
                 const m = sm.metrics || sm.Metrics || {};
                 renderMetric(m);
 

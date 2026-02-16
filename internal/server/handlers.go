@@ -1898,11 +1898,25 @@ func (a *App) handleAPIResmonCurrent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	last := a.resmon.Latest()
-	if last == nil {
+	realtime := a.getRealtimeSamples()
+	if last == nil && len(realtime) == 0 {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	_ = json.NewEncoder(w).Encode(last)
+	if last == nil && len(realtime) > 0 {
+		copyLast := realtime[len(realtime)-1]
+		last = &copyLast
+	}
+	resp := struct {
+		Sample        *resmon.Sample  `json:"sample"`
+		Realtime      []resmon.Sample `json:"realtime_samples"`
+		RealtimeRange int             `json:"realtime_window_seconds"`
+	}{
+		Sample:        last,
+		Realtime:      realtime,
+		RealtimeRange: 30,
+	}
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 func (a *App) handleAdminUserUmask(w http.ResponseWriter, r *http.Request) {

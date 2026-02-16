@@ -379,6 +379,10 @@ func (c *Collector) readUserProcesses() ([]UserResource, error) {
 		if uid == "" {
 			continue
 		}
+		uidNum, err := strconv.Atoi(uid)
+		if err == nil && uidNum > 0 && uidNum < 1000 {
+			continue
+		}
 		user := uidToUser[uid]
 		if user == "" {
 			user = "uid:" + uid
