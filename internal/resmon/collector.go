@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -199,7 +200,18 @@ func (c *Collector) readMemInfo() (total, used, available uint64, err error) {
 			continue
 		}
 		v, _ := strconv.ParseUint(f[1], 10, 64)
-		v *= 1024 // kB -> bytes
+		mul := uint64(1)
+		if len(f) >= 3 {
+			switch strings.ToLower(strings.TrimSpace(f[2])) {
+			case "kb", "kib":
+				mul = 1024
+			case "mb", "mib":
+				mul = 1024 * 1024
+			case "gb", "gib":
+				mul = 1024 * 1024 * 1024
+			}
+		}
+		v *= mul
 		switch strings.TrimSuffix(f[0], ":") {
 		case "MemTotal":
 			memTotal = v
@@ -296,8 +308,21 @@ func (c *Collector) readFilesystems() ([]FSInfo, error) {
 		if err := syscall.Statfs(mnt, &s); err != nil {
 			continue
 		}
-		total := s.Blocks * uint64(s.Bsize)
-		avail := s.Bavail * uint64(s.Bsize)
+		blockSize := uint64(s.Bsize)
+		if v := reflect.ValueOf(s).FieldByName("Frsize"); v.IsValid() {
+			switch v.Kind() {
+			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+				if vv := v.Int(); vv > 0 {
+					blockSize = uint64(vv)
+				}
+			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+				if vv := v.Uint(); vv > 0 {
+					blockSize = vv
+				}
+			}
+		}
+		total := s.Blocks * blockSize
+		avail := s.Bavail * blockSize
 		used := uint64(0)
 		if total > avail {
 			used = total - avail

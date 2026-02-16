@@ -22,6 +22,7 @@
         "ents",
         "EPERM",
         "EXDEV",
+        "Frsize",
         "Gecos",
         "Gehirn",
         "gname",
