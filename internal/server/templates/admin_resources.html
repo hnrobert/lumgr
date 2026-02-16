@@ -133,38 +133,25 @@
     const radios = document.querySelectorAll('input[name="end_mode"]');
     const endInput = document.getElementById('resmon-end-at');
     const endWrap = document.getElementById('resmon-end-datetime-wrap');
-    let nowRefreshTimer = null;
-    let userInteracted = false;
     if (!radios.length || !endInput || !endWrap) return;
-
-    function shouldAutoRefresh() {
-      // auto-refresh when the current selected end_mode is 'now' or user interacted
-      const selected = document.querySelector('input[name="end_mode"]:checked')?.value;
-      return selected === 'now' || userInteracted;
-    }
 
     function syncEndMode() {
       const mode = document.querySelector('input[name="end_mode"]:checked')?.value || 'datetime';
       const useDatetime = mode === 'datetime';
+      window.__lumgrAdminResmonEndMode = mode;
       endInput.disabled = !useDatetime;
       endWrap.style.opacity = useDatetime ? '1' : '0.45';
-
-      if (!useDatetime && shouldAutoRefresh()) {
-        if (nowRefreshTimer == null) {
-          nowRefreshTimer = setInterval(() => {
-            window.location.reload();
-          }, 1000);
-        }
-      } else if (nowRefreshTimer != null) {
-        clearInterval(nowRefreshTimer);
-        nowRefreshTimer = null;
-      }
     }
 
-    radios.forEach((r) => r.addEventListener('change', () => { userInteracted = true; syncEndMode(); }));
+    radios.forEach((r) => r.addEventListener('change', syncEndMode));
+    syncEndMode();
   })();
 
   if (window.__lumgrAdminResmonChartsInit) {
+    // prevent duplicate chart/timer setup on accidental duplicate script execution
+  } else {
+    window.__lumgrAdminResmonChartsInit = true;
+
     const history = JSON.parse(document.getElementById('resmonHistoryData')?.textContent || '[]');
     const formatBytes = (v) => {
       v = Number(v) || 0;
@@ -258,7 +245,7 @@
     const cpuUsersAxisMax = Math.max(1, Math.ceil(maxUserCPU * 1.1));
     const memUsersAxisMax = Math.max(1, Math.ceil(maxUserMem * 1.1));
 
-    new Chart(document.getElementById('cpuTotalChart'), {
+    const cpuTotalChart = new Chart(document.getElementById('cpuTotalChart'), {
       type: 'line',
       data: {
         labels,
@@ -294,7 +281,7 @@
       }
     });
 
-    new Chart(document.getElementById('cpuUsersChart'), {
+    const cpuUsersChart = new Chart(document.getElementById('cpuUsersChart'), {
       type: 'line',
       data: {
         labels,
@@ -323,7 +310,7 @@
       }
     });
 
-    new Chart(document.getElementById('memTotalChart'), {
+    const memTotalChart = new Chart(document.getElementById('memTotalChart'), {
       type: 'line',
       data: {
         labels,
@@ -377,7 +364,7 @@
       }
     });
 
-    new Chart(document.getElementById('memUsersChart'), {
+    const memUsersChart = new Chart(document.getElementById('memUsersChart'), {
       type: 'line',
       data: {
         labels,
@@ -419,7 +406,7 @@
       }
     });
 
-    new Chart(document.getElementById('diskIoChart'), {
+    const diskIoChart = new Chart(document.getElementById('diskIoChart'), {
       type: 'line',
       data: {
         labels,
@@ -431,7 +418,7 @@
       options: { responsive: true, maintainAspectRatio: false, animation: false }
     });
 
-    new Chart(document.getElementById('netIoChart'), {
+    const netIoChart = new Chart(document.getElementById('netIoChart'), {
       type: 'line',
       data: {
         labels,
@@ -442,6 +429,104 @@
       },
       options: { responsive: true, maintainAspectRatio: false, animation: false }
     });
+
+    const maxPoints = Math.max(60, (Number(document.querySelector('input[name="hours"]')?.value) || 24) * 3600);
+    const userSeriesOrder = [...userNames];
+    const seenTimestamps = new Set(history.map((s) => String(s.timestamp || '')));
+
+    const ensureUserDataset = (chart, prefix, username) => {
+      const label = `${prefix} · ${username}`;
+      const existing = chart.data.datasets.find((ds) => ds.label === label);
+      if (existing) return existing;
+      const idx = userSeriesOrder.indexOf(username);
+      const color = userColors[(idx >= 0 ? idx : userSeriesOrder.length) % userColors.length];
+      const ds = {
+        label,
+        data: new Array(labels.length).fill(0),
+        borderColor: color,
+        backgroundColor: 'transparent',
+        borderWidth: 1.5,
+        pointRadius: 2,
+        pointHoverRadius: 4,
+        pointHitRadius: 10,
+        tension: 0.2,
+      };
+      chart.data.datasets.push(ds);
+      return ds;
+    };
+
+    const trimHistory = () => {
+      while (labels.length > maxPoints) {
+        labels.shift();
+        cpuUsage.shift();
+        memUsed.shift();
+        memTotal.shift();
+        diskRDelta.shift();
+        diskWDelta.shift();
+        netRx.shift();
+        netTx.shift();
+        cpuUsersChart.data.datasets.forEach((ds) => ds.data.shift());
+        memUsersChart.data.datasets.forEach((ds) => ds.data.shift());
+      }
+    };
+
+    const updateUserAxis = () => {
+      cpuUsersChart.options.scales.y.max = Math.max(1, Math.ceil(maxFromDatasets(cpuUsersChart.data.datasets) * 1.1));
+      memUsersChart.options.scales.y.max = Math.max(1, Math.ceil(maxFromDatasets(memUsersChart.data.datasets) * 1.1));
+    };
+
+    window.__lumgrAdminResmonAppendSample = (sample) => {
+      if (!sample) return;
+      const ts = String(sample.timestamp || sample.Timestamp || '');
+      if (!ts || seenTimestamps.has(ts)) return;
+      seenTimestamps.add(ts);
+
+      const m = sample.metrics || sample.Metrics || {};
+      labels.push((() => {
+        const d = new Date(ts);
+        return Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString();
+      })());
+      cpuUsage.push(Number(m.cpu_usage ?? m.CPUUsage ?? 0));
+      memUsed.push(Number(m.mem_used ?? m.MemUsed ?? 0));
+      memTotal.push(Number(m.mem_total ?? m.MemTotal ?? 0));
+      diskRDelta.push(Number(m.disk_read_bytes ?? m.DiskReadBytes ?? 0));
+      diskWDelta.push(Number(m.disk_write_bytes ?? m.DiskWriteBytes ?? 0));
+      netRx.push(Number(m.network_rx_bytes ?? m.NetworkRxBytes ?? 0));
+      netTx.push(Number(m.network_tx_bytes ?? m.NetworkTxBytes ?? 0));
+
+      const users = Array.isArray(sample.user_stats) ? sample.user_stats : Array.isArray(sample.UserStats) ? sample.UserStats : [];
+      const cpuByUser = new Map();
+      const memByUser = new Map();
+      users.forEach((u) => {
+        const name = String(u.username || u.Username || '');
+        if (!name) return;
+        if (!userSeriesOrder.includes(name)) userSeriesOrder.push(name);
+        cpuByUser.set(name, Number(u.cpu_percent ?? u.CPU ?? 0));
+        memByUser.set(name, Number(u.memory_bytes ?? u.MemoryBytes ?? 0));
+        ensureUserDataset(cpuUsersChart, 'CPU', name);
+        ensureUserDataset(memUsersChart, 'Mem', name);
+      });
+
+      cpuUsersChart.data.datasets.forEach((ds) => {
+        const name = String(ds.label || '').replace(/^CPU · /, '');
+        ds.data.push(cpuByUser.get(name) ?? 0);
+      });
+      memUsersChart.data.datasets.forEach((ds) => {
+        const name = String(ds.label || '').replace(/^Mem · /, '');
+        ds.data.push(memByUser.get(name) ?? 0);
+      });
+
+      memTotalChart.options.scales.y.max = Math.max(1, ...memTotal);
+      updateUserAxis();
+      trimHistory();
+
+      cpuTotalChart.update('none');
+      cpuUsersChart.update('none');
+      memTotalChart.update('none');
+      memUsersChart.update('none');
+      diskIoChart.update('none');
+      netIoChart.update('none');
+    };
   }
 </script>
 {{end}}
@@ -476,6 +561,11 @@
         setText('admin-resmon-disk-w', formatBytes(m.disk_write_bytes ?? m.DiskWriteBytes ?? 0));
         setText('admin-resmon-net-rx', formatBytes(m.network_rx_bytes ?? m.NetworkRxBytes ?? 0));
         setText('admin-resmon-net-tx', formatBytes(m.network_tx_bytes ?? m.NetworkTxBytes ?? 0));
+
+        const endMode = window.__lumgrAdminResmonEndMode || (document.querySelector('input[name="end_mode"]:checked')?.value || 'datetime');
+        if (endMode === 'now' && typeof window.__lumgrAdminResmonAppendSample === 'function') {
+          window.__lumgrAdminResmonAppendSample(sm);
+        }
       } catch (e) {
         // silent
       }
