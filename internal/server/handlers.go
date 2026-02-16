@@ -1852,9 +1852,8 @@ func (a *App) handleAdminResources(w http.ResponseWriter, r *http.Request) {
 	data.ResmonHours = hours
 
 	nowLocal := time.Now().In(time.Local)
-	yesterday := nowLocal.AddDate(0, 0, -1)
-	defaultStartLocal := time.Date(yesterday.Year(), yesterday.Month(), yesterday.Day(), 0, 0, 0, 0, time.Local)
-	defaultEndLocal := time.Date(yesterday.Year(), yesterday.Month(), yesterday.Day(), 23, 59, 59, 0, time.Local)
+	defaultStartLocal := nowLocal.Add(-24 * time.Hour)
+	defaultEndLocal := nowLocal
 
 	parseLocalDateTime := func(s string) (time.Time, bool) {
 		s = strings.TrimSpace(s)
@@ -1877,7 +1876,7 @@ func (a *App) handleAdminResources(w http.ResponseWriter, r *http.Request) {
 
 	endMode := strings.TrimSpace(r.URL.Query().Get("end_mode"))
 	if endMode != "now" && endMode != "datetime" {
-		endMode = "datetime"
+		endMode = "now"
 	}
 	data.ResmonEndMode = endMode
 

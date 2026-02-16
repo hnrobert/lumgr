@@ -81,16 +81,19 @@
             </div>
             <div style="display:flex; flex-direction:column; gap:6px; min-width:260px;">
                 <label style="margin-bottom:0;">End</label>
-                <label style="display:flex; align-items:center; gap:6px; margin:0;">
-                    <input type="radio" name="end_mode" value="now" {{if eq .ResmonEndMode "now" }}checked{{end}}
-                        style="width:auto;" />
-                    <span>Now</span>
-                </label>
-                <label id="resmon-end-datetime-wrap" style="display:flex; align-items:center; gap:6px; margin:0;">
-                    <input type="radio" name="end_mode" value="datetime" {{if ne .ResmonEndMode "now" }}checked{{end}}
-                        style="width:auto;" />
-                    <input type="datetime-local" name="end_at" id="resmon-end-at" step="1" value="{{.ResmonEndAt}}" />
-                </label>
+                <div style="display:flex; gap:12px; align-items:center;">
+                    <label style="display:flex; align-items:center; gap:6px; margin:0;">
+                        <input type="radio" name="end_mode" value="now" {{if eq .ResmonEndMode "now" }}checked{{end}}
+                            style="width:auto;" />
+                        <span>Now</span>
+                    </label>
+                    <label id="resmon-end-datetime-wrap" style="display:flex; align-items:center; gap:6px; margin:0;">
+                        <input type="radio" name="end_mode" value="datetime" {{if ne .ResmonEndMode "now"
+                            }}checked{{end}} style="width:auto;" />
+                        <input type="datetime-local" name="end_at" id="resmon-end-at" step="1"
+                            value="{{.ResmonEndAt}}" />
+                    </label>
+                </div>
             </div>
             <button class="btn" type="submit">Apply</button>
         </form>
@@ -134,6 +137,7 @@
         const radios = document.querySelectorAll('input[name="end_mode"]');
         const endInput = document.getElementById('resmon-end-at');
         const endWrap = document.getElementById('resmon-end-datetime-wrap');
+        let nowRefreshTimer = null;
         if (!radios.length || !endInput || !endWrap) return;
 
         function syncEndMode() {
@@ -141,6 +145,17 @@
             const useDatetime = mode === 'datetime';
             endInput.disabled = !useDatetime;
             endWrap.style.opacity = useDatetime ? '1' : '0.45';
+
+            if (!useDatetime) {
+                if (nowRefreshTimer == null) {
+                    nowRefreshTimer = setInterval(() => {
+                        window.location.reload();
+                    }, 1000);
+                }
+            } else if (nowRefreshTimer != null) {
+                clearInterval(nowRefreshTimer);
+                nowRefreshTimer = null;
+            }
         }
 
         radios.forEach((r) => r.addEventListener('change', syncEndMode));
