@@ -67,21 +67,23 @@
     <h2 style="margin:0 0 8px;">History</h2>
     <form method="get" action="/admin/resources"
       style="display:flex; flex-direction:column; gap:10px; margin-bottom:10px;">
-      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:nowrap;">
         <label style="margin:0; min-width:56px;">Start</label>
-        <input type="datetime-local" name="start_at" id="resmon-start-at" step="1" value="{{.ResmonStartAt}}" />
+        <input type="datetime-local" name="start_at" id="resmon-start-at" step="1" value="{{.ResmonStartAt}}"
+          style="width:240px;" />
       </div>
       <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
         <label style="margin:0; min-width:56px;">End</label>
-        <label id="resmon-end-datetime-wrap" style="display:flex; align-items:center; gap:6px; margin:0;">
-          <input type="radio" name="end_mode" value="datetime" {{if ne .ResmonEndMode "now" }}checked{{end}}
-          style="width:auto;" />
-          <input type="datetime-local" name="end_at" id="resmon-end-at" step="1" value="{{.ResmonEndAt}}" />
-        </label>
         <label style="display:flex; align-items:center; gap:6px; margin:0;">
           <input type="radio" name="end_mode" value="now" {{if eq .ResmonEndMode "now" }}checked{{end}}
             style="width:auto;" />
           <span>Now</span>
+        </label>
+        <label id="resmon-end-datetime-wrap" style="display:flex; align-items:center; gap:6px; margin:0;">
+          <input type="radio" name="end_mode" value="datetime" {{if ne .ResmonEndMode "now" }}checked{{end}}
+            style="width:auto;" />
+          <input type="datetime-local" name="end_at" id="resmon-end-at" step="1" value="{{.ResmonEndAt}}"
+            style="width:240px;" />
         </label>
       </div>
       <div>
