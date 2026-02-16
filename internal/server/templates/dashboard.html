@@ -177,10 +177,10 @@
         const pollInterval = 1000;
         const formatBytes = (v) => {
             v = Number(v) || 0;
-            if (v < 1024) return v + ' B';
-            const units = ['KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
+            const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
             let i = 0;
             while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+            if (i === 0) return Math.round(v) + ' B';
             return v.toFixed(1) + ' ' + units[i];
         };
         const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };

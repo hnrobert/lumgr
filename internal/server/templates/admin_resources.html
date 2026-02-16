@@ -129,10 +129,10 @@
         const latestUsers = JSON.parse(document.getElementById('resmonLatestUsersData')?.textContent || '[]');
         const formatBytes = (v) => {
             v = Number(v) || 0;
-            if (v < 1024) return v + ' B';
-            const units = ['KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
+            const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
             let i = 0;
             while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+            if (i === 0) return Math.round(v) + ' B';
             return v.toFixed(1) + ' ' + units[i];
         };
 
@@ -240,4 +240,48 @@
     }
 </script>
 {{end}}
+
+<script>
+    (function () {
+        if (window.__lumgrAdminResmonCardsInit) return;
+        window.__lumgrAdminResmonCardsInit = true;
+
+        const formatBytes = (v) => {
+            v = Number(v) || 0;
+            const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
+            let i = 0;
+            while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+            if (i === 0) return Math.round(v) + ' B';
+            return v.toFixed(1) + ' ' + units[i];
+        };
+        const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+
+        async function refreshCards() {
+            try {
+                const res = await fetch('/api/resmon/current', { cache: 'no-store' });
+                if (!res.ok) return;
+                const payload = await res.json();
+                const sm = payload.sample || payload;
+                const m = sm.metrics || sm.Metrics || {};
+
+                setText('admin-resmon-cpu', (Number(m.cpu_usage ?? m.CPUUsage ?? 0)).toFixed(1));
+                setText('admin-resmon-mem-used', formatBytes(m.mem_used ?? m.MemUsed ?? 0));
+                setText('admin-resmon-mem-total', formatBytes(m.mem_total ?? m.MemTotal ?? 0));
+                setText('admin-resmon-disk-r', formatBytes(m.disk_read_bytes ?? m.DiskReadBytes ?? 0));
+                setText('admin-resmon-disk-w', formatBytes(m.disk_write_bytes ?? m.DiskWriteBytes ?? 0));
+                setText('admin-resmon-net-rx', formatBytes(m.network_rx_bytes ?? m.NetworkRxBytes ?? 0));
+                setText('admin-resmon-net-tx', formatBytes(m.network_tx_bytes ?? m.NetworkTxBytes ?? 0));
+            } catch (e) {
+                // silent
+            }
+        }
+
+        refreshCards();
+        const timerId = setInterval(refreshCards, 1000);
+        window.addEventListener('beforeunload', function () {
+            clearInterval(timerId);
+            window.__lumgrAdminResmonCardsInit = false;
+        });
+    })();
+</script>
 {{end}}
