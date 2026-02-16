@@ -64,7 +64,7 @@ func DefaultConfig() Config {
 		CollectCPU:        true,
 		CollectMemory:     true,
 		CollectDiskIO:     true,
-		CollectFilesystem: true,
+		CollectFilesystem: false,
 		CollectNetwork:    true,
 		CollectUserStats:  true,
 	}

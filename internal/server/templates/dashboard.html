@@ -49,22 +49,6 @@
             <div style="font-size:14px; margin-top:4px;">R: <span id="resmon-disk-r">{{if .CurrentMetrics}}{{bytes
                     .CurrentMetrics.DiskReadBytes}}{{else}}0 B{{end}}</span> · W: <span id="resmon-disk-w">{{if
                     .CurrentMetrics}}{{bytes .CurrentMetrics.DiskWriteBytes}}{{else}}0 B{{end}}</span></div>
-
-            <div style="margin-top:8px;">
-                <div class="muted" style="margin-bottom:6px;">Mounts</div>
-                <div id="resmon-filesystems" style="display:flex; flex-direction:column; gap:6px;">
-                    {{if .CurrentMetrics.Filesystems}}
-                    {{range .CurrentMetrics.Filesystems}}
-                    <div style="display:flex; justify-content:space-between; gap:8px; font-size:13px;">
-                        <span><code>{{.MountPoint}}</code></span>
-                        <span>{{printf "%.1f" .UsePercent}}% ({{bytes .Used}} / {{bytes .Total}})</span>
-                    </div>
-                    {{end}}
-                    {{else}}
-                    <div class="muted" style="font-size:13px;">No mounts yet.</div>
-                    {{end}}
-                </div>
-            </div>
         </div>
         <div>
             <div class="muted">Network (realtime)</div>
@@ -351,23 +335,6 @@
             setText('resmon-disk-w', formatBytes(m.disk_write_bytes ?? m.DiskWriteBytes ?? 0));
             setText('resmon-net-rx', formatBytes(m.network_rx_bytes ?? m.NetworkRxBytes ?? 0));
             setText('resmon-net-tx', formatBytes(m.network_tx_bytes ?? m.NetworkTxBytes ?? 0));
-
-            const fs = (m.filesystems || m.Filesystems || []);
-            const cont = document.getElementById('resmon-filesystems');
-            if (cont) {
-                cont.innerHTML = '';
-                for (let i = 0; i < fs.length; i++) {
-                    const f = fs[i];
-                    const mp = f.mount_point || f.MountPoint || '';
-                    const pct = (f.use_percent ?? f.UsePercent ?? 0).toFixed(1);
-                    const used = formatBytes(f.used ?? f.Used ?? 0);
-                    const total = formatBytes(f.total ?? f.Total ?? 0);
-                    const row = document.createElement('div');
-                    row.style.display = 'flex'; row.style.justifyContent = 'space-between'; row.style.gap = '8px'; row.style.fontSize = '13px';
-                    row.innerHTML = '<span><code>' + mp + '</code></span><span>' + pct + '% (' + used + ' / ' + total + ')</span>';
-                    cont.appendChild(row);
-                }
-            }
 
             ensureCharts();
             if (appendPoint) {

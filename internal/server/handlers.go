@@ -1915,7 +1915,7 @@ func (a *App) handleAdminResourcesConfig(w http.ResponseWriter, r *http.Request)
 	rc.CollectCPU = r.Form.Get("collect_cpu") == "1"
 	rc.CollectMemory = r.Form.Get("collect_memory") == "1"
 	rc.CollectDiskIO = r.Form.Get("collect_disk_io") == "1"
-	rc.CollectFilesystem = r.Form.Get("collect_filesystem") == "1"
+	rc.CollectFilesystem = false
 	rc.CollectNetwork = r.Form.Get("collect_network") == "1"
 	rc.CollectUserStats = r.Form.Get("collect_user_stats") == "1"
 

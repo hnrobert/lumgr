@@ -494,7 +494,6 @@ func aggregateResmonWindow(samples []resmon.Sample) resmon.Sample {
 			MemAvailable:   uint64(float64(memAvailSum) / n),
 			DiskReadBytes:  diskReadSum,
 			DiskWriteBytes: diskWriteSum,
-			Filesystems:    latest.Metrics.Filesystems,
 			NetworkRxBytes: netRxSum,
 			NetworkTxBytes: netTxSum,
 		},

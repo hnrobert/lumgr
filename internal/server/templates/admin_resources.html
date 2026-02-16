@@ -27,9 +27,6 @@
                 <label><input type="checkbox" name="collect_disk_io" value="1" {{if
                         .ResmonConfig.CollectDiskIO}}checked{{end}} style="width:auto; margin-right:6px;" />Disk
                     IO</label>
-                <label><input type="checkbox" name="collect_filesystem" value="1" {{if
-                        .ResmonConfig.CollectFilesystem}}checked{{end}}
-                        style="width:auto; margin-right:6px;" />Filesystem</label>
                 <label><input type="checkbox" name="collect_network" value="1" {{if
                         .ResmonConfig.CollectNetwork}}checked{{end}}
                         style="width:auto; margin-right:6px;" />Network</label>
@@ -147,6 +144,9 @@
         const maxMem = Math.max(1, ...memTotal);
         const diskR = history.map((s) => Number((s.metrics && s.metrics.disk_read_bytes) || 0));
         const diskW = history.map((s) => Number((s.metrics && s.metrics.disk_write_bytes) || 0));
+        const diskDelta = (arr) => arr.map((v, i) => i === 0 ? 0 : Math.max(0, v - (arr[i - 1] || 0)));
+        const diskRDelta = diskDelta(diskR);
+        const diskWDelta = diskDelta(diskW);
         const netRx = history.map((s) => Number((s.metrics && s.metrics.network_rx_bytes) || 0));
         const netTx = history.map((s) => Number((s.metrics && s.metrics.network_tx_bytes) || 0));
 
@@ -210,8 +210,8 @@
             data: {
                 labels,
                 datasets: [
-                    { label: 'Disk Read Bytes', data: diskR, borderColor: '#f2c879' },
-                    { label: 'Disk Write Bytes', data: diskW, borderColor: '#ff8f8f' }
+                    { label: 'Disk Read Δ Bytes', data: diskRDelta, borderColor: '#f2c879' },
+                    { label: 'Disk Write Δ Bytes', data: diskWDelta, borderColor: '#ff8f8f' }
                 ]
             },
             options: { responsive: true, maintainAspectRatio: false, animation: false }

@@ -89,14 +89,6 @@ func (c *Collector) Collect(cfg Config) (Metrics, []UserResource, error) {
 		m.DiskWriteBytes = w
 	}
 
-	if cfg.CollectFilesystem {
-		fs, err := c.readFilesystems()
-		if err != nil {
-			return m, nil, err
-		}
-		m.Filesystems = fs
-	}
-
 	if cfg.CollectNetwork {
 		rx, tx, err := c.readNetwork()
 		if err != nil {
