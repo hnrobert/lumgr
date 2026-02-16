@@ -277,8 +277,17 @@ func (c *Collector) readDiskStats() (readBytes, writeBytes uint64, err error) {
 }
 
 func (c *Collector) readFilesystems() ([]FSInfo, error) {
-	p := filepath.Join(c.procRoot, "mounts")
-	b, err := os.ReadFile(p)
+	mountsPath := filepath.Join(c.procRoot, "mounts")
+	hostRootPrefix := ""
+	hostMountsPath := filepath.Join(c.procRoot, "1", "mounts")
+	hostRootPath := filepath.Join(c.procRoot, "1", "root")
+	if _, err := os.Stat(hostMountsPath); err == nil {
+		if _, err2 := os.Stat(hostRootPath); err2 == nil {
+			mountsPath = hostMountsPath
+			hostRootPrefix = hostRootPath
+		}
+	}
+	b, err := os.ReadFile(mountsPath)
 	if err != nil {
 		return nil, err
 	}
@@ -295,17 +304,26 @@ func (c *Collector) readFilesystems() ([]FSInfo, error) {
 			continue
 		}
 		mnt := f[1]
+		mnt = strings.ReplaceAll(mnt, `\040`, " ")
 		fst := f[2]
 		if skipFs[fst] || seen[mnt] {
 			continue
 		}
-		fi, err := os.Stat(mnt)
+		statPath := mnt
+		if hostRootPrefix != "" {
+			if mnt == "/" {
+				statPath = hostRootPrefix
+			} else {
+				statPath = filepath.Join(hostRootPrefix, strings.TrimPrefix(mnt, "/"))
+			}
+		}
+		fi, err := os.Stat(statPath)
 		if err != nil || !fi.IsDir() {
 			continue
 		}
 		seen[mnt] = true
 		var s syscall.Statfs_t
-		if err := syscall.Statfs(mnt, &s); err != nil {
+		if err := syscall.Statfs(statPath, &s); err != nil {
 			continue
 		}
 		blockSize := uint64(s.Bsize)
