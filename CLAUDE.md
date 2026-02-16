@@ -83,7 +83,7 @@ internal/
 5. **Data Persistence**
    - `lumgr_data/config.json` - Registration mode and default groups
    - `lumgr_data/invites.json` - Invitation codes
-   - `lumgr_data/resmon_history.json` - Persisted resmon history when resource monitoring is enabled
+   - `lumgr_data/resmon_history/` - Persisted resmon history directory with daily files (`YYYY-MM-DD.json`) when resource monitoring is enabled
    - Settings per user in `lumgr_data/settings/<username>.json`
 
 ## Important Constants and Thresholds

@@ -39,11 +39,11 @@ A modern, containerized web-based user management interface for Linux systems. M
 
 ### System Resource Monitor (resmon)
 
-`resmon` is an optional subsystem that samples host resource usage (CPU, memory, disk I/O, filesystems, network and per-user aggregates) and persists a rolling history in `lumgr_data/resmon_history.json`. To enable full host-level monitoring when running in a container, bind-mount the host `/proc` into the container (read‑only) as shown in the Docker Compose example above.
+`resmon` is an optional subsystem that samples host resource usage (CPU, memory, disk I/O, filesystems, network and per-user aggregates) and persists rolling history in `lumgr_data/resmon_history/` as daily files (for example `2026-02-16.json`). To enable full host-level monitoring when running in a container, bind-mount the host `/proc` into the container (read‑only) as shown in the Docker Compose example above.
 
 - Configure sampling interval, retention days, and which metrics to collect from the Admin → Resources page.
 - Current metrics are shown on the Dashboard and historical charts are available to administrators under Admin → Resources.
-- Historical data path: `lumgr_data/resmon_history.json` (only present when resmon is enabled).
+- Historical data path: `lumgr_data/resmon_history/` (date-partitioned files, only present when resmon is enabled).
 
 - **Admin/Regular User Views** - Contextual interfaces based on privilege level
 
@@ -124,7 +124,7 @@ The `lumgr_data` directory contains:
 
 - `config.json` - Registration mode and default groups
 - `invites.json` - Invitation codes and usage tracking
-- `resmon_history.json` - Persisted system resource history (created when resmon is enabled)
+- `resmon_history/` - Persisted system resource history directory with daily files (`YYYY-MM-DD.json`, created when resmon is enabled)
 
 ### Registration Modes
 
