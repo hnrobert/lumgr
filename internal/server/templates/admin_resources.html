@@ -134,7 +134,14 @@
     const endInput = document.getElementById('resmon-end-at');
     const endWrap = document.getElementById('resmon-end-datetime-wrap');
     let nowRefreshTimer = null;
+    let userInteracted = false;
     if (!radios.length || !endInput || !endWrap) return;
+
+    function shouldAutoRefresh() {
+      // auto-refresh when the current selected end_mode is 'now' or user interacted
+      const selected = document.querySelector('input[name="end_mode"]:checked')?.value;
+      return selected === 'now' || userInteracted;
+    }
 
     function syncEndMode() {
       const mode = document.querySelector('input[name="end_mode"]:checked')?.value || 'datetime';
@@ -142,7 +149,7 @@
       endInput.disabled = !useDatetime;
       endWrap.style.opacity = useDatetime ? '1' : '0.45';
 
-      if (!useDatetime) {
+      if (!useDatetime && shouldAutoRefresh()) {
         if (nowRefreshTimer == null) {
           nowRefreshTimer = setInterval(() => {
             window.location.reload();
@@ -154,15 +161,10 @@
       }
     }
 
-    radios.forEach((r) => r.addEventListener('change', syncEndMode));
-    syncEndMode();
+    radios.forEach((r) => r.addEventListener('change', () => { userInteracted = true; syncEndMode(); }));
   })();
 
   if (window.__lumgrAdminResmonChartsInit) {
-    // prevent duplicate chart/timer setup on accidental duplicate script execution
-  } else {
-    window.__lumgrAdminResmonChartsInit = true;
-
     const history = JSON.parse(document.getElementById('resmonHistoryData')?.textContent || '[]');
     const formatBytes = (v) => {
       v = Number(v) || 0;
