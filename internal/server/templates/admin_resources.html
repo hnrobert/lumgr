@@ -66,32 +66,27 @@
   <div class="card">
     <h2 style="margin:0 0 8px;">History</h2>
     <form method="get" action="/admin/resources"
-      style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-bottom:10px;">
-      <div>
-        <label>Window (hours)</label>
-        <input type="number" name="hours" value="{{if gt .ResmonHours 0}}{{.ResmonHours}}{{else}}24{{end}}" min="1"
-          max="720" style="width:120px;" />
-      </div>
-      <div>
-        <label>Start</label>
+      style="display:flex; flex-direction:column; gap:10px; margin-bottom:10px;">
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <label style="margin:0; min-width:56px;">Start</label>
         <input type="datetime-local" name="start_at" id="resmon-start-at" step="1" value="{{.ResmonStartAt}}" />
       </div>
-      <div style="display:flex; flex-direction:column; gap:6px; min-width:260px;">
-        <label style="margin-bottom:0;">End</label>
-        <div style="display:flex; gap:12px; align-items:center;">
-          <label style="display:flex; align-items:center; gap:6px; margin:0;">
-            <input type="radio" name="end_mode" value="now" {{if eq .ResmonEndMode "now" }}checked{{end}}
-              style="width:auto;" />
-            <span>Now</span>
-          </label>
-          <label id="resmon-end-datetime-wrap" style="display:flex; align-items:center; gap:6px; margin:0;">
-            <input type="radio" name="end_mode" value="datetime" {{if ne .ResmonEndMode "now" }}checked{{end}}
-              style="width:auto;" />
-            <input type="datetime-local" name="end_at" id="resmon-end-at" step="1" value="{{.ResmonEndAt}}" />
-          </label>
-        </div>
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <label style="margin:0; min-width:56px;">End</label>
+        <label id="resmon-end-datetime-wrap" style="display:flex; align-items:center; gap:6px; margin:0;">
+          <input type="radio" name="end_mode" value="datetime" {{if ne .ResmonEndMode "now" }}checked{{end}}
+          style="width:auto;" />
+          <input type="datetime-local" name="end_at" id="resmon-end-at" step="1" value="{{.ResmonEndAt}}" />
+        </label>
+        <label style="display:flex; align-items:center; gap:6px; margin:0;">
+          <input type="radio" name="end_mode" value="now" {{if eq .ResmonEndMode "now" }}checked{{end}}
+            style="width:auto;" />
+          <span>Now</span>
+        </label>
       </div>
-      <button class="btn" type="submit">Apply</button>
+      <div>
+        <button class="btn" type="submit">Apply</button>
+      </div>
     </form>
 
     {{if .ResmonHistory}}
