@@ -269,12 +269,6 @@ func newApp() (*App, error) {
 		resmon:     rmStore,
 		collector:  rmCollector,
 	}
-	if cache, err := rmStore.LoadCache(); err == nil && len(cache) > 0 {
-		if len(cache) > 30 {
-			cache = cache[len(cache)-30:]
-		}
-		app.realtimeSamples = cache
-	}
 	app.startResmonLoop()
 	return app, nil
 }
@@ -399,25 +393,17 @@ func (a *App) startResmonLoop() {
 
 func (a *App) appendRealtimeSample(sm resmon.Sample) {
 	a.realtimeMu.Lock()
+	defer a.realtimeMu.Unlock()
 	a.realtimeSamples = append(a.realtimeSamples, sm)
 	if len(a.realtimeSamples) > 30 {
 		a.realtimeSamples = a.realtimeSamples[len(a.realtimeSamples)-30:]
-	}
-	snapshot := make([]resmon.Sample, len(a.realtimeSamples))
-	copy(snapshot, a.realtimeSamples)
-	a.realtimeMu.Unlock()
-	if a.resmon != nil {
-		_ = a.resmon.SaveCache(snapshot)
 	}
 }
 
 func (a *App) clearRealtimeSamples() {
 	a.realtimeMu.Lock()
+	defer a.realtimeMu.Unlock()
 	a.realtimeSamples = nil
-	a.realtimeMu.Unlock()
-	if a.resmon != nil {
-		_ = a.resmon.SaveCache([]resmon.Sample{})
-	}
 }
 
 func (a *App) getRealtimeSamples() []resmon.Sample {
