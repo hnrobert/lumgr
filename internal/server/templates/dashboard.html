@@ -76,9 +76,15 @@
     {{if .Admin}}
     <div class="grid two" style="margin-top: 12px;">
         <div>
-            <div class="muted" style="margin-bottom:6px;">Realtime CPU / Memory %</div>
+            <div class="muted" style="margin-bottom:6px;">Realtime CPU %</div>
             <div style="height:220px; min-height:220px; max-height:220px; position:relative;">
-                <canvas id="resmonDashCpuMemChart"></canvas>
+                <canvas id="resmonDashCpuChart"></canvas>
+            </div>
+        </div>
+        <div>
+            <div class="muted" style="margin-bottom:6px;">Realtime Memory %</div>
+            <div style="height:220px; min-height:220px; max-height:220px; position:relative;">
+                <canvas id="resmonDashMemChart"></canvas>
             </div>
         </div>
         <div>
@@ -187,10 +193,12 @@
         const netTxSeries = [];
         const maxPoints = 30;
 
-        let cpuMemChart = null;
+        let cpuChart = null;
+        let memChart = null;
         let diskIoChart = null;
         let netIoChart = null;
         let timerId = null;
+        let bootstrappedWindow = false;
 
         function pushSeries(arr, value) {
             arr.push(value);
@@ -226,22 +234,37 @@
             pushSeries(netRxSeries, Number(m.network_rx_bytes ?? m.NetworkRxBytes ?? 0));
             pushSeries(netTxSeries, Number(m.network_tx_bytes ?? m.NetworkTxBytes ?? 0));
 
-            if (cpuMemChart) cpuMemChart.update('none');
+            if (cpuChart) cpuChart.update('none');
+            if (memChart) memChart.update('none');
             if (diskIoChart) diskIoChart.update('none');
             if (netIoChart) netIoChart.update('none');
         }
 
         function ensureCharts() {
             if (typeof Chart === 'undefined') return;
-            if (!cpuMemChart) {
-                const canvas = document.getElementById('resmonDashCpuMemChart');
+            if (!cpuChart) {
+                const canvas = document.getElementById('resmonDashCpuChart');
                 if (canvas) {
-                    cpuMemChart = new Chart(canvas, {
+                    cpuChart = new Chart(canvas, {
                         type: 'line',
                         data: {
                             labels,
                             datasets: [
-                                { label: 'CPU %', data: cpuSeries, borderColor: '#7aa2ff', backgroundColor: 'rgba(122,162,255,0.15)', tension: 0.25 },
+                                { label: 'CPU %', data: cpuSeries, borderColor: '#7aa2ff', backgroundColor: 'rgba(122,162,255,0.15)', tension: 0.25 }
+                            ]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false, animation: false }
+                    });
+                }
+            }
+            if (!memChart) {
+                const canvas = document.getElementById('resmonDashMemChart');
+                if (canvas) {
+                    memChart = new Chart(canvas, {
+                        type: 'line',
+                        data: {
+                            labels,
+                            datasets: [
                                 { label: 'Mem %', data: memSeries, borderColor: '#3ddc97', backgroundColor: 'rgba(61,220,151,0.15)', tension: 0.25 }
                             ]
                         },
@@ -283,7 +306,7 @@
             }
         }
 
-        function renderMetric(m) {
+        function renderMetric(m, appendPoint) {
             setText('resmon-cpu-usage', (Number(m.cpu_usage ?? m.CPUUsage ?? 0)).toFixed(1));
             setText('resmon-mem-used', formatBytes(m.mem_used ?? m.MemUsed ?? 0));
             setText('resmon-mem-total', formatBytes(m.mem_total ?? m.MemTotal ?? 0));
@@ -310,21 +333,25 @@
             }
 
             ensureCharts();
-            updateCharts(new Date(), m);
+            if (appendPoint) {
+                updateCharts(new Date(), m);
+            }
         }
 
-        async function fetchCurrent() {
+        async function fetchCurrent(includeWindow) {
             try {
-                const res = await fetch('/api/resmon/current', { cache: 'no-store' });
+                const url = includeWindow ? '/api/resmon/current?full=1' : '/api/resmon/current';
+                const res = await fetch(url, { cache: 'no-store' });
                 if (!res.ok) return;
                 const payload = await res.json();
                 const samples = Array.isArray(payload.realtime_samples) ? payload.realtime_samples : [];
-                if (samples.length > 0) {
+                if (includeWindow && samples.length > 0) {
                     rebuildSeriesFromSamples(samples.slice(-maxPoints));
+                    bootstrappedWindow = true;
                 }
                 const sm = payload.sample || payload;
                 const m = sm.metrics || sm.Metrics || {};
-                renderMetric(m);
+                renderMetric(m, !bootstrappedWindow || !includeWindow);
 
             } catch (err) {
                 // silent
@@ -332,10 +359,10 @@
         }
 
         if (seed) {
-            renderMetric(seed);
+            renderMetric(seed, true);
         }
-        fetchCurrent();
-        timerId = setInterval(fetchCurrent, pollInterval);
+        fetchCurrent(true);
+        timerId = setInterval(function () { fetchCurrent(false); }, pollInterval);
         window.addEventListener('beforeunload', function () {
             if (timerId) clearInterval(timerId);
             window.__lumgrDashResmonInit = false;

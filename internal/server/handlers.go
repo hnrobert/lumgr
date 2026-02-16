@@ -1948,6 +1948,7 @@ func (a *App) handleAPIResmonCurrent(w http.ResponseWriter, r *http.Request) {
 	}
 	last := a.resmon.Latest()
 	realtime := a.getRealtimeSamples()
+	includeWindow := r.URL.Query().Get("full") == "1"
 	if last == nil && len(realtime) == 0 {
 		w.WriteHeader(http.StatusNoContent)
 		return
@@ -1956,9 +1957,12 @@ func (a *App) handleAPIResmonCurrent(w http.ResponseWriter, r *http.Request) {
 		copyLast := realtime[len(realtime)-1]
 		last = &copyLast
 	}
+	if !includeWindow {
+		realtime = nil
+	}
 	resp := struct {
 		Sample        *resmon.Sample  `json:"sample"`
-		Realtime      []resmon.Sample `json:"realtime_samples"`
+		Realtime      []resmon.Sample `json:"realtime_samples,omitempty"`
 		RealtimeRange int             `json:"realtime_window_seconds"`
 	}{
 		Sample:        last,

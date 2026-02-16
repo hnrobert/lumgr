@@ -91,7 +91,11 @@
 
         {{if .ResmonHistory}}
         <div style="height:260px; min-height:260px; max-height:260px; position:relative;">
-            <canvas id="cpuMemChart"></canvas>
+            <canvas id="cpuChart"></canvas>
+        </div>
+        <div style="height:12px"></div>
+        <div style="height:260px; min-height:260px; max-height:260px; position:relative;">
+            <canvas id="memChart"></canvas>
         </div>
         <div style="height:12px"></div>
         <div style="height:260px; min-height:260px; max-height:260px; position:relative;">
@@ -145,12 +149,22 @@
         const userLabels = latestUsers.map((u) => String(u.username || ""));
         const userCpu = latestUsers.map((u) => Number(u.cpu_percent || 0));
 
-        new Chart(document.getElementById('cpuMemChart'), {
+        new Chart(document.getElementById('cpuChart'), {
             type: 'line',
             data: {
                 labels,
                 datasets: [
-                    { label: 'CPU %', data: cpuUsage, borderColor: '#7aa2ff', backgroundColor: 'rgba(122,162,255,0.15)' },
+                    { label: 'CPU %', data: cpuUsage, borderColor: '#7aa2ff', backgroundColor: 'rgba(122,162,255,0.15)' }
+                ]
+            },
+            options: { responsive: true, maintainAspectRatio: false, animation: false }
+        });
+
+        new Chart(document.getElementById('memChart'), {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [
                     { label: 'Mem %', data: memPct, borderColor: '#3ddc97', backgroundColor: 'rgba(61,220,151,0.15)' }
                 ]
             },
