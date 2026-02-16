@@ -89,54 +89,63 @@
             <button class="btn" type="submit">Apply</button>
         </form>
 
+        {{if .ResmonHistory}}
         <div style="height:260px; min-height:260px; max-height:260px; position:relative;">
             <canvas id="cpuMemChart"></canvas>
         </div>
         <div style="height:12px"></div>
         <div style="height:260px; min-height:260px; max-height:260px; position:relative;">
-            <canvas id="ioChart"></canvas>
+            <canvas id="diskIoChart"></canvas>
+        </div>
+        <div style="height:12px"></div>
+        <div style="height:260px; min-height:260px; max-height:260px; position:relative;">
+            <canvas id="netIoChart"></canvas>
         </div>
         <div style="height:12px"></div>
         <div style="height:260px; min-height:260px; max-height:260px; position:relative;">
             <canvas id="userChart"></canvas>
         </div>
+        {{else}}
+        <div class="muted">No history samples yet. Wait for at least one collection interval.</div>
+        {{end}}
     </div>
 </div>
 
+{{if .ResmonHistory}}
 <script src="/assets/vendor/chart.min.js"></script>
-<script id="resmonSelectedUser" type="application/json">{{toJSON .ResmonSelectedUser}}</script>
+<script id="resmonHistoryData" type="application/json">{{toJSON .ResmonHistory}}</script>
+<script id="resmonLatestUsersData" type="application/json">{{toJSON .ResmonLatestUsers}}</script>
 <script>
     if (window.__lumgrAdminResmonChartsInit) {
         // prevent duplicate chart/timer setup on accidental duplicate script execution
     } else {
         window.__lumgrAdminResmonChartsInit = true;
 
-        const selectedUser = JSON.parse(document.getElementById('resmonSelectedUser')?.textContent || '""');
-        const labels = [];
-        const cpuUsage = [];
-        const memPct = [];
-        const diskRDelta = [];
-        const diskWDelta = [];
-        const netRxDelta = [];
-        const netTxDelta = [];
-        let prevCounters = null;
-        let timerId = null;
+        const history = JSON.parse(document.getElementById('resmonHistoryData')?.textContent || '[]');
+        const latestUsers = JSON.parse(document.getElementById('resmonLatestUsersData')?.textContent || '[]');
 
-        const formatBytes = (v) => {
-            v = Number(v) || 0;
-            if (v < 1024) return v + ' B';
-            const units = ['KiB', 'MiB', 'GiB', 'TiB', 'PiB'];
-            let i = 0;
-            while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
-            return v.toFixed(1) + ' ' + units[i];
-        };
-        const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
-        const pushWindow = (arr, value) => {
-            arr.push(value);
-            if (arr.length > 30) arr.shift();
-        };
+        const labels = history.map((s) => {
+            const d = new Date(s.timestamp);
+            if (Number.isNaN(d.getTime())) return "";
+            return d.toLocaleTimeString();
+        });
+        const cpuUsage = history.map((s) => Number((s.metrics && s.metrics.cpu_usage) || 0));
+        const memUsed = history.map((s) => Number((s.metrics && s.metrics.mem_used) || 0));
+        const memTotal = history.map((s) => Number((s.metrics && s.metrics.mem_total) || 0));
+        const memPct = memUsed.map((v, i) => {
+            const t = memTotal[i] || 0;
+            if (!t) return 0;
+            return (v / t) * 100;
+        });
+        const diskR = history.map((s) => Number((s.metrics && s.metrics.disk_read_bytes) || 0));
+        const diskW = history.map((s) => Number((s.metrics && s.metrics.disk_write_bytes) || 0));
+        const netRx = history.map((s) => Number((s.metrics && s.metrics.network_rx_bytes) || 0));
+        const netTx = history.map((s) => Number((s.metrics && s.metrics.network_tx_bytes) || 0));
 
-        const cpuMemChart = new Chart(document.getElementById('cpuMemChart'), {
+        const userLabels = latestUsers.map((u) => String(u.username || ""));
+        const userCpu = latestUsers.map((u) => Number(u.cpu_percent || 0));
+
+        new Chart(document.getElementById('cpuMemChart'), {
             type: 'line',
             data: {
                 labels,
@@ -148,114 +157,39 @@
             options: { responsive: true, maintainAspectRatio: false, animation: false }
         });
 
-        const ioChart = new Chart(document.getElementById('ioChart'), {
+        new Chart(document.getElementById('diskIoChart'), {
             type: 'line',
             data: {
                 labels,
                 datasets: [
-                    { label: 'Disk Read Bytes', data: diskRDelta, borderColor: '#f2c879' },
-                    { label: 'Disk Write Bytes', data: diskWDelta, borderColor: '#ff8f8f' },
-                    { label: 'Net Rx Bytes', data: netRxDelta, borderColor: '#86d6ff' },
-                    { label: 'Net Tx Bytes', data: netTxDelta, borderColor: '#c48fff' }
+                    { label: 'Disk Read Bytes', data: diskR, borderColor: '#f2c879' },
+                    { label: 'Disk Write Bytes', data: diskW, borderColor: '#ff8f8f' }
                 ]
             },
             options: { responsive: true, maintainAspectRatio: false, animation: false }
         });
 
-        const userChart = new Chart(document.getElementById('userChart'), {
-            type: 'bar',
+        new Chart(document.getElementById('netIoChart'), {
+            type: 'line',
             data: {
-                labels: [],
-                datasets: [{ label: 'User CPU share %', data: [], backgroundColor: 'rgba(122,162,255,0.4)' }]
+                labels,
+                datasets: [
+                    { label: 'Net Rx Bytes', data: netRx, borderColor: '#86d6ff' },
+                    { label: 'Net Tx Bytes', data: netTx, borderColor: '#c48fff' }
+                ]
             },
             options: { responsive: true, maintainAspectRatio: false, animation: false }
         });
 
-        function renderCurrent(m) {
-            setText('admin-resmon-cpu', (Number(m.cpu_usage || 0)).toFixed(1));
-            setText('admin-resmon-mem-used', formatBytes(m.mem_used || 0));
-            setText('admin-resmon-mem-total', formatBytes(m.mem_total || 0));
-            setText('admin-resmon-disk-r', formatBytes(m.disk_read_bytes || 0));
-            setText('admin-resmon-disk-w', formatBytes(m.disk_write_bytes || 0));
-            setText('admin-resmon-net-rx', formatBytes(m.network_rx_bytes || 0));
-            setText('admin-resmon-net-tx', formatBytes(m.network_tx_bytes || 0));
-        }
-
-        function rebuildWindow(samples) {
-            labels.length = 0;
-            cpuUsage.length = 0;
-            memPct.length = 0;
-            diskRDelta.length = 0;
-            diskWDelta.length = 0;
-            netRxDelta.length = 0;
-            netTxDelta.length = 0;
-            prevCounters = null;
-
-            let latestUsers = [];
-            for (let i = 0; i < samples.length; i++) {
-                const s = samples[i] || {};
-                const m = s.metrics || {};
-                const d = new Date(s.timestamp || Date.now());
-                pushWindow(labels, Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString());
-                pushWindow(cpuUsage, Number(m.cpu_usage || 0));
-                const memUsed = Number(m.mem_used || 0);
-                const memTotal = Number(m.mem_total || 0);
-                pushWindow(memPct, memTotal > 0 ? (memUsed / memTotal) * 100 : 0);
-
-                const curRead = Number(m.disk_read_bytes || 0);
-                const curWrite = Number(m.disk_write_bytes || 0);
-                const curRx = Number(m.network_rx_bytes || 0);
-                const curTx = Number(m.network_tx_bytes || 0);
-                let readDelta = 0;
-                let writeDelta = 0;
-                let rxDelta = 0;
-                let txDelta = 0;
-                if (prevCounters) {
-                    readDelta = Math.max(0, curRead - prevCounters.read);
-                    writeDelta = Math.max(0, curWrite - prevCounters.write);
-                    rxDelta = Math.max(0, curRx - prevCounters.rx);
-                    txDelta = Math.max(0, curTx - prevCounters.tx);
-                }
-                prevCounters = { read: curRead, write: curWrite, rx: curRx, tx: curTx };
-                pushWindow(diskRDelta, readDelta);
-                pushWindow(diskWDelta, writeDelta);
-                pushWindow(netRxDelta, rxDelta);
-                pushWindow(netTxDelta, txDelta);
-
-                if (Array.isArray(s.user_stats)) {
-                    latestUsers = s.user_stats;
-                }
-            }
-
-            const users = selectedUser ? latestUsers.filter((u) => String(u.username || '') === selectedUser) : latestUsers;
-            userChart.data.labels = users.map((u) => String(u.username || ''));
-            userChart.data.datasets[0].data = users.map((u) => Number(u.cpu_percent || 0));
-        }
-
-        async function refreshRealtime() {
-            try {
-                const res = await fetch('/api/resmon/current', { cache: 'no-store' });
-                if (!res.ok) return;
-                const payload = await res.json();
-                const samples = Array.isArray(payload.realtime_samples) ? payload.realtime_samples.slice(-30) : [];
-                if (samples.length === 0) return;
-                rebuildWindow(samples);
-                const latest = samples[samples.length - 1] || {};
-                renderCurrent(latest.metrics || {});
-                cpuMemChart.update('none');
-                ioChart.update('none');
-                userChart.update('none');
-            } catch (e) {
-                // silent
-            }
-        }
-
-        refreshRealtime();
-        timerId = setInterval(refreshRealtime, 1000);
-        window.addEventListener('beforeunload', function () {
-            if (timerId) clearInterval(timerId);
-            window.__lumgrAdminResmonChartsInit = false;
+        new Chart(document.getElementById('userChart'), {
+            type: 'bar',
+            data: {
+                labels: userLabels,
+                datasets: [{ label: 'User CPU share %', data: userCpu, backgroundColor: 'rgba(122,162,255,0.4)' }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, animation: false }
         });
     }
 </script>
+{{end}}
 {{end}}

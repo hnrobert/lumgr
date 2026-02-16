@@ -18,6 +18,10 @@ type Store struct {
 	samples    []Sample
 }
 
+func (s *Store) cachePath() string {
+	return filepath.Join(s.dir, "cache.json")
+}
+
 func DefaultPath() string {
 	return filepath.Join("/lumgr_data", "resmon_history")
 }
@@ -139,6 +143,39 @@ func (s *Store) Latest() *Sample {
 	}
 	v := s.samples[len(s.samples)-1]
 	return &v
+}
+
+func (s *Store) SaveCache(samples []Sample) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := os.MkdirAll(s.dir, 0777); err != nil {
+		return err
+	}
+	if samples == nil {
+		samples = []Sample{}
+	}
+	return writeJSONAtomic(s.cachePath(), samples)
+}
+
+func (s *Store) LoadCache() ([]Sample, error) {
+	s.mu.RLock()
+	path := s.cachePath()
+	s.mu.RUnlock()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	if len(b) == 0 {
+		return nil, nil
+	}
+	var arr []Sample
+	if err := json.Unmarshal(b, &arr); err != nil {
+		return nil, err
+	}
+	return arr, nil
 }
 
 func (s *Store) saveLocked() error {

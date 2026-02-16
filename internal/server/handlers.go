@@ -32,6 +32,52 @@ func remoteIP(r *http.Request) string {
 	return r.RemoteAddr
 }
 
+func loadUIDByUsername() map[string]int {
+	out := map[string]int{}
+	pw, err := usermgr.LoadPasswd("/etc/passwd")
+	if err != nil {
+		return out
+	}
+	for _, u := range pw.List() {
+		out[u.Name] = u.UID
+	}
+	return out
+}
+
+func keepResmonUsername(username string, uidByName map[string]int) bool {
+	username = strings.TrimSpace(username)
+	if username == "" {
+		return false
+	}
+	if username == "root" {
+		return true
+	}
+	if strings.HasPrefix(username, "uid:") {
+		if uid, err := strconv.Atoi(strings.TrimPrefix(username, "uid:")); err == nil {
+			return uid == 0 || uid >= 1000
+		}
+		return true
+	}
+	uid, ok := uidByName[username]
+	if !ok {
+		return true
+	}
+	return uid == 0 || uid >= 1000
+}
+
+func filterResmonUsers(users []resmon.UserResource, uidByName map[string]int) []resmon.UserResource {
+	if len(users) == 0 {
+		return nil
+	}
+	out := make([]resmon.UserResource, 0, len(users))
+	for _, u := range users {
+		if keepResmonUsername(u.Username, uidByName) {
+			out = append(out, u)
+		}
+	}
+	return out
+}
+
 // parseOSRelease parses /etc/os-release and returns a map of key-value pairs
 func parseOSRelease() map[string]string {
 	result := make(map[string]string)
@@ -1806,27 +1852,30 @@ func (a *App) handleAdminResources(w http.ResponseWriter, r *http.Request) {
 
 	since := time.Now().UTC().Add(-time.Duration(hours) * time.Hour)
 	if a.resmon != nil {
+		uidByName := loadUIDByUsername()
 		if last := a.resmon.Latest(); last != nil {
 			m := last.Metrics
 			data.CurrentMetrics = &m
-			data.ResmonLatestUsers = last.UserStats
+			data.ResmonLatestUsers = filterResmonUsers(last.UserStats, uidByName)
 		}
 		history := a.resmon.List(since)
 		usersSet := map[string]bool{}
 		filtered := make([]resmon.Sample, 0, len(history))
 		for _, sm := range history {
-			if len(sm.UserStats) > 0 {
-				for _, u := range sm.UserStats {
+			smFilteredUsers := filterResmonUsers(sm.UserStats, uidByName)
+			if len(smFilteredUsers) > 0 {
+				for _, u := range smFilteredUsers {
 					usersSet[u.Username] = true
 				}
 			}
 			if selectedUser == "" {
+				sm.UserStats = smFilteredUsers
 				filtered = append(filtered, sm)
 				continue
 			}
 			s2 := sm
 			s2.UserStats = nil
-			for _, u := range sm.UserStats {
+			for _, u := range smFilteredUsers {
 				if u.Username == selectedUser {
 					s2.UserStats = append(s2.UserStats, u)
 				}
@@ -1903,7 +1952,7 @@ func (a *App) handleAPIResmonCurrent(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	if last == nil && len(realtime) > 0 {
+	if len(realtime) > 0 {
 		copyLast := realtime[len(realtime)-1]
 		last = &copyLast
 	}

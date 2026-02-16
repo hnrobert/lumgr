@@ -37,8 +37,14 @@ type userAgg struct {
 type Collector struct {
 	procRoot string
 
-	mu      sync.Mutex
-	prevCPU *cpuSnapshot
+	mu            sync.Mutex
+	prevCPU       *cpuSnapshot
+	prevDiskRead  uint64
+	prevDiskWrite uint64
+	prevNetRx     uint64
+	prevNetTx     uint64
+	hasPrevDisk   bool
+	hasPrevNet    bool
 }
 
 func NewCollector(procRoot string) *Collector {
@@ -223,6 +229,7 @@ func (c *Collector) readDiskStats() (readBytes, writeBytes uint64, err error) {
 	if err != nil {
 		return 0, 0, err
 	}
+	var totalRead, totalWrite uint64
 	for _, ln := range strings.Split(string(b), "\n") {
 		f := strings.Fields(ln)
 		if len(f) < 14 {
@@ -234,9 +241,26 @@ func (c *Collector) readDiskStats() (readBytes, writeBytes uint64, err error) {
 		}
 		readSectors, _ := strconv.ParseUint(f[5], 10, 64)
 		writeSectors, _ := strconv.ParseUint(f[9], 10, 64)
-		readBytes += readSectors * 512
-		writeBytes += writeSectors * 512
+		totalRead += readSectors * 512
+		totalWrite += writeSectors * 512
 	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !c.hasPrevDisk {
+		c.prevDiskRead = totalRead
+		c.prevDiskWrite = totalWrite
+		c.hasPrevDisk = true
+		return 0, 0, nil
+	}
+	if totalRead >= c.prevDiskRead {
+		readBytes = totalRead - c.prevDiskRead
+	}
+	if totalWrite >= c.prevDiskWrite {
+		writeBytes = totalWrite - c.prevDiskWrite
+	}
+	c.prevDiskRead = totalRead
+	c.prevDiskWrite = totalWrite
 	return readBytes, writeBytes, nil
 }
 
@@ -294,6 +318,7 @@ func (c *Collector) readNetwork() (rx, tx uint64, err error) {
 	if err != nil {
 		return 0, 0, err
 	}
+	var totalRx, totalTx uint64
 	for _, ln := range strings.Split(string(b), "\n") {
 		ln = strings.TrimSpace(ln)
 		if ln == "" || strings.HasPrefix(ln, "Inter-") || strings.HasPrefix(ln, "face") {
@@ -313,9 +338,26 @@ func (c *Collector) readNetwork() (rx, tx uint64, err error) {
 		}
 		rxb, _ := strconv.ParseUint(f[0], 10, 64)
 		txb, _ := strconv.ParseUint(f[8], 10, 64)
-		rx += rxb
-		tx += txb
+		totalRx += rxb
+		totalTx += txb
 	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !c.hasPrevNet {
+		c.prevNetRx = totalRx
+		c.prevNetTx = totalTx
+		c.hasPrevNet = true
+		return 0, 0, nil
+	}
+	if totalRx >= c.prevNetRx {
+		rx = totalRx - c.prevNetRx
+	}
+	if totalTx >= c.prevNetTx {
+		tx = totalTx - c.prevNetTx
+	}
+	c.prevNetRx = totalRx
+	c.prevNetTx = totalTx
 	return rx, tx, nil
 }
 

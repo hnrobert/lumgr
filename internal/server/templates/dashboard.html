@@ -45,7 +45,7 @@
                     B{{end}}</span></div>
         </div>
         <div>
-            <div class="muted">Disk IO (cumulative)</div>
+            <div class="muted">Disk IO (realtime)</div>
             <div style="font-size:14px; margin-top:4px;">R: <span id="resmon-disk-r">{{if .CurrentMetrics}}{{bytes
                     .CurrentMetrics.DiskReadBytes}}{{else}}0 B{{end}}</span> · W: <span id="resmon-disk-w">{{if
                     .CurrentMetrics}}{{bytes .CurrentMetrics.DiskWriteBytes}}{{else}}0 B{{end}}</span></div>
@@ -67,7 +67,7 @@
             </div>
         </div>
         <div>
-            <div class="muted">Network (cumulative)</div>
+            <div class="muted">Network (realtime)</div>
             <div style="font-size:14px; margin-top:4px;">RX: <span id="resmon-net-rx">{{if .CurrentMetrics}}{{bytes
                     .CurrentMetrics.NetworkRxBytes}}{{else}}0 B{{end}}</span> · TX: <span id="resmon-net-tx">{{if
                     .CurrentMetrics}}{{bytes .CurrentMetrics.NetworkTxBytes}}{{else}}0 B{{end}}</span></div>
@@ -82,9 +82,15 @@
             </div>
         </div>
         <div>
-            <div class="muted" style="margin-bottom:6px;">Realtime Disk / Network Delta Bytes</div>
+            <div class="muted" style="margin-bottom:6px;">Realtime Disk Delta Bytes</div>
             <div style="height:220px; min-height:220px; max-height:220px; position:relative;">
-                <canvas id="resmonDashIoChart"></canvas>
+                <canvas id="resmonDashDiskIoChart"></canvas>
+            </div>
+        </div>
+        <div>
+            <div class="muted" style="margin-bottom:6px;">Realtime Network Delta Bytes</div>
+            <div style="height:220px; min-height:220px; max-height:220px; position:relative;">
+                <canvas id="resmonDashNetIoChart"></canvas>
             </div>
         </div>
     </div>
@@ -181,9 +187,9 @@
         const netTxSeries = [];
         const maxPoints = 30;
 
-        let prevCounters = null;
         let cpuMemChart = null;
-        let ioChart = null;
+        let diskIoChart = null;
+        let netIoChart = null;
         let timerId = null;
 
         function pushSeries(arr, value) {
@@ -199,7 +205,6 @@
             diskWriteSeries.length = 0;
             netRxSeries.length = 0;
             netTxSeries.length = 0;
-            prevCounters = null;
             for (let i = 0; i < samples.length; i++) {
                 const s = samples[i] || {};
                 const m = s.metrics || s.Metrics || {};
@@ -216,28 +221,14 @@
             const memTotal = Number(m.mem_total ?? m.MemTotal ?? 0);
             pushSeries(memSeries, memTotal > 0 ? (memUsed / memTotal) * 100 : 0);
 
-            const curRead = Number(m.disk_read_bytes ?? m.DiskReadBytes ?? 0);
-            const curWrite = Number(m.disk_write_bytes ?? m.DiskWriteBytes ?? 0);
-            const curRx = Number(m.network_rx_bytes ?? m.NetworkRxBytes ?? 0);
-            const curTx = Number(m.network_tx_bytes ?? m.NetworkTxBytes ?? 0);
-            let readDelta = 0;
-            let writeDelta = 0;
-            let rxDelta = 0;
-            let txDelta = 0;
-            if (prevCounters) {
-                readDelta = Math.max(0, curRead - prevCounters.read);
-                writeDelta = Math.max(0, curWrite - prevCounters.write);
-                rxDelta = Math.max(0, curRx - prevCounters.rx);
-                txDelta = Math.max(0, curTx - prevCounters.tx);
-            }
-            prevCounters = { read: curRead, write: curWrite, rx: curRx, tx: curTx };
-            pushSeries(diskReadSeries, readDelta);
-            pushSeries(diskWriteSeries, writeDelta);
-            pushSeries(netRxSeries, rxDelta);
-            pushSeries(netTxSeries, txDelta);
+            pushSeries(diskReadSeries, Number(m.disk_read_bytes ?? m.DiskReadBytes ?? 0));
+            pushSeries(diskWriteSeries, Number(m.disk_write_bytes ?? m.DiskWriteBytes ?? 0));
+            pushSeries(netRxSeries, Number(m.network_rx_bytes ?? m.NetworkRxBytes ?? 0));
+            pushSeries(netTxSeries, Number(m.network_tx_bytes ?? m.NetworkTxBytes ?? 0));
 
             if (cpuMemChart) cpuMemChart.update('none');
-            if (ioChart) ioChart.update('none');
+            if (diskIoChart) diskIoChart.update('none');
+            if (netIoChart) netIoChart.update('none');
         }
 
         function ensureCharts() {
@@ -258,16 +249,30 @@
                     });
                 }
             }
-            if (!ioChart) {
-                const canvas = document.getElementById('resmonDashIoChart');
+            if (!diskIoChart) {
+                const canvas = document.getElementById('resmonDashDiskIoChart');
                 if (canvas) {
-                    ioChart = new Chart(canvas, {
+                    diskIoChart = new Chart(canvas, {
                         type: 'line',
                         data: {
                             labels,
                             datasets: [
                                 { label: 'Disk R Δ', data: diskReadSeries, borderColor: '#f2c879', tension: 0.25 },
-                                { label: 'Disk W Δ', data: diskWriteSeries, borderColor: '#ff8f8f', tension: 0.25 },
+                                { label: 'Disk W Δ', data: diskWriteSeries, borderColor: '#ff8f8f', tension: 0.25 }
+                            ]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false, animation: false }
+                    });
+                }
+            }
+            if (!netIoChart) {
+                const canvas = document.getElementById('resmonDashNetIoChart');
+                if (canvas) {
+                    netIoChart = new Chart(canvas, {
+                        type: 'line',
+                        data: {
+                            labels,
+                            datasets: [
                                 { label: 'Net RX Δ', data: netRxSeries, borderColor: '#86d6ff', tension: 0.25 },
                                 { label: 'Net TX Δ', data: netTxSeries, borderColor: '#c48fff', tension: 0.25 }
                             ]

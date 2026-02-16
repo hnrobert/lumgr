@@ -7,9 +7,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -267,6 +269,12 @@ func newApp() (*App, error) {
 		resmon:     rmStore,
 		collector:  rmCollector,
 	}
+	if cache, err := rmStore.LoadCache(); err == nil && len(cache) > 0 {
+		if len(cache) > 30 {
+			cache = cache[len(cache)-30:]
+		}
+		app.realtimeSamples = cache
+	}
 	app.startResmonLoop()
 	return app, nil
 }
@@ -375,7 +383,8 @@ func (a *App) startResmonLoop() {
 					sm := resmon.Sample{Timestamp: now, Metrics: m, UserStats: us}
 					a.appendRealtimeSample(sm)
 					if lastPersistAt.IsZero() || now.Sub(lastPersistAt) >= persistInterval {
-						_ = a.resmon.Append(sm, rc.RetentionDays)
+						agg := aggregateResmonWindow(a.getRealtimeSamples())
+						_ = a.resmon.Append(agg, rc.RetentionDays)
 						lastPersistAt = now
 					}
 				}
@@ -390,17 +399,25 @@ func (a *App) startResmonLoop() {
 
 func (a *App) appendRealtimeSample(sm resmon.Sample) {
 	a.realtimeMu.Lock()
-	defer a.realtimeMu.Unlock()
 	a.realtimeSamples = append(a.realtimeSamples, sm)
 	if len(a.realtimeSamples) > 30 {
 		a.realtimeSamples = a.realtimeSamples[len(a.realtimeSamples)-30:]
+	}
+	snapshot := make([]resmon.Sample, len(a.realtimeSamples))
+	copy(snapshot, a.realtimeSamples)
+	a.realtimeMu.Unlock()
+	if a.resmon != nil {
+		_ = a.resmon.SaveCache(snapshot)
 	}
 }
 
 func (a *App) clearRealtimeSamples() {
 	a.realtimeMu.Lock()
-	defer a.realtimeMu.Unlock()
 	a.realtimeSamples = nil
+	a.realtimeMu.Unlock()
+	if a.resmon != nil {
+		_ = a.resmon.SaveCache([]resmon.Sample{})
+	}
 }
 
 func (a *App) getRealtimeSamples() []resmon.Sample {
@@ -411,5 +428,99 @@ func (a *App) getRealtimeSamples() []resmon.Sample {
 	}
 	out := make([]resmon.Sample, len(a.realtimeSamples))
 	copy(out, a.realtimeSamples)
+	return out
+}
+
+func aggregateResmonWindow(samples []resmon.Sample) resmon.Sample {
+	if len(samples) == 0 {
+		now := time.Now().UTC()
+		return resmon.Sample{Timestamp: now, Metrics: resmon.Metrics{Timestamp: now}}
+	}
+	var cpuUser, cpuSystem, cpuIdle, cpuUsage float64
+	var memTotalSum, memUsedSum, memAvailSum uint64
+	var diskReadSum, diskWriteSum, netRxSum, netTxSum uint64
+	latest := samples[len(samples)-1]
+
+	type userAgg struct {
+		count   int
+		cpuSum  float64
+		memSum  uint64
+		procSum int
+	}
+	userMap := map[string]*userAgg{}
+
+	for _, sm := range samples {
+		m := sm.Metrics
+		cpuUser += m.CPUUser
+		cpuSystem += m.CPUSystem
+		cpuIdle += m.CPUIdle
+		cpuUsage += m.CPUUsage
+		memTotalSum += m.MemTotal
+		memUsedSum += m.MemUsed
+		memAvailSum += m.MemAvailable
+		diskReadSum += m.DiskReadBytes
+		diskWriteSum += m.DiskWriteBytes
+		netRxSum += m.NetworkRxBytes
+		netTxSum += m.NetworkTxBytes
+
+		for _, u := range sm.UserStats {
+			ua := userMap[u.Username]
+			if ua == nil {
+				ua = &userAgg{}
+				userMap[u.Username] = ua
+			}
+			ua.count++
+			ua.cpuSum += u.CPU
+			ua.memSum += u.MemoryBytes
+			ua.procSum += u.ProcessCount
+		}
+	}
+
+	n := float64(len(samples))
+	ts := latest.Timestamp
+	if ts.IsZero() {
+		ts = time.Now().UTC()
+	}
+	out := resmon.Sample{
+		Timestamp: ts,
+		Metrics: resmon.Metrics{
+			Timestamp:      ts,
+			CPUUser:        cpuUser / n,
+			CPUSystem:      cpuSystem / n,
+			CPUIdle:        cpuIdle / n,
+			CPUUsage:       cpuUsage / n,
+			MemTotal:       uint64(float64(memTotalSum) / n),
+			MemUsed:        uint64(float64(memUsedSum) / n),
+			MemAvailable:   uint64(float64(memAvailSum) / n),
+			DiskReadBytes:  diskReadSum,
+			DiskWriteBytes: diskWriteSum,
+			Filesystems:    latest.Metrics.Filesystems,
+			NetworkRxBytes: netRxSum,
+			NetworkTxBytes: netTxSum,
+		},
+	}
+
+	users := make([]resmon.UserResource, 0, len(userMap))
+	for name, ua := range userMap {
+		if ua.count <= 0 {
+			continue
+		}
+		users = append(users, resmon.UserResource{
+			Username:     name,
+			CPU:          ua.cpuSum / float64(ua.count),
+			MemoryBytes:  uint64(float64(ua.memSum) / float64(ua.count)),
+			ProcessCount: int(math.Round(float64(ua.procSum) / float64(ua.count))),
+		})
+	}
+	sort.Slice(users, func(i, j int) bool {
+		if users[i].CPU == users[j].CPU {
+			return users[i].MemoryBytes > users[j].MemoryBytes
+		}
+		return users[i].CPU > users[j].CPU
+	})
+	if len(users) > 20 {
+		users = users[:20]
+	}
+	out.UserStats = users
 	return out
 }
