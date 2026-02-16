@@ -8,4 +8,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.3.0
 )
 
-require github.com/yuin/goldmark v1.4.11
+require (
+	github.com/yuin/goldmark v1.4.11
+	gopkg.in/yaml.v3 v3.0.1
+)

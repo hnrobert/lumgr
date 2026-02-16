@@ -31,10 +31,9 @@ type Metrics struct {
 }
 
 type UserResource struct {
-	Username     string  `json:"username"`
-	CPU          float64 `json:"cpu_percent"`
-	MemoryBytes  uint64  `json:"memory_bytes"`
-	ProcessCount int     `json:"process_count"`
+	Username    string  `json:"username"`
+	CPU         float64 `json:"cpu_percent"`
+	MemoryBytes uint64  `json:"memory_bytes"`
 }
 
 type Sample struct {

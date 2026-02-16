@@ -1,4 +1,4 @@
-{{define "title"}}Resource Monitor · lumgr{{end}}
+{{define "title"}}Admin · Resources · lumgr{{end}}
 {{define "content"}}
 <div class="grid" style="gap:16px;">
     <div class="card">
@@ -50,6 +50,19 @@
                     .CurrentMetrics}}{{bytes .CurrentMetrics.MemUsed}}{{else}}0 B{{end}}</strong>
                 / <span id="admin-resmon-mem-total">{{if .CurrentMetrics}}{{bytes .CurrentMetrics.MemTotal}}{{else}}0
                     B{{end}}</span></div>
+            <div style="height:8px"></div>
+            <div style="display:flex; gap:12px; align-items:flex-start;">
+                <div style="flex:1; min-width:280px;">
+                    <div style="font-weight:600; margin-bottom:6px;">Top users — CPU</div>
+                    <div style="height:120px; min-height:120px; position:relative;"><canvas
+                            id="adminUserCpuBar"></canvas></div>
+                </div>
+                <div style="flex:1; min-width:280px;">
+                    <div style="font-weight:600; margin-bottom:6px;">Top users — Memory</div>
+                    <div style="height:120px; min-height:120px; position:relative;"><canvas
+                            id="adminUserMemBar"></canvas></div>
+                </div>
+            </div>
         </div>
         <div class="card">
             <h3 style="margin:0 0 8px;">Current Disk & Network</h3>
@@ -74,15 +87,6 @@
                 <label>Window (hours)</label>
                 <input type="number" name="hours" value="24" min="1" max="720" style="width:120px;" />
             </div>
-            <div>
-                <label>User filter</label>
-                <select name="user" style="min-width:180px;">
-                    <option value="">(all users)</option>
-                    {{range .ResmonUsers}}
-                    <option value="{{.}}" {{if eq $.ResmonSelectedUser .}}selected{{end}}>{{.}}</option>
-                    {{end}}
-                </select>
-            </div>
             <button class="btn" type="submit">Apply</button>
         </form>
 
@@ -90,21 +94,13 @@
         <div style="height:260px; min-height:260px; max-height:260px; position:relative;">
             <canvas id="cpuChart"></canvas>
         </div>
-        <div style="height:12px"></div>
-        <div style="height:260px; min-height:260px; max-height:260px; position:relative;">
-            <canvas id="memChart"></canvas>
-        </div>
-        <div style="height:12px"></div>
+
         <div style="height:260px; min-height:260px; max-height:260px; position:relative;">
             <canvas id="diskIoChart"></canvas>
         </div>
         <div style="height:12px"></div>
         <div style="height:260px; min-height:260px; max-height:260px; position:relative;">
             <canvas id="netIoChart"></canvas>
-        </div>
-        <div style="height:12px"></div>
-        <div style="height:260px; min-height:260px; max-height:260px; position:relative;">
-            <canvas id="userChart"></canvas>
         </div>
         {{else}}
         <div class="muted">No history samples yet. Wait for at least one collection interval.</div>
@@ -149,9 +145,6 @@
         const diskWDelta = diskDelta(diskW);
         const netRx = history.map((s) => Number((s.metrics && s.metrics.network_rx_bytes) || 0));
         const netTx = history.map((s) => Number((s.metrics && s.metrics.network_tx_bytes) || 0));
-
-        const userLabels = latestUsers.map((u) => String(u.username || ""));
-        const userCpu = latestUsers.map((u) => Number(u.cpu_percent || 0));
 
         new Chart(document.getElementById('cpuChart'), {
             type: 'line',
@@ -229,13 +222,21 @@
             options: { responsive: true, maintainAspectRatio: false, animation: false }
         });
 
-        new Chart(document.getElementById('userChart'), {
+        // render per-user bars inside Current CPU & Memory cards
+        const userLabels = latestUsers.map((u) => String(u.username || ""));
+        const userCpu = latestUsers.map((u) => Number(u.cpu_percent || u.CPU || 0));
+        const userMem = latestUsers.map((u) => Number(u.memory_bytes || u.MemoryBytes || 0));
+
+        new Chart(document.getElementById('adminUserCpuBar'), {
             type: 'bar',
-            data: {
-                labels: userLabels,
-                datasets: [{ label: 'User CPU share %', data: userCpu, backgroundColor: 'rgba(122,162,255,0.4)' }]
-            },
-            options: { responsive: true, maintainAspectRatio: false, animation: false }
+            data: { labels: userLabels, datasets: [{ label: 'CPU %', data: userCpu, backgroundColor: 'rgba(122,162,255,0.8)' }] },
+            options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { display: false } }, scales: { y: { min: 0, max: 100 } } }
+        });
+
+        new Chart(document.getElementById('adminUserMemBar'), {
+            type: 'bar',
+            data: { labels: userLabels, datasets: [{ label: 'Memory', data: userMem, backgroundColor: 'rgba(61,220,151,0.8)' }] },
+            options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { display: false } }, scales: { y: { ticks: { callback: function (v) { return formatBytes(v); } } } } }
         });
     }
 </script>

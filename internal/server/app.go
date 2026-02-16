@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -428,10 +427,9 @@ func aggregateResmonWindow(samples []resmon.Sample) resmon.Sample {
 	latest := samples[len(samples)-1]
 
 	type userAgg struct {
-		count   int
-		cpuSum  float64
-		memSum  uint64
-		procSum int
+		count  int
+		cpuSum float64
+		memSum uint64
 	}
 	userMap := map[string]*userAgg{}
 
@@ -458,7 +456,6 @@ func aggregateResmonWindow(samples []resmon.Sample) resmon.Sample {
 			ua.count++
 			ua.cpuSum += u.CPU
 			ua.memSum += u.MemoryBytes
-			ua.procSum += u.ProcessCount
 		}
 	}
 
@@ -491,10 +488,9 @@ func aggregateResmonWindow(samples []resmon.Sample) resmon.Sample {
 			continue
 		}
 		users = append(users, resmon.UserResource{
-			Username:     name,
-			CPU:          ua.cpuSum / float64(ua.count),
-			MemoryBytes:  uint64(float64(ua.memSum) / float64(ua.count)),
-			ProcessCount: int(math.Round(float64(ua.procSum) / float64(ua.count))),
+			Username:    name,
+			CPU:         ua.cpuSum / float64(ua.count),
+			MemoryBytes: uint64(float64(ua.memSum) / float64(ua.count)),
 		})
 	}
 	sort.Slice(users, func(i, j int) bool {

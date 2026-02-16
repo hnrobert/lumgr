@@ -5,12 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -268,85 +266,6 @@ func (c *Collector) readDiskStats() (readBytes, writeBytes uint64, err error) {
 	return readBytes, writeBytes, nil
 }
 
-func (c *Collector) readFilesystems() ([]FSInfo, error) {
-	mountsPath := filepath.Join(c.procRoot, "mounts")
-	hostRootPrefix := ""
-	hostMountsPath := filepath.Join(c.procRoot, "1", "mounts")
-	hostRootPath := filepath.Join(c.procRoot, "1", "root")
-	if _, err := os.Stat(hostMountsPath); err == nil {
-		if _, err2 := os.Stat(hostRootPath); err2 == nil {
-			mountsPath = hostMountsPath
-			hostRootPrefix = hostRootPath
-		}
-	}
-	b, err := os.ReadFile(mountsPath)
-	if err != nil {
-		return nil, err
-	}
-	skipFs := map[string]bool{
-		"proc": true, "sysfs": true, "devtmpfs": true, "devpts": true,
-		"tmpfs": true, "cgroup": true, "cgroup2": true, "overlay": true,
-		"squashfs": true, "mqueue": true,
-	}
-	seen := map[string]bool{}
-	var out []FSInfo
-	for _, ln := range strings.Split(string(b), "\n") {
-		f := strings.Fields(ln)
-		if len(f) < 3 {
-			continue
-		}
-		mnt := f[1]
-		mnt = strings.ReplaceAll(mnt, `\040`, " ")
-		fst := f[2]
-		if skipFs[fst] || seen[mnt] {
-			continue
-		}
-		statPath := mnt
-		if hostRootPrefix != "" {
-			if mnt == "/" {
-				statPath = hostRootPrefix
-			} else {
-				statPath = filepath.Join(hostRootPrefix, strings.TrimPrefix(mnt, "/"))
-			}
-		}
-		fi, err := os.Stat(statPath)
-		if err != nil || !fi.IsDir() {
-			continue
-		}
-		seen[mnt] = true
-		var s syscall.Statfs_t
-		if err := syscall.Statfs(statPath, &s); err != nil {
-			continue
-		}
-		blockSize := uint64(s.Bsize)
-		if v := reflect.ValueOf(s).FieldByName("Frsize"); v.IsValid() {
-			switch v.Kind() {
-			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-				if vv := v.Int(); vv > 0 {
-					blockSize = uint64(vv)
-				}
-			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-				if vv := v.Uint(); vv > 0 {
-					blockSize = vv
-				}
-			}
-		}
-		total := s.Blocks * blockSize
-		avail := s.Bavail * blockSize
-		used := uint64(0)
-		if total > avail {
-			used = total - avail
-		}
-		pct := 0.0
-		if total > 0 {
-			pct = (float64(used) / float64(total)) * 100
-		}
-		out = append(out, FSInfo{MountPoint: mnt, Total: total, Used: used, UsePercent: pct})
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].MountPoint < out[j].MountPoint })
-	return out, nil
-}
-
 func (c *Collector) readNetwork() (rx, tx uint64, err error) {
 	p := filepath.Join(c.procRoot, "net", "dev")
 	b, err := os.ReadFile(p)
@@ -495,7 +414,7 @@ func (c *Collector) readUserProcesses() ([]UserResource, error) {
 		if totalTicks > 0 {
 			cpu = (float64(v.cpuTicks) / float64(totalTicks)) * 100
 		}
-		out = append(out, UserResource{Username: user, CPU: cpu, MemoryBytes: v.memBytes, ProcessCount: v.procs})
+		out = append(out, UserResource{Username: user, CPU: cpu, MemoryBytes: v.memBytes})
 	}
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].CPU == out[j].CPU {
