@@ -34,7 +34,7 @@
       </div>
 
       <label>Comment (optional)</label>
-      <input name="key_comment" placeholder="{{.Username}}" />
+      <input name="key_comment" placeholder="{{.Username}}@{{if .Hostname}}{{.Hostname}}{{else}}host{{end}}" />
 
       <label>Passphrase (optional)</label>
       <input type="password" name="key_passphrase" autocomplete="new-password" />
@@ -58,6 +58,7 @@
           <div class="muted" style="font-size:12px;">{{$k}}</div>
         </div>
         <div style="display:flex; gap:8px; align-items:center;">
+          <button class="btn small" type="button" data-copy-pub="1" data-key="{{$k}}">Copy pub</button>
           <form method="get" action="/settings/ssh/key/export" style="display:inline; margin:0;">
             <input type="hidden" name="key" value="{{$k}}" />
             <button class="btn small" type="submit">Export pub</button>
@@ -108,7 +109,45 @@
 </div>
 
 <script>
-  document.addEventListener('click', function (ev) {
+  document.addEventListener('click', async function (ev) {
+  const copyBtn = ev.target && ev.target.closest && ev.target.closest('[data-copy-pub]');
+  if (copyBtn) {
+    const key = copyBtn.getAttribute('data-key') || '';
+    if (!key) return;
+    const oldText = copyBtn.textContent;
+    copyBtn.disabled = true;
+    try {
+    const u = new URL('/settings/ssh/key/export', window.location.origin);
+    u.searchParams.set('key', key);
+    const resp = await fetch(u.toString(), { credentials: 'same-origin', cache: 'no-store' });
+    if (!resp.ok) throw new Error('export failed');
+    const txt = (await resp.text()).trim();
+    if (!txt) throw new Error('empty key');
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(txt);
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = txt;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    }
+    copyBtn.textContent = 'Copied';
+    } catch (_) {
+    copyBtn.textContent = 'Copy failed';
+    } finally {
+    setTimeout(() => {
+      copyBtn.textContent = oldText;
+      copyBtn.disabled = false;
+    }, 1200);
+    }
+    return;
+  }
+
     const btn = ev.target && ev.target.closest && ev.target.closest('[data-toggle-pass]');
     if (!btn) return;
     const id = btn.getAttribute('data-toggle-pass');

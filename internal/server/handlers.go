@@ -1158,7 +1158,14 @@ func (a *App) handleSettingsSSHKeygen(w http.ResponseWriter, r *http.Request) {
 	comment := strings.TrimSpace(r.Form.Get("key_comment"))
 	passphrase := r.Form.Get("key_passphrase")
 	if comment == "" {
-		comment = user
+		host := "host"
+		if hn, err := os.Hostname(); err == nil {
+			host = strings.TrimSpace(hn)
+			if host == "" {
+				host = "host"
+			}
+		}
+		comment = user + "@" + host
 	}
 	if keyType == "" {
 		keyType = "rsa"
