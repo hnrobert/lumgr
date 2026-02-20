@@ -933,6 +933,10 @@ func (a *App) buildSettingsData(r *http.Request) *ViewData {
 		data.GitSigningPub = loadSigningPubKey(e.Home, data.GitSigningKey)
 	}
 
+	if hostname, err := os.ReadFile("/etc/hostname"); err == nil {
+		data.Hostname = strings.TrimSpace(string(hostname))
+	}
+
 	// permission helpers (filesystem pages)
 	data.PermFormAction = "/settings/chmod"
 	data.PermIncludeSpecial = true
@@ -1158,7 +1162,19 @@ func (a *App) handleSettingsSSHKeygen(w http.ResponseWriter, r *http.Request) {
 	comment := strings.TrimSpace(r.Form.Get("key_comment"))
 	passphrase := r.Form.Get("key_passphrase")
 	if comment == "" {
-		comment = user
+		host := "host"
+		if hn, err := os.ReadFile("/etc/hostname"); err == nil {
+			host = strings.TrimSpace(string(hn))
+			if host == "" {
+				host = "host"
+			}
+		} else if hn2, err2 := os.Hostname(); err2 == nil {
+			host = strings.TrimSpace(hn2)
+			if host == "" {
+				host = "host"
+			}
+		}
+		comment = user + "@" + host
 	}
 	if keyType == "" {
 		keyType = "rsa"

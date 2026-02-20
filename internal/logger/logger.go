@@ -2,9 +2,10 @@ package logger
 
 import (
 	"fmt"
-	"io"
 	"os"
+	"path"
 	"path/filepath"
+	"sync"
 	"time"
 )
 
@@ -17,37 +18,49 @@ const (
 )
 
 var (
-	out     io.Writer = os.Stdout
-	logFile *os.File
+	logFile     *os.File
+	logDir      string
+	currentDay  string
+	logMu       sync.Mutex
+	fileLogging bool
 )
 
-func Init(logDir string) error {
-	if logDir == "" {
+func Init(baseDir string) error {
+	if baseDir == "" {
 		return nil
 	}
-	if err := os.MkdirAll(logDir, 0777); err != nil {
+	// If caller passes /lumgr_data, write logs to /lumgr_data/logs.
+	// If caller already passes .../logs, keep it as-is.
+	resolved := baseDir
+	if path.Base(filepath.ToSlash(baseDir)) != "logs" {
+		resolved = filepath.Join(baseDir, "logs")
+	}
+
+	if err := os.MkdirAll(resolved, 0777); err != nil {
 		return err
 	}
 	// Enforce world permissions
-	_ = os.Chmod(logDir, 0777)
+	_ = os.Chmod(resolved, 0777)
 
-	path := filepath.Join(logDir, "lumgr.log")
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-	if err != nil {
+	logMu.Lock()
+	defer logMu.Unlock()
+	logDir = resolved
+	fileLogging = true
+	if err := rotateLocked(time.Now()); err != nil {
+		fileLogging = false
 		return err
 	}
-	// Enforce file permissions
-	_ = os.Chmod(path, 0666)
-
-	out = io.MultiWriter(os.Stdout, f)
-	logFile = f
 	return nil
 }
 
 func Close() {
+	logMu.Lock()
+	defer logMu.Unlock()
 	if logFile != nil {
-		logFile.Close()
+		_ = logFile.Close()
+		logFile = nil
 	}
+	fileLogging = false
 }
 
 func Info(format string, args ...interface{}) {
@@ -63,7 +76,8 @@ func Error(format string, args ...interface{}) {
 }
 
 func log(lvl Level, format string, args ...interface{}) {
-	now := time.Now().Format("2006/01/02 15:04:05")
+	nowTime := time.Now()
+	now := nowTime.Format("2006/01/02 15:04:05")
 	msg := fmt.Sprintf(format, args...)
 	var label, colorStart, colorEnd string
 	switch lvl {
@@ -78,17 +92,41 @@ func log(lvl Level, format string, args ...interface{}) {
 		label = "[EROR] "       // 4 chars align
 		colorEnd = "\033[0m"
 	}
-	// File output (no color)
-	if logFile != nil {
+
+	// File output (no color), with daily rollover
+	if fileLogging {
 		line := fmt.Sprintf("%s %s%s\n", now, label, msg)
-		logFile.WriteString(line)
+		logMu.Lock()
+		if err := rotateLocked(nowTime); err == nil && logFile != nil {
+			_, _ = logFile.WriteString(line)
+		}
+		logMu.Unlock()
 	}
+
 	// Stdout (color)
 	fmt.Fprintf(os.Stdout, "%s %s%s%s%s\n", now, colorStart, label, colorEnd, msg)
-	// 1. Write to Stdout with color
-	// Override 'out' usage for separate handling:
-	// So we should write separately if we want different formats.
-	// Actually MultiWriter writes same bytes to both.
-	// but since we want color ONLY on stdout and plain on file, we separate writers.
-	// Build string manually to avoid double writing if out is MultiWriter,
+}
+
+func rotateLocked(t time.Time) error {
+	if logDir == "" {
+		return nil
+	}
+	day := t.Format("2006-01-02")
+	if logFile != nil && currentDay == day {
+		return nil
+	}
+	if logFile != nil {
+		_ = logFile.Close()
+		logFile = nil
+	}
+
+	filePath := filepath.Join(logDir, day+".log")
+	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		return err
+	}
+	_ = os.Chmod(filePath, 0666)
+	logFile = f
+	currentDay = day
+	return nil
 }
