@@ -109,44 +109,71 @@
 </div>
 
 <script>
-  document.addEventListener('click', async function (ev) {
-  const copyBtn = ev.target && ev.target.closest && ev.target.closest('[data-copy-pub]');
-  if (copyBtn) {
-    const key = copyBtn.getAttribute('data-key') || '';
-    if (!key) return;
-    const oldText = copyBtn.textContent;
-    copyBtn.disabled = true;
-    try {
-    const u = new URL('/settings/ssh/key/export', window.location.origin);
-    u.searchParams.set('key', key);
-    const resp = await fetch(u.toString(), { credentials: 'same-origin', cache: 'no-store' });
-    if (!resp.ok) throw new Error('export failed');
-    const txt = (await resp.text()).trim();
-    if (!txt) throw new Error('empty key');
+  async function copyTextRobust(text) {
+    const t = String(text || '').trim();
+    if (!t) return false;
+
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(txt);
-    } else {
+      try {
+        await navigator.clipboard.writeText(t);
+        return true;
+      } catch (_) {
+      }
+    }
+
+    try {
       const ta = document.createElement('textarea');
-      ta.value = txt;
+      ta.value = t;
+      ta.setAttribute('readonly', 'readonly');
       ta.style.position = 'fixed';
+      ta.style.top = '0';
       ta.style.left = '-9999px';
+      ta.style.opacity = '0';
       document.body.appendChild(ta);
       ta.focus();
       ta.select();
-      document.execCommand('copy');
+      ta.setSelectionRange(0, ta.value.length);
+      const ok = document.execCommand('copy');
       ta.remove();
-    }
-    copyBtn.textContent = 'Copied';
+      if (ok) return true;
     } catch (_) {
-    copyBtn.textContent = 'Copy failed';
-    } finally {
-    setTimeout(() => {
-      copyBtn.textContent = oldText;
-      copyBtn.disabled = false;
-    }, 1200);
     }
-    return;
+
+    try {
+      window.prompt('Copy public key:', t);
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
+
+  document.addEventListener('click', async function (ev) {
+    const copyBtn = ev.target && ev.target.closest && ev.target.closest('[data-copy-pub]');
+    if (copyBtn) {
+      const key = copyBtn.getAttribute('data-key') || '';
+      if (!key) return;
+      const oldText = copyBtn.textContent;
+      copyBtn.disabled = true;
+      try {
+        const u = new URL('/settings/ssh/key/export', window.location.origin);
+        u.searchParams.set('key', key);
+        const resp = await fetch(u.toString(), { credentials: 'same-origin', cache: 'no-store' });
+        if (!resp.ok) throw new Error('export failed');
+        const txt = (await resp.text()).trim();
+        if (!txt) throw new Error('empty key');
+
+        const copied = await copyTextRobust(txt);
+        copyBtn.textContent = copied ? 'Copied' : 'Copy failed';
+      } catch (_) {
+        copyBtn.textContent = 'Copy failed';
+      } finally {
+        setTimeout(() => {
+          copyBtn.textContent = oldText;
+          copyBtn.disabled = false;
+        }, 1200);
+      }
+      return;
+    }
 
     const btn = ev.target && ev.target.closest && ev.target.closest('[data-toggle-pass]');
     if (!btn) return;
