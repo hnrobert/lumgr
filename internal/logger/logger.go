@@ -25,15 +25,15 @@ var (
 	fileLogging bool
 )
 
-func Init(logDir string) error {
-	if logDir == "" {
+func Init(baseDir string) error {
+	if baseDir == "" {
 		return nil
 	}
 	// If caller passes /lumgr_data, write logs to /lumgr_data/logs.
 	// If caller already passes .../logs, keep it as-is.
-	resolved := logDir
-	if path.Base(filepath.ToSlash(logDir)) != "logs" {
-		resolved = filepath.Join(logDir, "logs")
+	resolved := baseDir
+	if path.Base(filepath.ToSlash(baseDir)) != "logs" {
+		resolved = filepath.Join(baseDir, "logs")
 	}
 
 	if err := os.MkdirAll(resolved, 0777); err != nil {
