@@ -74,14 +74,15 @@ services:
       - LUMGR_JWT_SECRET=your-secret-key-here # Optional: Set custom JWT secret
     volumes:
       - ./lumgr_data:/lumgr_data # Config & invite storage
+      - /home:/home # User home directories
       - /etc/passwd:/etc/passwd # User database
       - /etc/shadow:/etc/shadow # Password hashes
       - /etc/group:/etc/group # Group database
-      - /home:/home # User home directories
+      - /etc/localtime:/etc/localtime:ro # Timezone info
       - /etc/shells:/etc/shells:ro # Available shells
       - /etc/os-release:/etc/os-release:ro # OS info
       - /etc/hostname:/etc/hostname:ro # Hostname
-      - /proc:/host/proc:ro # Required for resmon (system resource monitor)
+      - /proc:/host/proc:ro # Required for resmon (system resource monitor) - read-only host /proc
     restart: always
 ```
 
